@@ -56,13 +56,15 @@ export function createTranslationPlan(input: SourceInput): TranslationPlan {
   const protectedRanges: Interval[] = protectedTokens(source.text, source.kind === 'markdown');
   let markdownShape: string | undefined;
   let boundaries: FormatBoundary[] = [];
+  let linePrefixes: Interval[] = [];
   let scopes: Interval[] = [{ start: 0, end: source.text.length }];
   if (source.kind === 'markdown') {
     const markdown = markdownTextIntervals(source.text);
     eligible = markdown.eligible;
     boundaries = markdown.boundaries;
+    linePrefixes = markdown.linePrefixes;
     scopes = markdown.scopes;
-    protectedRanges.push(...markdown.html, ...markdown.opaque);
+    protectedRanges.push(...markdown.html, ...markdown.opaque, ...linePrefixes);
     markdownShape = markdownFingerprint(markdown.tree);
   } else if (source.kind === 'dom-selection') {
     protectedRanges.push(...source.protectedRanges);
@@ -120,7 +122,14 @@ export function createTranslationPlan(input: SourceInput): TranslationPlan {
     sourceKind: source.kind,
     sourceText: source.text,
     parts: Object.freeze(parts),
-    segments: buildTranslationSegments(source.text, parts, boundaries, scopes, protectedRanges),
+    segments: buildTranslationSegments(
+      source.text,
+      parts,
+      boundaries,
+      scopes,
+      protectedRanges,
+      linePrefixes,
+    ),
     ...(markdownShape === undefined ? {} : { markdownShape }),
   });
   knownPlans.add(plan);

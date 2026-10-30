@@ -146,3 +146,36 @@ describe('whole-line protected translation context', () => {
     expect(valid).toContain('\\<script\\>');
   });
 });
+
+describe('raw Markdown container prefixes', () => {
+  it.each([
+    ['> First\n> second', '> Translated\n> Translated'],
+    ['> > First\r\n> > second', '> > Translated\r\n> > Translated'],
+    ['- First\n  second', '- Translated\n  Translated'],
+    ['1. First\n   second', '1. Translated\n   Translated'],
+    ['> - First\n>   second', '> - Translated\n>   Translated'],
+  ])('keeps continuation syntax local for %s', (source, expected) => {
+    const plan = markdown(source);
+    expect(
+      reconstructTranslation(
+        plan,
+        planResponse(plan, () => 'Translated'),
+      ),
+    ).toBe(expected);
+    for (const segment of translationPayload(plan).segments) {
+      expect(segment.text).not.toMatch(/^\s|^>/);
+    }
+  });
+
+  it('keeps an escaped leading angle bracket literal rather than treating it as a blockquote', () => {
+    const source = '\\> First\nsecond';
+    const plan = markdown(source);
+    expect(reconstructTranslation(plan, planResponse(plan))).toBe(source);
+    expect(
+      reconstructTranslation(
+        plan,
+        planResponse(plan, () => 'Translated'),
+      ),
+    ).toBe('\\> Translated\nTranslated');
+  });
+});
