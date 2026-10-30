@@ -52,7 +52,6 @@ class SourceBuilder {
       let start: number | undefined;
       for (const [index, line] of lines.entries()) {
         if (index) {
-          if (this.pendingBreak && this.text && !this.text.endsWith('\n')) this.raw('\n');
           start ??= this.text.length;
           this.lineBreak();
         }
@@ -90,6 +89,7 @@ class SourceBuilder {
   }
 
   lineBreak(kind?: 'inline-code' | 'code-block') {
+    if (this.pendingBreak && this.text && !this.text.endsWith('\n')) this.raw('\n');
     this.pendingSpace = false;
     this.pendingBreak = false;
     this.raw('\n', kind);

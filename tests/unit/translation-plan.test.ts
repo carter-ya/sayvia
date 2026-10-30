@@ -11,6 +11,23 @@ import { planResponse as response } from '../fixtures/plan-response';
 const markdown = (text: string) => createTranslationPlan({ kind: 'markdown', text });
 
 describe('source interval translation plans', () => {
+  it.each([
+    '查看[说明](https://example.test)然后继续',
+    '查看![说明](https://example.test/image.png)然后继续',
+    '查看[说明](https://example.test/a_(b))然后继续',
+  ])('translates adjacent prose outside parser-bounded URL destinations: %s', (input) => {
+    const plan = markdown(input);
+    const payload = JSON.stringify(translationPayload(plan));
+    expect(payload).toContain('然后继续');
+    expect(payload).not.toContain('example.test');
+    expect(
+      reconstructTranslation(
+        plan,
+        response(plan, (text) => text.replace('然后继续', 'then continue')),
+      ),
+    ).toBe(input.replace('然后继续', 'then continue'));
+  });
+
   it('keeps plain text syntax literal and ordinary timeout translatable', () => {
     const plan = createTranslationPlan({ kind: 'plain-text', text: '<hello> timeout\n  next' });
     expect(translationPayload(plan)).toEqual({
