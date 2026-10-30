@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-S01 工程骨架已具备构建和浏览器冒烟验证能力，尚未提供翻译功能。首版优先适配 GitHub；Product Hunt 评论框专项适配安排在后续阶段。
+当前支持模型配置与 API Key 本机永久保存，已验证浏览器重启和同 ID 更新保留，尚未提供翻译功能。首版优先适配 GitHub；Product Hunt 评论框专项适配安排在后续阶段。
 
 ## 本地开发
 
@@ -39,5 +39,6 @@ pnpm build 生成 .output/chrome-mv3。在 Chrome 扩展管理页打开开发者
 - [技术方案](docs/TECHNICAL_DESIGN.md)
 - [实施计划与 PR Stack](docs/IMPLEMENTATION_PLAN.md)
 - [S01 验证记录](docs/validation/S01.md)
+- [S02 验证记录](docs/validation/S02.md)
 
 S00 至 S12 是实施层号。M1 核心风险及真实模型验证通过后，再展开完整 MVP。许可证、商店上架和收费策略尚未确定。

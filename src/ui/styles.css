@@ -59,3 +59,42 @@ a:focus-visible {
   outline: 3px solid #c78d44;
   outline-offset: 4px;
 }
+
+form {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0;
+}
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  margin: 12px 0;
+}
+input,
+select {
+  border: 1px solid #809187;
+  border-radius: 7px;
+  padding: 10px;
+  font: inherit;
+  background: inherit;
+  color: inherit;
+  width: 100%;
+}
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.checkbox input {
+  width: auto;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.secondary {
+  background: transparent;
+  color: inherit;
+  border: 1px solid #809187;
+}
