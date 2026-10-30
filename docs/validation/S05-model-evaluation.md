@@ -72,6 +72,10 @@ segments-v2 与最终 segments-v2.1 中，两模型上述 3 条粘连均消失�
 - [segments-v2.1 / gpt-6-luna](./s05-model-results/segments-v2.1-openai.jsonl)
 - [segments-v2.1 / deepseek-flash](./s05-model-results/segments-v2.1-deepseek.jsonl)
 
+## 后续保护回归
+
+2026-10-31 的源范围防护加固没有改变固定 12 条输入的完整本地重建计划、模型负载、系统提示词、请求适配器、地址／模型预设或样例文本；已用基线代码重放逐条核对。[负载与计划等价证据](./s05-model-results/payload-equivalence.json)。因此本报告复用原有 72 次实测，不再发送相同付费请求。新增 Shadow／pre-line／跨段 HTML 场景由本地回归验证，不宣称这些新输入已调用真实模型。最终工程检查为 189 项单元／生产包、18 项 Chromium 测试。
+
 ## 阶段边界
 
 这组真实样例支持当前候选算法继续 code review，不能宣告完整 M1 通过。真实 DOM 采集到模型再回到网页的扩展链路、Offscreen 与后台恢复、主机授权、GitHub 实页手动提交、完整译文编辑后的校验仍须 S06/S07 验证；真人语义验收仍未完成。S05 PR 的 review 也不能代替这些门槛。

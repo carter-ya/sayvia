@@ -1,0 +1,111 @@
+{
+  "matchingLocalReconstructionPlans": 12,
+  "localPlanSha256": [
+    {
+      "id": "m1-01",
+      "hash": "abc84bb7c6af5577cd6fa6b06b799989e6c387fe1f4d3edda02feada563f9ed2"
+    },
+    {
+      "id": "m1-02",
+      "hash": "c56d2f2d60ea27113166d71d8cf0ae33f592f8d3724a32d754c795c462ab7bb2"
+    },
+    {
+      "id": "m1-03",
+      "hash": "6596ac88818c5792e034b3ddc591b337dd81152cc17996ab0deb0632be6ecc22"
+    },
+    {
+      "id": "m1-04",
+      "hash": "5663f03730eaba228e0bd423c361821dd4fa66c6a26d32e91f0984fab7d77792"
+    },
+    {
+      "id": "m1-05",
+      "hash": "4f3431f06a8e6ff2d947ff25dd95a03bc00fe72a426dd8a63b831bf5ffc7a6c7"
+    },
+    {
+      "id": "m1-06",
+      "hash": "74928431402ca8e39ae80fb2b0a2b60cae7aec223fc27f3303a800347ddf51a2"
+    },
+    {
+      "id": "m1-07",
+      "hash": "de1205bf513f47655dfe27bf4c2bab2ccef861a6bbb1b8638ff50c52d5d8ec24"
+    },
+    {
+      "id": "m1-08",
+      "hash": "d4e240f7c732fd28fd7ce0cb2fdd25e6be41443d9885557e484c6bd639f5c3a2"
+    },
+    {
+      "id": "m1-09",
+      "hash": "2b5a7d053cca4a15a5f3bc5c7002dd6690f91bf11a4995a9459e0d6a8e5b450b"
+    },
+    {
+      "id": "m1-10",
+      "hash": "712fb570eb5670a967ec7459892a2070382218bb343f90a7455a27f569bb2b6d"
+    },
+    {
+      "id": "m1-11",
+      "hash": "5e8aa4f3fc783f7ca037c3dc45864ea7d20ca99e977940eb71df8d3bca09cfdf"
+    },
+    {
+      "id": "m1-12",
+      "hash": "83f48d9b51da6a536a8beffefdf9c8aaba28c36c9adf1af02339836033b4069b"
+    }
+  ],
+  "baselineModelRunCommit": "cbf83616eebf422bd1b0bc87f69dbf43f994ace7",
+  "protectionFixCommit": "a23f3987409683754114ea7bb6e976e46959bc6f",
+  "checkedAt": "2026-10-30T16:10:31.436Z",
+  "matchingPayloads": 12,
+  "systemInstructionUnchanged": true,
+  "requestAdapterUnchanged": true,
+  "endpointAndPresetSourcesUnchanged": true,
+  "sampleFixturesUnchanged": true,
+  "samplePayloadSha256": [
+    {
+      "id": "m1-01",
+      "hash": "c00402d8dad19df1a175a6a56f05e1e94e70629dfaf3dd59c1967bff28ae715b"
+    },
+    {
+      "id": "m1-02",
+      "hash": "0ffa7473e08939c78c60aa243d2a556eaf751f5cb09d6b7479f4b6f1b110fb44"
+    },
+    {
+      "id": "m1-03",
+      "hash": "92aba4f5bbbad05e532126a418c7bdbd339fe0c5ca95ff83966c424680690a3f"
+    },
+    {
+      "id": "m1-04",
+      "hash": "011e3be5cb75963e9b85e4999d30dc79b1ce84d77b4764ab85b2f50f91299c40"
+    },
+    {
+      "id": "m1-05",
+      "hash": "2e92098b44777a6c2e4ab03949bc1c2d1d96372c860cfe0d6eae2cf7fa29b359"
+    },
+    {
+      "id": "m1-06",
+      "hash": "cde5a466fb5c799603c551e5c6e7007e879220608e59c6ccf0dcd8f9e9b8e632"
+    },
+    {
+      "id": "m1-07",
+      "hash": "10066f0660b980342f481bbd0bb3549558c10ef4e40109c606891f6a4e457daa"
+    },
+    {
+      "id": "m1-08",
+      "hash": "7cff527b9ad39b040d6b8c1cf8e618f9fa95a22b505c148186caf254ab0bf284"
+    },
+    {
+      "id": "m1-09",
+      "hash": "4680959355727eaedf02c7ef8f8f1cccc69b03d4344d67639c47866f14f74707"
+    },
+    {
+      "id": "m1-10",
+      "hash": "d1f40b1ef2c119b82f3787d1046f034bd1fa1a8bdff00f50a659de40fae0ad03"
+    },
+    {
+      "id": "m1-11",
+      "hash": "ea917acb40d3b36f3cc51315026bbab708ae77712cb4740210618d2fa01a7cb5"
+    },
+    {
+      "id": "m1-12",
+      "hash": "40ab095484c7dbd90d214dd20421c6bae33f63e19e7a003dd045221b69c8c4ff"
+    }
+  ]
+}
