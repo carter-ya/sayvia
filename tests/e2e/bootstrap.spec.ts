@@ -18,6 +18,20 @@ test('built extension connects popup and options, and executes its bundled worke
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);
     await expect(popup.getByRole('heading')).toHaveText('用自己的语言，参与世界的讨论。');
     await expect(popup.getByRole('status')).toHaveText('版本 0.1.0');
+    const closedRoot = await popup.evaluate(() => {
+      const host = document.createElement('div');
+      const root = host.attachShadow({ mode: 'closed' });
+      const extensionDom = (
+        globalThis as unknown as {
+          chrome: { dom: { openOrClosedShadowRoot: (element: HTMLElement) => unknown } };
+        }
+      ).chrome.dom;
+      return {
+        hiddenFromPage: host.shadowRoot === null,
+        visibleToExtension: extensionDom.openOrClosedShadowRoot(host) === root,
+      };
+    });
+    expect(closedRoot).toEqual({ hiddenFromPage: true, visibleToExtension: true });
     const optionsPromise = context.waitForEvent('page');
     await popup.getByRole('button', { name: '打开设置' }).click();
     const options = await optionsPromise;

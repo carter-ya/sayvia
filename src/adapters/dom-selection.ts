@@ -47,12 +47,22 @@ class SourceBuilder {
     whitespace: 'normal' | 'preserve' | 'pre-line' = 'normal',
   ) {
     if (!value) return;
+    if (!kind && whitespace === 'pre-line') {
+      const lines = value.replace(/\r\n?/g, '\n').split('\n');
+      let start: number | undefined;
+      for (const [index, line] of lines.entries()) {
+        if (index) {
+          if (this.pendingBreak && this.text && !this.text.endsWith('\n')) this.raw('\n');
+          start ??= this.text.length;
+          this.lineBreak();
+        }
+        const span = this.append(line, undefined, 'normal');
+        if (span) start ??= span.start;
+      }
+      return start === undefined ? undefined : { start, end: this.text.length };
+    }
     const normalized =
-      kind || whitespace === 'preserve'
-        ? value
-        : whitespace === 'pre-line'
-          ? value.replace(/[\t\f ]+/g, ' ').replace(/\r\n?/g, '\n')
-          : value.replace(/[\t\r\n\f ]+/g, ' ');
+      kind || whitespace === 'preserve' ? value : value.replace(/[\t\r\n\f ]+/g, ' ');
     if (!kind && whitespace === 'normal' && normalized === ' ') {
       if (this.text && !this.pendingBreak) this.pendingSpace = true;
       return;
@@ -96,6 +106,16 @@ export function captureDomRange(range: Range, expectedDocument: Document = docum
   ) {
     throw new SourceError('UNSUPPORTED_SELECTION');
   }
+  const extension = (
+    globalThis as unknown as {
+      chrome?: {
+        runtime?: { id?: string };
+        dom?: { openOrClosedShadowRoot?: (element: Element) => unknown };
+      };
+    }
+  ).chrome;
+  if (extension?.runtime?.id && !extension.dom?.openOrClosedShadowRoot)
+    throw new SourceError('UNSUPPORTED_SELECTION');
   const builder = new SourceBuilder();
   const visible = new WeakMap<Element, boolean>();
   let visited = 0;
@@ -127,6 +147,18 @@ export function captureDomRange(range: Range, expectedDocument: Document = docum
       ) {
         for (const ancestor of ancestors) visible.set(ancestor, false);
         return false;
+      }
+      if (current.shadowRoot) throw new SourceError('UNSUPPORTED_SELECTION');
+      if (
+        current.namespaceURI === 'http://www.w3.org/1999/xhtml' &&
+        extension?.dom?.openOrClosedShadowRoot
+      ) {
+        try {
+          if (extension.dom.openOrClosedShadowRoot(current))
+            throw new SourceError('UNSUPPORTED_SELECTION');
+        } catch {
+          throw new SourceError('UNSUPPORTED_SELECTION');
+        }
       }
       current = current.parentElement;
     }

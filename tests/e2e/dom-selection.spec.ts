@@ -132,3 +132,33 @@ test('content visibility stays private and Unicode spacing retains exact code of
   expect(source.protectedRanges).toEqual([{ kind: 'inline-code', start: 14, end: 21 }]);
   expect(JSON.stringify(source)).not.toContain('CONCEALED');
 });
+
+test('a shadow host inside a document selection cannot expose unrendered light DOM', async ({
+  page,
+}) => {
+  await expect(
+    page.evaluate(() => {
+      const root = document.createElement('section');
+      root.id = 'shadow-selection';
+      root.innerHTML = '<p>Before</p><div>UNRENDERED_SECRET</div><p>After</p>';
+      root.querySelector('div')!.attachShadow({ mode: 'open' }).textContent =
+        'visible shadow content';
+      document.body.append(root);
+      return window.selectionHarness.element(root.id);
+    }),
+  ).rejects.toThrow('UNSUPPORTED_SELECTION');
+});
+
+test('inherited pre-line collapses cross-node spaces and spaces around preserved newlines', async ({
+  page,
+}) => {
+  const source = await page.evaluate(() => {
+    const root = document.createElement('p');
+    root.id = 'pre-line-selection';
+    root.style.whiteSpace = 'pre-line';
+    root.innerHTML = 'Hello <b> world \n </b><i> next</i>';
+    document.body.append(root);
+    return window.selectionHarness.element(root.id);
+  });
+  expect(source.text).toBe('Hello world\nnext');
+});

@@ -198,6 +198,54 @@ describe('DOM selection semantics', () => {
     ]);
   });
 
+  it('rejects an intersected open shadow host and a light-DOM subrange inside it', () => {
+    const root = fixture('<p>Before</p><div id="shadow-host">UNRENDERED_SECRET</div><p>After</p>');
+    const host = root.querySelector('#shadow-host')!;
+    host.attachShadow({ mode: 'open' }).textContent = 'different visible content';
+    expect(() => captureDomRange(contents(root))).toThrow('UNSUPPORTED_SELECTION');
+    expect(() => captureDomRange(contents(host.firstChild!))).toThrow('UNSUPPORTED_SELECTION');
+  });
+
+  it('uses the extension DOM API to detect a closed root without exposing its light DOM', () => {
+    const root = fixture('<div>UNRENDERED_SECRET</div>');
+    const host = root.firstElementChild!;
+    const shadow = host.attachShadow({ mode: 'closed' });
+    const inspect = vi.fn((element: Element) => (element === host ? shadow : null));
+    vi.stubGlobal('chrome', {
+      runtime: { id: 'test-extension' },
+      dom: { openOrClosedShadowRoot: inspect },
+    });
+    try {
+      expect(host.shadowRoot).toBeNull();
+      expect(() => captureDomRange(contents(root))).toThrow('UNSUPPORTED_SELECTION');
+      expect(inspect).toHaveBeenCalledWith(host);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('fails closed in an extension context that cannot inspect closed roots', () => {
+    vi.stubGlobal('chrome', { runtime: { id: 'test-extension' } });
+    try {
+      expect(() => captureDomRange(contents(fixture('<p>text</p>')))).toThrow(
+        'UNSUPPORTED_SELECTION',
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it.each([
+    ['Hello <b style="white-space:pre-line"> world</b>', 'Hello world'],
+    [
+      'Hello <b style="white-space:pre-line"> world \n </b><i style="white-space:pre-line"> next</i>',
+      'Hello world\nnext',
+    ],
+  ])('collapses pre-line spaces across text nodes without losing line breaks', (html, expected) => {
+    const root = fixture('<p style="white-space:pre-line">' + html + '</p>');
+    expect(captureDomRange(contents(root)).text).toBe(expected);
+  });
+
   it('keeps UTF-16 offsets correct after emoji', () => {
     const root = fixture('<p>🙂 <code>timeout</code></p>');
     const source = captureDomRange(contents(root));
