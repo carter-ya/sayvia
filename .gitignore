@@ -1,0 +1,25 @@
+# Dependencies and generated extension files
+node_modules/
+.output/
+.wxt/
+dist/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+
+# Local credentials and browser sessions
+.env
+.env.*
+!.env.example
+*.local
+.auth/
+playwright/.auth/
+.browser-profiles/
+user-data-dir/
+
+# Local working files
+.DS_Store
+*.log
+work/
+outputs/
