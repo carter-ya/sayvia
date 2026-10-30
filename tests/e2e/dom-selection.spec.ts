@@ -76,3 +76,43 @@ test('the same text cannot revive a snapshot after its code semantics change', a
     'SELECTION_LOST',
   );
 });
+
+test('a selection across a closed disclosure omits concealed content', async ({ page }) => {
+  const source = await page.evaluate(() => {
+    const root = document.createElement('section');
+    root.id = 'disclosure-case';
+    root.innerHTML =
+      '<p>Before</p><details><summary>Visible <code>name</code></summary>DIRECT_SECRET<p>BODY_SECRET</p><summary>EXTRA_SECRET</summary></details><p>After</p>';
+    document.body.append(root);
+    return window.selectionHarness.element(root.id);
+  });
+  expect(source.text).toBe('Before\nVisible name\nAfter');
+  expect(JSON.stringify(source)).not.toContain('SECRET');
+  const expanded = await page.evaluate(() => {
+    document.querySelector<HTMLDetailsElement>('#disclosure-case details')!.open = true;
+    return window.selectionHarness.element('disclosure-case');
+  });
+  expect(expanded.text).toContain('BODY_SECRET');
+});
+
+test('native definition lists and CSS display overrides retain rendered text boundaries', async ({
+  page,
+}) => {
+  const sources = await page.evaluate(() => {
+    const result = [];
+    for (const html of [
+      '<dl><dt>Term</dt><dd>Definition</dd></dl>',
+      '<span style="display:block">First</span><span style="display:block">Second</span>',
+      '<div style="display:inline">First</div><div style="display:inline">Second</div>',
+    ]) {
+      const root = document.createElement('section');
+      root.id = 'layout-case';
+      root.innerHTML = html;
+      document.body.append(root);
+      result.push(window.selectionHarness.element(root.id).text);
+      root.remove();
+    }
+    return result;
+  });
+  expect(sources).toEqual(['Term\nDefinition', 'First\nSecond', 'FirstSecond']);
+});
