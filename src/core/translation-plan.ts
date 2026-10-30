@@ -53,7 +53,8 @@ function protectedTokens(text: string, markdown: boolean) {
 export function createTranslationPlan(input: SourceInput): TranslationPlan {
   const source = parseSourceInput(input);
   let eligible: Interval[] = [{ start: 0, end: source.text.length }];
-  const protectedRanges: Interval[] = protectedTokens(source.text, source.kind === 'markdown');
+  const protectedRanges: Interval[] =
+    source.kind === 'markdown' ? [] : protectedTokens(source.text, false);
   let markdownShape: string | undefined;
   let boundaries: FormatBoundary[] = [];
   let linePrefixes: Interval[] = [];
@@ -61,6 +62,15 @@ export function createTranslationPlan(input: SourceInput): TranslationPlan {
   if (source.kind === 'markdown') {
     const markdown = markdownTextIntervals(source.text);
     eligible = markdown.eligible;
+    // Scan only parser-bounded prose: a destination URL must not consume adjacent text.
+    for (const span of eligible) {
+      protectedRanges.push(
+        ...protectedTokens(source.text.slice(span.start, span.end), true).map((token) => ({
+          start: token.start + span.start,
+          end: token.end + span.start,
+        })),
+      );
+    }
     boundaries = markdown.boundaries;
     linePrefixes = markdown.linePrefixes;
     scopes = markdown.scopes;
