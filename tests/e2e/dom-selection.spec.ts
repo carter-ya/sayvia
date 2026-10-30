@@ -162,3 +162,18 @@ test('inherited pre-line collapses cross-node spaces and spaces around preserved
   });
   expect(source.text).toBe('Hello world\nnext');
 });
+
+test('an explicit break at the next block preserves the blank line and code offset', async ({
+  page,
+}) => {
+  const source = await page.evaluate(() => {
+    const root = document.createElement('section');
+    root.id = 'explicit-break-selection';
+    root.innerHTML = '<div>Before</div><div><br><code>After</code></div>';
+    document.body.append(root);
+    return window.selectionHarness.element(root.id);
+  });
+  expect(source.text).toBe('Before\n\nAfter');
+  expect(source.protectedRanges).toEqual([{ kind: 'inline-code', start: 8, end: 13 }]);
+  expect(source.marks.filter((mark) => mark.kind === 'line-break')).toHaveLength(2);
+});

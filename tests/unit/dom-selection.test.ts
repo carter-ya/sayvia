@@ -27,6 +27,17 @@ afterEach(() => {
 });
 
 describe('DOM selection semantics', () => {
+  it('keeps a leading explicit break in a subsequent block and its offsets', () => {
+    const root = fixture('<div>Before</div><div><br><code>After</code></div>');
+    const source = captureDomRange(contents(root));
+    expect(source.text).toBe('Before\n\nAfter');
+    expect(source.marks.filter((mark) => mark.kind === 'line-break')).toEqual([
+      { kind: 'line-break', start: 6, end: 7 },
+      { kind: 'line-break', start: 7, end: 8 },
+    ]);
+    expect(source.protectedRanges).toEqual([{ kind: 'inline-code', start: 8, end: 13 }]);
+  });
+
   it('keeps rendered inline code even though the selected string has no backticks', () => {
     const root = fixture('<p>Read <code>timeout</code> first.</p>');
     const source = captureDomRange(contents(root));
