@@ -108,6 +108,27 @@ describe('single-request translation protocol', () => {
     await expect(translate(request(), fetcher)).rejects.toThrow('UNSUPPORTED_RESPONSE');
   });
 
+  it.each([false, true])(
+    'rejects a Markdown credential echo before escaping, unicode=%s',
+    async (unicode) => {
+      const encoded = unicode
+        ? [...config.apiKey]
+            .map(
+              (character) =>
+                String.fromCharCode(92) +
+                'u' +
+                character.charCodeAt(0).toString(16).padStart(4, '0'),
+            )
+            .join('')
+        : config.apiKey;
+      const content = '{"segments":[{"id":"s0","text":"' + encoded + '"}]}';
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(completion(content)));
+      await expect(
+        translate({ ...request(), source: { kind: 'markdown', text: '原文' } }, fetcher),
+      ).rejects.toThrow('UNSUPPORTED_RESPONSE');
+    },
+  );
+
   it('skips protected-only input and never contacts the service', async () => {
     const fetcher = vi.fn<typeof fetch>();
     const result = await translate(
