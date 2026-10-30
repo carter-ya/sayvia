@@ -92,3 +92,35 @@ test('SPA navigation away and back does not revive a captured draft', async ({ p
   });
   await expect(page.locator('#editor')).toHaveValue('前缀 中文 后缀');
 });
+
+for (const id of ['single-line', 'search-line']) {
+  test(`native line sanitization preserves the original ${id} draft`, async ({ page }) => {
+    await page.evaluate((id) => window.editorHarness.capture(id), id);
+    expect(await page.evaluate(() => window.editorHarness.apply('First\r\nSecond'))).toEqual({
+      ok: false,
+      reason: 'WRITE_REJECTED',
+    });
+    await expect(page.locator('#' + id)).toHaveValue('原始单行草稿');
+    expect(await page.evaluate(() => window.editorHarness.apply('English'))).toEqual({ ok: true });
+    expect(await page.evaluate(() => window.editorHarness.restore())).toEqual({ ok: true });
+    await expect(page.locator('#' + id)).toHaveValue('原始单行草稿');
+  });
+}
+
+test('a pending blur change does not invalidate the already captured user edits', async ({
+  page,
+}) => {
+  await page.locator('#editor').fill('用户刚刚输入的草稿');
+  await expect(page.locator('#editor')).toBeFocused();
+  await page.locator('#editor').evaluate((element) => {
+    element.addEventListener('change', () => {
+      element.setAttribute('data-change-fired', 'true');
+    });
+  });
+  await page.evaluate(() => window.editorHarness.capture());
+  await page.locator('#other').focus();
+  await expect(page.locator('#editor')).toHaveAttribute('data-change-fired', 'true');
+  expect(await page.evaluate(() => window.editorHarness.apply('English'))).toEqual({ ok: true });
+  expect(await page.evaluate(() => window.editorHarness.restore())).toEqual({ ok: true });
+  await expect(page.locator('#editor')).toHaveValue('用户刚刚输入的草稿');
+});

@@ -14,6 +14,7 @@ export class TextEditorSession {
   private readonly document: Document;
   private readonly navigation: EventTarget | undefined;
   private readonly url: string;
+  private observedValue: string;
   private readonly lifetime: ReturnType<typeof trackDocument>;
   private readonly anchors = new Set<Node>();
 
@@ -25,6 +26,7 @@ export class TextEditorSession {
   ) {
     this.document = element.ownerDocument;
     this.url = this.document.URL;
+    this.observedValue = element.value;
     let ancestor: Node | null = element;
     while (ancestor) {
       this.anchors.add(ancestor);
@@ -50,7 +52,12 @@ export class TextEditorSession {
   }
 
   private changed = (event: Event) => {
-    if (!this.ownEvents.has(event)) this.revision += 1;
+    const value = this.element.value;
+    // Input includes undo; change may only commit an already observed edit on blur.
+    if (!this.ownEvents.has(event) && (event.type === 'input' || value !== this.observedValue)) {
+      this.revision += 1;
+    }
+    this.observedValue = value;
   };
   private compositionStart = () => {
     this.composing = true;
@@ -66,6 +73,8 @@ export class TextEditorSession {
     if (reason) throw new Error(reason);
     if (this.composing) throw new Error('COMPOSING');
     const fullText = this.element.value;
+    if (fullText !== this.observedValue) this.revision += 1;
+    this.observedValue = fullText;
     const start = this.element.selectionStart ?? 0;
     const end = this.element.selectionEnd ?? start;
     const selection = end > start;
@@ -155,6 +164,15 @@ export class TextEditorSession {
         : window.HTMLInputElement.prototype;
     const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
     if (!setter) return { ok: false, reason: 'UNSUPPORTED' };
+    // Probe native value sanitization without mutating the live draft or its revision.
+    const probe = this.document.createElement(
+      element instanceof HTMLTextAreaElement ? 'textarea' : 'input',
+    );
+    if (probe instanceof HTMLInputElement && element instanceof HTMLInputElement) {
+      probe.type = element.type;
+    }
+    setter.call(probe, value);
+    if (probe.value !== value) return { ok: false, reason: 'WRITE_REJECTED' };
     this.writing = true;
     const revision = ++this.revision;
     try {

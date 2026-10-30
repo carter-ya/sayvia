@@ -52,6 +52,82 @@ describe('editor safety', () => {
     expect(second.element.value).toBe('第二份');
   });
 
+  it.each([
+    { type: 'text', translation: 'First\nSecond' },
+    { type: 'search', translation: 'First\r\nSecond' },
+  ])(
+    'rejects native line sanitization before changing a $type draft',
+    async ({ type, translation }) => {
+      const element = document.createElement('input');
+      element.type = type;
+      element.value = '原始单行草稿';
+      document.body.append(element);
+      const session = new TextEditorSession(element, 'generic-text', 'fixture-document');
+      sessions.push(session);
+      const snapshot = session.capture();
+      const input = vi.fn();
+      element.addEventListener('input', input);
+      expect(await session.apply(snapshot, translation)).toEqual({
+        ok: false,
+        reason: 'WRITE_REJECTED',
+      });
+      expect(element.value).toBe('原始单行草稿');
+      expect(input).not.toHaveBeenCalled();
+      expect(session.validate(snapshot)).toEqual({ ok: true });
+      expect(await session.apply(snapshot, 'English')).toEqual({ ok: true });
+      expect(await session.restore()).toEqual({ ok: true });
+      expect(element.value).toBe('原始单行草稿');
+    },
+  );
+
+  it('keeps an existing restore record when a candidate would be sanitized', async () => {
+    const element = document.createElement('input');
+    element.value = '原稿';
+    document.body.append(element);
+    const session = new TextEditorSession(element, 'generic-text', 'fixture-document');
+    sessions.push(session);
+    await session.apply(session.capture(), 'First');
+    expect(await session.apply(session.capture(), 'One\nTwo')).toEqual({
+      ok: false,
+      reason: 'WRITE_REJECTED',
+    });
+    expect(await session.restore()).toEqual({ ok: true });
+    expect(element.value).toBe('原稿');
+  });
+
+  it('ignores a delayed blur change for edits already included in the snapshot', async () => {
+    const { element, session } = editor();
+    userInput(element, '已输入的完整草稿');
+    const snapshot = session.capture();
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(await session.apply(snapshot, 'English')).toEqual({ ok: true });
+    expect(await session.restore()).toEqual({ ok: true });
+    expect(element.value).toBe('已输入的完整草稿');
+  });
+
+  it('tracks new change-only values without reviving an older snapshot', async () => {
+    const { element, session } = editor();
+    const snapshot = session.capture();
+    element.value = '脚本改动';
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    element.value = snapshot.fullText;
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(await session.apply(snapshot, 'English')).toEqual({
+      ok: false,
+      reason: 'SOURCE_CHANGED',
+    });
+  });
+
+  it('captures a value assigned before the snapshot without a false later commit', async () => {
+    const { element, session } = editor();
+    const old = session.capture();
+    element.value = '快照前已有的脚本赋值';
+    const current = session.capture();
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(await session.apply(current, 'English')).toEqual({ ok: true });
+    expect(session.validate(old).ok).toBe(false);
+  });
+
   it('rejects old snapshots after a user edits and undoes the edit', async () => {
     const { element, session } = editor();
     const snapshot = session.capture();

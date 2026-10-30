@@ -29,6 +29,8 @@ function ControlledForm() {
       createElement('output', { 'data-testid': 'submitted' }, submitted),
     ),
     createElement('textarea', { id: 'other', defaultValue: '另一份草稿' }),
+    createElement('input', { id: 'single-line', type: 'text', defaultValue: '原始单行草稿' }),
+    createElement('input', { id: 'search-line', type: 'search', defaultValue: '原始单行草稿' }),
   );
 }
 createRoot(document.getElementById('root')!).render(createElement(ControlledForm));
@@ -39,8 +41,8 @@ let snapshot: EditorSnapshot;
 
 // This fixture-only handle is never part of a WXT entrypoint or the shipped extension.
 export const harness = {
-  capture() {
-    const element = document.getElementById('editor')!;
+  capture(id = 'editor') {
+    const element = document.getElementById(id)!;
     session = registry.bind(element)!;
     snapshot = session.capture();
     return { scope: snapshot.scope, source: snapshot.fullText };
