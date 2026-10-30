@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { M1_SAMPLES } from '../../src/evaluation/samples';
+import { planResponse } from '../fixtures/plan-response';
 import {
   createTranslationPlan,
   needsTranslation,
@@ -17,17 +18,8 @@ describe('fixed public M1 evaluation samples', () => {
   it.each(M1_SAMPLES)('$id: $title has a reconstructible plan with local protection', (sample) => {
     const plan = createTranslationPlan(sample.source);
     expect(needsTranslation(plan)).toBe(true);
-    const response = JSON.stringify({
-      segments: plan.parts
-        .filter((part) => part.kind === 'text')
-        .map((part) => ({ id: part.id, text: part.text })),
-    });
-    expect(reconstructTranslation(plan, response)).toBe(sample.source.text);
-    const synthetic = JSON.stringify({
-      segments: plan.parts
-        .filter((part) => part.kind === 'text')
-        .map((part) => ({ id: part.id, text: 'Translated text' })),
-    });
+    expect(reconstructTranslation(plan, planResponse(plan))).toBe(sample.source.text);
+    const synthetic = planResponse(plan, () => 'Translated text');
     const output = reconstructTranslation(plan, synthetic);
     for (const token of sample.protectedText) expect(output).toContain(token);
 

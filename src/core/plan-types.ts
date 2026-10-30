@@ -21,9 +21,29 @@ export type PlanPart = Readonly<
 >;
 
 export interface TranslationPlan {
-  readonly version: 1;
+  readonly version: 2;
   readonly sourceKind: 'markdown' | 'plain-text' | 'dom-selection';
   readonly sourceText: string;
   readonly parts: readonly PlanPart[];
+  readonly segments: readonly TranslationSegment[];
   readonly markdownShape?: string;
+}
+
+export interface FormatBoundary extends Interval {
+  role: 'format-open' | 'format-close';
+}
+export type ProtectedToken = Readonly<
+  Interval & {
+    text: string;
+    marker: string;
+    role: 'format-open' | 'format-close' | 'content' | 'whitespace';
+    leadingWhitespace: boolean;
+    trailingWhitespace: boolean;
+  }
+>;
+export interface TranslationSegment extends Interval {
+  readonly id: string;
+  readonly text: string;
+  readonly tokenPrefix: string;
+  readonly tokens: readonly ProtectedToken[];
 }
