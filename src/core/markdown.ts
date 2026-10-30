@@ -3,7 +3,7 @@ import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import type { Root, RootContent } from 'mdast';
 import type { Node } from 'unist';
-import { PlanError, type Interval } from './plan-types';
+import { PlanError, type Interval, type FormatBoundary } from './plan-types';
 
 const parser = unified().use(remarkParse).use(remarkGfm);
 const VOID_TAG = /^(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)$/i;
@@ -24,11 +24,16 @@ export function parseMarkdown(text: string) {
 export function markdownTextIntervals(text: string) {
   const eligible: Interval[] = [];
   const html: Interval[] = [];
+  const boundaries: FormatBoundary[] = [];
+  const scopes: Interval[] = [];
+  const opaque: Interval[] = [];
   let visited = 0;
   const walk = (node: TreeNode, base: number, depth: number) => {
     if (++visited > 4096 || depth > 128) throw new PlanError('PLAN_TOO_COMPLEX');
     const span = interval(node, base);
     if (node.type === 'text') eligible.push(span);
+    if (node.type === 'code' || node.type === 'inlineCode' || node.type === 'html')
+      opaque.push(span);
     if (node.type === 'linkReference' || node.type === 'imageReference') {
       // In shorthand references the visible label is also the destination key.
       if (node.referenceType !== 'full') return;
@@ -43,10 +48,31 @@ export function markdownTextIntervals(text: string) {
         else if (text[end] === ']' && --nesting === 0) break;
       }
       if (end >= span.end) throw new PlanError('INVALID_PLAN');
+      boundaries.push(
+        { start: span.start, end: start, role: 'format-open' },
+        { start: end, end: span.end, role: 'format-close' },
+      );
       walk(parseMarkdown(text.slice(start, end)), start, depth + 1);
       return;
     }
     if (!('children' in node)) return;
+    if (['paragraph', 'heading', 'tableCell'].includes(node.type) && node.children.length) {
+      scopes.push({
+        start: interval(node.children[0]!, base).start,
+        end: interval(node.children.at(-1)!, base).end,
+      });
+    }
+    if (
+      ['strong', 'emphasis', 'delete', 'link', 'linkReference'].includes(node.type) &&
+      node.children.length
+    ) {
+      const first = interval(node.children[0]!, base);
+      const last = interval(node.children.at(-1)!, base);
+      if (first.start > span.start)
+        boundaries.push({ start: span.start, end: first.start, role: 'format-open' });
+      if (last.end < span.end)
+        boundaries.push({ start: last.end, end: span.end, role: 'format-close' });
+    }
     const opened: { tag: string; start: number }[] = [];
     for (const child of node.children) {
       if (child.type === 'html') {
@@ -71,7 +97,14 @@ export function markdownTextIntervals(text: string) {
   };
   const tree = parseMarkdown(text);
   walk(tree, 0, 0);
-  return { eligible, html, tree };
+  return {
+    eligible,
+    html,
+    tree,
+    scopes,
+    opaque,
+    boundaries: boundaries.sort((a, b) => a.start - b.start || a.end - b.end),
+  };
 }
 
 // Text and image alt may change; every structural/property field must survive.

@@ -4,16 +4,10 @@ import {
   needsTranslation,
   reconstructTranslation,
   translationPayload,
-  type TranslationPlan,
 } from '../../src/core/translation-plan';
 
-function response(plan: TranslationPlan, transform = (text: string) => text) {
-  return JSON.stringify({
-    segments: plan.parts
-      .filter((part) => part.kind === 'text')
-      .map((part) => ({ id: part.id, text: transform(part.text) })),
-  });
-}
+import { planResponse as response } from '../fixtures/plan-response';
+
 const markdown = (text: string) => createTranslationPlan({ kind: 'markdown', text });
 
 describe('source interval translation plans', () => {
@@ -21,9 +15,8 @@ describe('source interval translation plans', () => {
     const plan = createTranslationPlan({ kind: 'plain-text', text: '<hello> timeout\n  next' });
     expect(translationPayload(plan)).toEqual({
       segments: [
-        { id: 's0', text: '<hello> timeout' },
-        { id: 'p1', protected: true },
-        { id: 's1', text: 'next' },
+        { id: 's0', text: '<hello> timeout', protectedTokens: [] },
+        { id: 's1', text: 'next', protectedTokens: [] },
       ],
     });
     expect(
@@ -56,11 +49,9 @@ describe('source interval translation plans', () => {
     const plan = markdown(
       '![picture](https://example.test/image.png "title") [guide][id]\n\n[id]: /destination "title"',
     );
-    expect(
-      translationPayload(plan)
-        .segments.filter((part) => 'text' in part)
-        .map((part) => part.text),
-    ).toEqual(['picture', 'guide']);
+    expect(plan.segments).toHaveLength(1);
+    expect(translationPayload(plan).segments[0]!.text).toContain('picture');
+    expect(translationPayload(plan).segments[0]!.text).toContain('guide');
     expect(
       reconstructTranslation(
         plan,
@@ -226,7 +217,7 @@ describe('source interval translation plans', () => {
   });
 
   it('rejects reordered IDs and output that grows beyond the task limit', () => {
-    const plan = markdown('First `code` second');
+    const plan = markdown('First\nsecond');
     expect(() =>
       reconstructTranslation(
         plan,

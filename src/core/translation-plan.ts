@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import { parseSourceInput, MAX_SOURCE_SPANS, type SourceInput } from './source-input';
 import { markdownFingerprint, markdownTextIntervals, parseMarkdown } from './markdown';
-import { PlanError, type Interval, type PlanPart, type TranslationPlan } from './plan-types';
+import {
+  PlanError,
+  type Interval,
+  type PlanPart,
+  type TranslationPlan,
+  type FormatBoundary,
+} from './plan-types';
+import { buildTranslationSegments, decodeSegment } from './translation-segments';
 
 export { PlanError } from './plan-types';
 export type { TranslationPlan, PlanPart } from './plan-types';
@@ -40,7 +47,7 @@ function protectedTokens(text: string, markdown: boolean) {
       ...matches(text, /\\[!-/:-@[-`{-~]|&(?:#[xX][\da-fA-F]+|#\d+|[a-zA-Z][\da-zA-Z]*);/g),
     );
   }
-  return mergeIntervals(intervals);
+  return intervals;
 }
 
 export function createTranslationPlan(input: SourceInput): TranslationPlan {
@@ -48,10 +55,14 @@ export function createTranslationPlan(input: SourceInput): TranslationPlan {
   let eligible: Interval[] = [{ start: 0, end: source.text.length }];
   const protectedRanges: Interval[] = protectedTokens(source.text, source.kind === 'markdown');
   let markdownShape: string | undefined;
+  let boundaries: FormatBoundary[] = [];
+  let scopes: Interval[] = [{ start: 0, end: source.text.length }];
   if (source.kind === 'markdown') {
     const markdown = markdownTextIntervals(source.text);
     eligible = markdown.eligible;
-    protectedRanges.push(...markdown.html);
+    boundaries = markdown.boundaries;
+    scopes = markdown.scopes;
+    protectedRanges.push(...markdown.html, ...markdown.opaque);
     markdownShape = markdownFingerprint(markdown.tree);
   } else if (source.kind === 'dom-selection') {
     protectedRanges.push(...source.protectedRanges);
@@ -105,10 +116,11 @@ export function createTranslationPlan(input: SourceInput): TranslationPlan {
   preserve(source.text.length);
   if (parts.length > MAX_SOURCE_SPANS) throw new PlanError('PLAN_TOO_COMPLEX');
   const plan: TranslationPlan = Object.freeze({
-    version: 1,
+    version: 2,
     sourceKind: source.kind,
     sourceText: source.text,
     parts: Object.freeze(parts),
+    segments: buildTranslationSegments(source.text, parts, boundaries, scopes, protectedRanges),
     ...(markdownShape === undefined ? {} : { markdownShape }),
   });
   knownPlans.add(plan);
@@ -121,18 +133,23 @@ function assertPlan(plan: TranslationPlan) {
 
 export function needsTranslation(plan: TranslationPlan) {
   assertPlan(plan);
-  return plan.parts.some((part) => part.kind === 'text');
+  return plan.segments.length > 0;
 }
 
 // Only this payload may cross the model boundary. Protected source stays local.
 export function translationPayload(plan: TranslationPlan) {
   assertPlan(plan);
   return {
-    segments: plan.parts.map((part, index) =>
-      part.kind === 'text'
-        ? { id: part.id, text: part.text }
-        : { id: `p${index}`, protected: true as const },
-    ),
+    segments: plan.segments.map((segment) => ({
+      id: segment.id,
+      text: segment.text,
+      protectedTokens: segment.tokens.map((token) => ({
+        marker: token.marker,
+        role: token.role,
+        leadingWhitespace: token.leadingWhitespace,
+        trailingWhitespace: token.trailingWhitespace,
+      })),
+    })),
   };
 }
 
@@ -188,7 +205,7 @@ export function reconstructTranslation(plan: TranslationPlan, json: string) {
   }
   const parsed = ResponseSchema.safeParse(decoded);
   if (!parsed.success) throw new PlanError('INVALID_TRANSLATION');
-  const expected = plan.parts.filter((part) => part.kind === 'text');
+  const expected = plan.segments;
   if (parsed.data.segments.length !== expected.length) throw new PlanError('INVALID_TRANSLATION');
   const replacements = new Map<string, string>();
   for (const [index, segment] of parsed.data.segments.entries()) {
@@ -197,16 +214,26 @@ export function reconstructTranslation(plan: TranslationPlan, json: string) {
     }
     replacements.set(segment.id, segment.text);
   }
-  const render = (strict: boolean) =>
-    plan.parts
-      .map((part) => {
-        if (part.kind === 'protected') return part.text;
-        const text = replacements.get(part.id)!;
-        return plan.sourceKind === 'markdown' && text !== part.text
-          ? escapeMarkdown(text, strict)
-          : text;
-      })
-      .join('');
+  const decodedSegments = plan.segments.map((segment) => ({
+    segment,
+    pieces: decodeSegment(segment, replacements.get(segment.id)!),
+  }));
+  const render = (strict: boolean) => {
+    let cursor = 0;
+    let result = '';
+    for (const { segment, pieces } of decodedSegments) {
+      result += plan.sourceText.slice(cursor, segment.start);
+      result += pieces
+        .map((piece) =>
+          piece.protected || plan.sourceKind !== 'markdown' || piece.text === piece.original
+            ? piece.text
+            : escapeMarkdown(piece.text, strict),
+        )
+        .join('');
+      cursor = segment.end;
+    }
+    return result + plan.sourceText.slice(cursor);
+  };
   let result = render(false);
   if (plan.sourceKind === 'markdown') {
     const sameShape = (text: string) =>
