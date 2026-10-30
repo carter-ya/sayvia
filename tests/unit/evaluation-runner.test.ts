@@ -6,6 +6,12 @@ import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { runEvaluation, type EvaluationEntry } from '../../src/evaluation/run-evaluation';
+function syntheticTemplate(text: string) {
+  return text
+    .split(/(⟦SV\d+:\d+⟧)/)
+    .map((piece) => (piece.startsWith('⟦SV') || !piece.trim() ? piece : 'Translated text'))
+    .join('');
+}
 
 it('uses the same 12 public samples with one request each and keeps human review pending', async () => {
   const fetcher = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
@@ -14,7 +20,10 @@ it('uses the same 12 public samples with one request each and keeps human review
     const content = JSON.stringify({
       segments: input.segments
         .filter((part: { text?: string }) => part.text !== undefined)
-        .map((part: { id: string }) => ({ id: part.id, text: 'Translated text' })),
+        .map((part: { id: string; text: string }) => ({
+          id: part.id,
+          text: syntheticTemplate(part.text),
+        })),
     });
     return new Response(
       JSON.stringify({
@@ -72,7 +81,10 @@ it('runs the actual CLI against a local mock, persists each result, and refuses 
       const content = JSON.stringify({
         segments: input.segments
           .filter((part: { text?: string }) => part.text !== undefined)
-          .map((part: { id: string }) => ({ id: part.id, text: 'Translated text' })),
+          .map((part: { id: string; text: string }) => ({
+            id: part.id,
+            text: syntheticTemplate(part.text),
+          })),
       });
       response.setHeader('Content-Type', 'application/json');
       response.end(
@@ -114,7 +126,7 @@ it('runs the actual CLI against a local mock, persists each result, and refuses 
     expect(lines[0]).toMatchObject({
       type: 'run',
       model: 'fixture-model',
-      algorithmVersion: 'segments-v1',
+      algorithmVersion: 'segments-v2',
     });
     expect(lines[13]).toMatchObject({
       type: 'summary',

@@ -57,7 +57,18 @@ describe('configured Chat Completions endpoints', () => {
 
 describe('single-request translation protocol', () => {
   it('sends minimum fields and an opaque protected placeholder, then rebuilds locally', async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(completion()));
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+      const payload = JSON.parse(JSON.parse(String(init!.body)).messages[1].content);
+      return jsonResponse(
+        completion(
+          JSON.stringify({
+            segments: [
+              { id: 's0', text: `Hello ${payload.segments[0].protectedTokens[0].marker}` },
+            ],
+          }),
+        ),
+      );
+    });
     const input = {
       ...request(),
       source: { kind: 'markdown' as const, text: '你好 `CODE_SECRET`' },
