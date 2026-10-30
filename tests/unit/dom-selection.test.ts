@@ -146,6 +146,40 @@ describe('DOM selection semantics', () => {
     expect(captureDomRange(contents(inline)).text).toBe('A boldword then end\nnext');
   });
 
+  it('omits a closed disclosure body, direct text and non-rendered extra summaries', () => {
+    const root = fixture(
+      '<p>Before</p><details><summary>Visible <code>name</code></summary>DIRECT_SECRET<p>BODY_SECRET</p><summary>EXTRA_SECRET</summary></details><p>After</p>',
+    );
+    const source = captureDomRange(contents(root));
+    expect(source.text).toBe('Before\nVisible name\nAfter');
+    expect(JSON.stringify(source)).not.toContain('SECRET');
+    const hidden = root.querySelector('details p')!;
+    expect(() => captureDomRange(contents(hidden))).toThrow('EMPTY_SOURCE');
+    root.querySelector('details')!.open = true;
+    expect(captureDomRange(contents(root)).text).toContain('BODY_SECRET');
+  });
+
+  it('checks collapsed ancestors even inside an otherwise open disclosure', () => {
+    const root = fixture(
+      '<details><summary>Outer</summary><details open><summary>INNER_SECRET</summary>BODY_SECRET</details></details>',
+    );
+    expect(captureDomRange(contents(root)).text).toBe('Outer');
+  });
+
+  it.each([
+    ['<dl><dt>Term</dt><dd>Definition</dd></dl>', 'Term\nDefinition'],
+    [
+      '<span style="display:block">First</span><span style="display:block">Second</span>',
+      'First\nSecond',
+    ],
+    [
+      '<div style="display:inline">First</div><div style="display:inline">Second</div>',
+      'FirstSecond',
+    ],
+  ])('uses computed block layout for %s', (html, expected) => {
+    expect(captureDomRange(contents(fixture(html))).text).toBe(expected);
+  });
+
   it('keeps UTF-16 offsets correct after emoji', () => {
     const root = fixture('<p>🙂 <code>timeout</code></p>');
     const source = captureDomRange(contents(root));
