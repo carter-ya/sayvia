@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sayvia selection fixture</title>
+  </head>
+  <body>
+    <main id="reading">
+      <p id="intro">
+        Read <code id="code">timeout</code> using
+        <a id="link" href="https://example.invalid/private?token=HIDDEN_DESTINATION"
+          >the documentation</a
+        >
+        now.
+      </p>
+      <pre id="block"><code>const limit = 1;
+  run(limit);</code></pre>
+      <p id="mixed">
+        visible<span hidden>HIDDEN_TEXT</span><span style="display: none">HIDDEN_CSS</span
+        ><textarea>FORM_SECRET</textarea> end
+      </p>
+    </main>
+    <button id="focus">Move focus</button>
+    <script type="module" src="./selection-harness.ts"></script>
+  </body>
+</html>
