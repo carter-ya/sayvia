@@ -42,5 +42,6 @@ pnpm build 生成 .output/chrome-mv3。在 Chrome 扩展管理页打开开发者
 - [S02 验证记录](docs/validation/S02.md)
 - [S03 验证记录](docs/validation/S03.md)
 - [S04a 验证记录](docs/validation/S04a.md)
+- [S04b 验证记录](docs/validation/S04b.md)
 
 S00 至 S12 是实施层号。M1 核心风险及真实模型验证通过后，再展开完整 MVP。许可证、商店上架和收费策略尚未确定。
