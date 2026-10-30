@@ -3,7 +3,7 @@
 - 文档版本：v0.1
 - 对应需求：[PRD v0.3](./PRD.md)
 - 对应方案：[技术方案 v0.3](./TECHNICAL_DESIGN.md)
-- 状态：开发计划；除文档交付外，实施与验证尚未完成
+- 状态：实施中；各层代码、验证与合并状态分别记录在 PR 和 docs/validation
 - 更新日期：2026-10-30
 - 远程仓库：https://github.com/carter-ya/sayvia
 - Git 远程地址：https://github.com/carter-ya/sayvia.git
