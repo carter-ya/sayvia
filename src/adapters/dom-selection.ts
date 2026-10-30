@@ -53,7 +53,7 @@ class SourceBuilder {
         : whitespace === 'pre-line'
           ? value.replace(/[\t\f ]+/g, ' ').replace(/\r\n?/g, '\n')
           : value.replace(/[\t\r\n\f ]+/g, ' ');
-    if (!kind && whitespace === 'normal' && !normalized.trim()) {
+    if (!kind && whitespace === 'normal' && normalized === ' ') {
       if (this.text && !this.pendingBreak) this.pendingSpace = true;
       return;
     }
@@ -122,6 +122,7 @@ export function captureDomRange(range: Range, expectedDocument: Document = docum
         current.matches(EXCLUDED) ||
         collapsedChild(current) ||
         style?.display === 'none' ||
+        style?.contentVisibility === 'hidden' ||
         style?.opacity === '0'
       ) {
         for (const ancestor of ancestors) visible.set(ancestor, false);

@@ -180,6 +180,24 @@ describe('DOM selection semantics', () => {
     expect(captureDomRange(contents(fixture(html))).text).toBe(expected);
   });
 
+  it('excludes content-visibility-hidden descendants from a spanning selection', () => {
+    const root = fixture(
+      '<p>Before</p><div style="content-visibility:hidden"><span>CONCEALED</span></div><p>After</p>',
+    );
+    expect(captureDomRange(contents(root)).text).toBe('Before\nAfter');
+  });
+
+  it.each([
+    ['<span>Hello</span>&nbsp;&nbsp;<code>timeout</code>', 'Hello\u00a0\u00a0timeout', 7],
+    ['中文<span>　</span><code>timeout</code>', '中文\u3000timeout', 3],
+  ])('preserves non-collapsible Unicode whitespace and source offsets', (html, text, start) => {
+    const source = captureDomRange(contents(fixture(String(html))));
+    expect(source.text).toBe(text);
+    expect(source.protectedRanges).toEqual([
+      { kind: 'inline-code', start, end: Number(start) + 7 },
+    ]);
+  });
+
   it('keeps UTF-16 offsets correct after emoji', () => {
     const root = fixture('<p>🙂 <code>timeout</code></p>');
     const source = captureDomRange(contents(root));
