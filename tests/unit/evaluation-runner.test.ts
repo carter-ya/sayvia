@@ -126,7 +126,7 @@ it('runs the actual CLI against a local mock, persists each result, and refuses 
     expect(lines[0]).toMatchObject({
       type: 'run',
       model: 'fixture-model',
-      algorithmVersion: 'segments-v2',
+      algorithmVersion: 'segments-v2.1',
     });
     expect(lines[13]).toMatchObject({
       type: 'summary',

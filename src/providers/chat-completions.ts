@@ -9,7 +9,7 @@ import {
 } from '../core/translation-plan';
 import { chatCompletionsEndpoint, EndpointError } from './endpoint';
 
-export const ALGORITHM_VERSION = 'segments-v2';
+export const ALGORITHM_VERSION = 'segments-v2.1';
 export const MAX_RESPONSE_BYTES = 1024 * 1024;
 export const EXECUTION_BUDGET_MS = 60_000;
 export type ProviderErrorCode =
