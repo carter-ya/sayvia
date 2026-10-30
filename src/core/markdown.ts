@@ -23,6 +23,9 @@ export function parseMarkdown(text: string) {
 // Offset-bearing raw leaves are used instead of decoded mdast text values.
 export function markdownTextIntervals(text: string) {
   const eligible: Interval[] = [];
+  const linePrefixes = [...text.matchAll(/^[ \t]*(?:>[ \t]*)*/gm)]
+    .filter((match) => match[0].length > 0)
+    .map((match) => ({ start: match.index, end: match.index + match[0].length }));
   const html: Interval[] = [];
   const boundaries: FormatBoundary[] = [];
   const scopes: Interval[] = [];
@@ -99,6 +102,7 @@ export function markdownTextIntervals(text: string) {
   walk(tree, 0, 0);
   return {
     eligible,
+    linePrefixes,
     html,
     tree,
     scopes,

@@ -16,6 +16,7 @@ export function buildTranslationSegments(
   boundaries: readonly FormatBoundary[],
   scopes: readonly Interval[],
   opaqueRanges: readonly Interval[],
+  linePrefixes: readonly Interval[],
 ) {
   let nonce = 0;
   while (text.includes(`⟦SV${nonce}:`)) nonce += 1;
@@ -43,6 +44,9 @@ export function buildTranslationSegments(
     const lineEnd = nextBreak < 0 ? text.length : last.end + nextBreak;
     let start = Math.max(lineStart, scopeFor(first)?.start ?? first.start);
     let end = Math.min(lineEnd, scopeFor(last)?.end ?? last.end);
+    for (const prefix of linePrefixes) {
+      if (prefix.start <= start && start < prefix.end) start = prefix.end;
+    }
     // Never extend a line group into the middle of multiline protected content.
     for (const opaque of opaqueRanges) {
       if (opaque.start < start && start < opaque.end) start = opaque.end;

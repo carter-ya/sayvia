@@ -116,3 +116,19 @@ test('native definition lists and CSS display overrides retain rendered text bou
   });
   expect(sources).toEqual(['Term\nDefinition', 'First\nSecond', 'FirstSecond']);
 });
+
+test('content visibility stays private and Unicode spacing retains exact code offsets', async ({
+  page,
+}) => {
+  const source = await page.evaluate(() => {
+    const root = document.createElement('section');
+    root.id = 'visibility-spacing';
+    root.innerHTML =
+      '<p>Before</p><div style="content-visibility:hidden">CONCEALED</div><p><span>Hello</span>&nbsp;&nbsp;<code>timeout</code></p><p>中文<span>　</span>正文</p>';
+    document.body.append(root);
+    return window.selectionHarness.element(root.id);
+  });
+  expect(source.text).toBe('Before\nHello\u00a0\u00a0timeout\n中文\u3000正文');
+  expect(source.protectedRanges).toEqual([{ kind: 'inline-code', start: 14, end: 21 }]);
+  expect(JSON.stringify(source)).not.toContain('CONCEALED');
+});
