@@ -42,6 +42,7 @@
     "wxt": "0.21.5"
   },
   "dependencies": {
+    "parse5": "8.0.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "remark-gfm": "4.0.1",

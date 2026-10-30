@@ -4,9 +4,9 @@ import remarkGfm from 'remark-gfm';
 import type { Root, RootContent } from 'mdast';
 import type { Node } from 'unist';
 import { PlanError, type Interval, type FormatBoundary } from './plan-types';
+import { htmlProtection, type HtmlContext } from './html-protection';
 
 const parser = unified().use(remarkParse).use(remarkGfm);
-const VOID_TAG = /^(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)$/i;
 type TreeNode = Root | RootContent;
 
 function interval(node: Node, base = 0): Interval {
@@ -26,15 +26,16 @@ export function markdownTextIntervals(text: string) {
   const linePrefixes = [...text.matchAll(/^[ \t]*(?:>[ \t]*)*/gm)]
     .filter((match) => match[0].length > 0)
     .map((match) => ({ start: match.index, end: match.index + match[0].length }));
-  const html: Interval[] = [];
+  const htmlContexts: HtmlContext[] = [{ start: 0, end: text.length, nodes: [] }];
   const boundaries: FormatBoundary[] = [];
   const scopes: Interval[] = [];
   const opaque: Interval[] = [];
   let visited = 0;
-  const walk = (node: TreeNode, base: number, depth: number) => {
+  const walk = (node: TreeNode, base: number, depth: number, context = htmlContexts[0]!) => {
     if (++visited > 4096 || depth > 128) throw new PlanError('PLAN_TOO_COMPLEX');
     const span = interval(node, base);
     if (node.type === 'text') eligible.push(span);
+    if (node.type === 'html') context.nodes.push(span);
     if (node.type === 'code' || node.type === 'inlineCode' || node.type === 'html')
       opaque.push(span);
     if (node.type === 'linkReference' || node.type === 'imageReference') {
@@ -55,7 +56,9 @@ export function markdownTextIntervals(text: string) {
         { start: span.start, end: start, role: 'format-open' },
         { start: end, end: span.end, role: 'format-close' },
       );
-      walk(parseMarkdown(text.slice(start, end)), start, depth + 1);
+      const altContext: HtmlContext = { start, end, nodes: [] };
+      htmlContexts.push(altContext);
+      walk(parseMarkdown(text.slice(start, end)), start, depth + 1, altContext);
       return;
     }
     if (!('children' in node)) return;
@@ -76,34 +79,14 @@ export function markdownTextIntervals(text: string) {
       if (last.end < span.end)
         boundaries.push({ start: last.end, end: span.end, role: 'format-close' });
     }
-    const opened: { tag: string; start: number }[] = [];
-    for (const child of node.children) {
-      if (child.type === 'html') {
-        const childSpan = interval(child, base);
-        const token = /^<\s*(\/?)\s*([a-z][\w:-]*)\b[^>]*>$/i.exec(child.value);
-        html.push(childSpan);
-        if (token && !VOID_TAG.test(token[2]!) && !/\/\s*>$/.test(child.value)) {
-          const tag = token[2]!.toLowerCase();
-          if (!token[1]) opened.push({ tag, start: childSpan.start });
-          else {
-            const index = opened.findLastIndex((entry) => entry.tag === tag);
-            if (index >= 0) {
-              html.push({ start: opened[index]!.start, end: childSpan.end });
-              opened.splice(index);
-            }
-          }
-        }
-      }
-      walk(child, base, depth + 1);
-    }
-    for (const entry of opened) html.push({ start: entry.start, end: span.end });
+    for (const child of node.children) walk(child, base, depth + 1, context);
   };
   const tree = parseMarkdown(text);
   walk(tree, 0, 0);
   return {
     eligible,
     linePrefixes,
-    html,
+    html: htmlProtection(text, htmlContexts),
     tree,
     scopes,
     opaque,
