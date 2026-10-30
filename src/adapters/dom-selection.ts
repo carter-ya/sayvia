@@ -8,26 +8,8 @@ import {
 
 const EXCLUDED =
   'script,style,template,noscript,head,iframe,object,embed,textarea,input,select,option,canvas,svg,[hidden],[inert],[aria-hidden="true"],[data-sayvia-ui]';
-const BLOCKS = new Set([
-  'P',
-  'DIV',
-  'LI',
-  'UL',
-  'OL',
-  'H1',
-  'H2',
-  'H3',
-  'H4',
-  'H5',
-  'H6',
-  'BLOCKQUOTE',
-  'PRE',
-  'TR',
-  'TD',
-  'TH',
-  'SECTION',
-  'ARTICLE',
-]);
+const BLOCK_DISPLAY =
+  /^(?:block|flow-root|list-item|flex|grid|table|table-row|table-cell|table-caption|table-row-group|table-header-group|table-footer-group)(?:\s|$)/;
 const MAX_NODES = 20_000;
 const MAX_DEPTH = 256;
 
@@ -117,6 +99,13 @@ export function captureDomRange(range: Range, expectedDocument: Document = docum
   const builder = new SourceBuilder();
   const visible = new WeakMap<Element, boolean>();
   let visited = 0;
+  const summaries = new WeakMap<Element, Element | null>();
+  const collapsedChild = (node: Node) => {
+    const parent = node.parentElement;
+    if (parent?.tagName !== 'DETAILS' || parent.hasAttribute('open')) return false;
+    if (!summaries.has(parent)) summaries.set(parent, parent.querySelector(':scope > summary'));
+    return node !== summaries.get(parent);
+  };
   const isVisible = (element: Element | null) => {
     const ancestors: Element[] = [];
     let current = element;
@@ -129,7 +118,12 @@ export function captureDomRange(range: Range, expectedDocument: Document = docum
       }
       ancestors.push(current);
       const style = expectedDocument.defaultView?.getComputedStyle(current);
-      if (current.matches(EXCLUDED) || style?.display === 'none' || style?.opacity === '0') {
+      if (
+        current.matches(EXCLUDED) ||
+        collapsedChild(current) ||
+        style?.display === 'none' ||
+        style?.opacity === '0'
+      ) {
         for (const ancestor of ancestors) visible.set(ancestor, false);
         return false;
       }
@@ -149,7 +143,7 @@ export function captureDomRange(range: Range, expectedDocument: Document = docum
     if (++visited > MAX_NODES || depth > MAX_DEPTH) throw new SourceError('SELECTION_TOO_COMPLEX');
     if (!range.intersectsNode(node)) return;
     if (node.nodeType === Node.TEXT_NODE) {
-      if (!isVisible(node.parentElement)) return;
+      if (collapsedChild(node) || !isVisible(node.parentElement)) return;
       const text = node as Text;
       const start = node === range.startContainer ? range.startOffset : 0;
       const end = node === range.endContainer ? range.endOffset : text.length;
@@ -182,7 +176,8 @@ export function captureDomRange(range: Range, expectedDocument: Document = docum
       builder.lineBreak(codeKind(element));
       return;
     }
-    const block = Boolean(element && BLOCKS.has(element.tagName));
+    const display = element && expectedDocument.defaultView?.getComputedStyle(element).display;
+    const block = BLOCK_DISPLAY.test(display || '');
     if (block && builder.text) builder.pendingBreak = true;
     const start = builder.text.length;
     for (const child of node.childNodes) walk(child, depth + 1);
