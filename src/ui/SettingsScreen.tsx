@@ -1,9 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { ConfigSnapshot } from '../storage/schema';
 import { settingsRequest } from './settings-client';
-import { PROVIDER_PRESETS } from '../providers/presets';
 
 type PublicProvider = ConfigSnapshot['providers'][number];
+const urls: Record<string, string> = {
+  openai: 'https://api.openai.com/v1',
+  deepseek: 'https://api.deepseek.com',
+  'openai-compatible': '',
+};
 
 function ProviderForm({
   provider,
@@ -15,7 +19,7 @@ function ProviderForm({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const [kind, setKind] = useState(provider?.kind ?? 'openai');
-  const [baseUrl, setBaseUrl] = useState(provider?.baseUrl ?? PROVIDER_PRESETS.openai.baseUrl);
+  const [baseUrl, setBaseUrl] = useState(provider?.baseUrl ?? urls.openai ?? '');
   return (
     <form onSubmit={onSubmit}>
       <label>
@@ -30,7 +34,7 @@ function ProviderForm({
           onChange={(event) => {
             const value = event.target.value as PublicProvider['kind'];
             setKind(value);
-            setBaseUrl(PROVIDER_PRESETS[value].baseUrl);
+            setBaseUrl(urls[value] ?? '');
           }}
         >
           <option value="openai">OpenAI</option>

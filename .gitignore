@@ -24,6 +24,3 @@ user-data-dir/
 work/
 outputs/
 .worktrees/
-
-# Local real-model evaluation reports
-evaluation-results/

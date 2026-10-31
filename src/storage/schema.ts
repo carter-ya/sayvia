@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { normalizeBaseUrl } from '../providers/endpoint';
 
 const Id = z.uuid();
 export const ProviderKind = z.enum(['openai', 'deepseek', 'openai-compatible']);
@@ -84,14 +83,6 @@ export type ConfigSnapshot = z.infer<typeof SnapshotSchema>;
 export const SaveSchema = z
   .object({
     ...ProviderFields,
-    baseUrl: BaseUrl.max(2048).transform((value, ctx) => {
-      try {
-        return normalizeBaseUrl(value);
-      } catch {
-        ctx.addIssue({ code: 'custom', message: 'Invalid API Base URL' });
-        return z.NEVER;
-      }
-    }),
     id: Id.optional(),
     expectedRevision: z.int().nonnegative(),
     makeDefault: z.boolean(),
