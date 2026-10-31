@@ -55,6 +55,11 @@ test('real offscreen execution uses a bundled Worker, private credentials, cance
   const manifestFile = join(extension, 'manifest.json');
   const manifest = JSON.parse(await readFile(manifestFile, 'utf8'));
   manifest.host_permissions = ['http://127.0.0.1/*'];
+  manifest.background.service_worker = 'executor-test-background.js';
+  await writeFile(
+    join(extension, 'executor-test-background.js'),
+    'chrome.runtime.onInstalled.addListener(() => {});',
+  );
   await writeFile(manifestFile, JSON.stringify(manifest));
   let count = 0;
   let authorized = 0;

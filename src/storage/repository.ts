@@ -35,6 +35,21 @@ export class ConfigRepository {
     return this.project();
   }
 
+  // Only the background task broker may consume this credential-bearing snapshot.
+  async completionConfig(id?: string) {
+    await this.ready;
+    await this.queue;
+    const provider = this.state.providers[id ?? this.state.preferences.defaultProviderId ?? ''];
+    const apiKey = provider && this.state.secrets[provider.secretRef]?.apiKey;
+    if (!provider || !apiKey) throw new Error('CONFIG_REQUIRED');
+    return {
+      providerId: provider.id,
+      providerRevision: provider.revision,
+      model: provider.model,
+      config: { baseUrl: provider.baseUrl, model: provider.model, apiKey },
+    };
+  }
+
   private project() {
     return SnapshotSchema.parse({
       revision: this.state.revision,
