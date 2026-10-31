@@ -3,7 +3,7 @@ const api = vi.hoisted(() => ({
   runtime: { id: 'self', getURL: (path: string) => `chrome-extension://self${path}` },
   tabs: {
     get: vi.fn(async (id: number) => ({ id, url: 'https://github.com/test' })),
-    sendMessage: vi.fn(async () => ({ ok: true })),
+    sendMessage: vi.fn(async (): Promise<unknown> => ({ ok: true })),
   },
   scripting: {
     executeScript: vi.fn(async () => [{ documentId: 'verified-document', frameId: 0 }]),
@@ -45,6 +45,10 @@ describe('explicit page translation entry', () => {
     expect(await handlePageMessage(open(), popup, repository)).toEqual({ ok: true });
     expect(api.scripting.executeScript).toHaveBeenCalledWith({
       target: { tabId: 8, frameIds: [0] },
+      func: expect.any(Function),
+    });
+    expect(api.scripting.executeScript).toHaveBeenCalledWith({
+      target: { tabId: 8, documentIds: ['verified-document'] },
       files: ['/content-scripts/translator.js'],
     });
     expect(api.tabs.sendMessage).toHaveBeenCalledWith(
@@ -52,6 +56,39 @@ describe('explicit page translation entry', () => {
       { protocolVersion: 1, type: 'page.show', mode: 'write' },
       { documentId: 'verified-document', frameId: 0 },
     );
+  });
+  it('reuses a live controller without executing the WXT bundle again', async () => {
+    api.tabs.sendMessage.mockResolvedValueOnce({
+      ok: true,
+      protocolVersion: 1,
+      type: 'page.ready',
+    });
+    expect(await handlePageMessage(open(), popup, repository)).toEqual({ ok: true });
+    expect(api.scripting.executeScript).toHaveBeenCalledTimes(1);
+    expect(api.tabs.sendMessage).toHaveBeenNthCalledWith(
+      1,
+      8,
+      { protocolVersion: 1, type: 'page.probe' },
+      { documentId: 'verified-document', frameId: 0 },
+    );
+  });
+  it('injects when the document has no live receiver', async () => {
+    api.tabs.sendMessage.mockRejectedValueOnce(new Error('No receiver'));
+    expect(await handlePageMessage(open(), popup, repository)).toEqual({ ok: true });
+    expect(api.scripting.executeScript).toHaveBeenCalledTimes(2);
+  });
+  it('does not retarget a replacement document if navigation invalidates the captured one', async () => {
+    api.scripting.executeScript.mockResolvedValueOnce([{ documentId: 'old-document', frameId: 0 }]);
+    api.scripting.executeScript.mockRejectedValueOnce(new Error('Document no longer exists'));
+    expect(await handlePageMessage(open(), popup, repository)).toEqual({
+      ok: false,
+      error: 'PERMISSION_DENIED',
+    });
+    expect(api.scripting.executeScript).toHaveBeenLastCalledWith({
+      target: { tabId: 8, documentIds: ['old-document'] },
+      files: ['/content-scripts/translator.js'],
+    });
+    expect(api.tabs.sendMessage).toHaveBeenCalledTimes(1);
   });
   it('never lets a web page or options page request injection into another tab', async () => {
     expect(await handlePageMessage(open(), page, repository)).toEqual({

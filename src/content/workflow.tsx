@@ -66,6 +66,15 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     if (editor) {
       lastEditor = editor;
       focusTarget = element as HTMLElement;
+    } else if (
+      element.matches(
+        'input, textarea, [contenteditable]:not([contenteditable="false"]), [role="textbox"]',
+      ) ||
+      (element instanceof HTMLElement && element.isContentEditable)
+    ) {
+      // An unsupported editing target must never fall back to a previous draft.
+      lastEditor = undefined;
+      focusTarget = element as HTMLElement;
     }
   };
   bind(document.activeElement);
@@ -332,6 +341,10 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   ) => {
     if (sender.id !== browser.runtime.id || sender.url !== browser.runtime.getURL('/background.js'))
       return;
+    if (message?.protocolVersion === 1 && message.type === 'page.probe') {
+      sendResponse({ ok: true, protocolVersion: 1, type: 'page.ready' });
+      return;
+    }
     if (
       message?.protocolVersion === 1 &&
       message.type === 'page.show' &&
