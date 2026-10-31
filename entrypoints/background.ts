@@ -76,8 +76,8 @@ export default defineBackground(() => {
     if (info.status === 'loading' || info.url)
       void broker.cancelWhere((route) => route.tabId === tabId, tabId).catch(() => undefined);
   });
-  browser.permissions.onRemoved.addListener(() => {
-    void broker.cancelWhere(() => true).catch(() => undefined);
+  browser.permissions.onRemoved.addListener((removed) => {
+    void broker.cancelRevokedOrigins(removed.origins ?? []).catch(() => undefined);
   });
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (typeof message !== 'object' || message === null) return;

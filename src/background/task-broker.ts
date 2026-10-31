@@ -3,6 +3,7 @@ import type { Execution, ExecutionView } from '../runtime/executor-protocol';
 import type { StartPayload, TaskMessage, TaskRoute, TaskSession } from '../runtime/task-protocol';
 import type { ExecutorHost } from './executor-host';
 import type { TaskStorage } from './task-storage';
+import { matchesHostOrigin } from './permission-revocation';
 
 const DEDUP_MS = 300_000;
 const ACTIVE = new Set(['running', 'ready']);
@@ -12,6 +13,7 @@ export interface TaskOwner {
   documentId?: string;
   documentNonce: string;
   kind: 'page' | 'manual';
+  siteOrigin?: string;
 }
 export interface TaskPlatform {
   notify?(route: TaskRoute): Promise<void>;
@@ -172,6 +174,8 @@ export class TaskBroker {
           frameId: 0,
           ...(owner.documentId ? { documentId: owner.documentId } : {}),
           mode: payload.mode,
+          apiOrigin: new URL(provider.config.baseUrl).origin,
+          ...(owner.siteOrigin ? { siteOrigin: owner.siteOrigin } : {}),
           epoch,
           providerId: provider.providerId,
           providerRevision: provider.providerRevision,
@@ -306,13 +310,26 @@ export class TaskBroker {
   private closeIdle() {
     return this.host.closeIfIdle().catch(() => undefined);
   }
-  cancelWhere(predicate: (route: TaskRoute) => boolean, removedTab?: number) {
+  cancelWhere(predicate: (route: TaskRoute) => boolean | Promise<boolean>, removedTab?: number) {
     return this.serial(async () => {
-      for (const route of this.state.routes) if (predicate(route)) await this.cancelRoute(route);
+      for (const route of this.state.routes)
+        if (await predicate(route)) await this.cancelRoute(route);
       if (removedTab !== undefined)
         this.state.manual = this.state.manual.filter((value) => value.tabId !== removedTab);
       await this.persist();
       await this.closeIdle();
+    });
+  }
+  cancelRevokedOrigins(origins: readonly string[]) {
+    return this.cancelWhere(async (route) => {
+      if (!ACTIVE.has(route.state)) return false;
+      const siteRevoked =
+        route.mode !== 'manual' &&
+        route.siteOrigin &&
+        origins.some((pattern) => matchesHostOrigin(pattern, route.siteOrigin!));
+      if (siteRevoked) return true;
+      if (!origins.some((pattern) => matchesHostOrigin(pattern, route.apiOrigin))) return false;
+      return !(await this.platform.permitted(route.apiOrigin).catch(() => false));
     });
   }
   readManual(tabId: number) {

@@ -55,6 +55,7 @@ describe('browser-derived task ownership', () => {
       documentId: 'real-document',
       documentNonce: nonce,
       kind: 'page',
+      siteOrigin: 'https://github.com',
     });
     const forged = request();
     Object.assign(forged.payload, { tabId: 999 });

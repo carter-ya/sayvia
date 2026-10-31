@@ -32,6 +32,7 @@ export function pageOwner(
       documentId: sender.documentId,
       documentNonce,
       kind: 'page',
+      siteOrigin: url.origin,
     };
   } catch {
     return;

@@ -52,16 +52,18 @@ async function setup(initial?: TaskSession) {
     }),
   };
   const repository = {
-    completionConfig: vi.fn(async () => ({
-      providerId,
-      providerRevision: 2,
-      model: 'fixture-model',
-      config: {
-        baseUrl: 'https://model.example',
-        apiKey: 'NEVER_PERSIST_KEY',
+    completionConfig: vi
+      .fn<ConfigRepository['completionConfig']>()
+      .mockImplementation(async () => ({
+        providerId,
+        providerRevision: 2,
         model: 'fixture-model',
-      },
-    })),
+        config: {
+          baseUrl: 'https://model.example',
+          apiKey: 'NEVER_PERSIST_KEY',
+          model: 'fixture-model',
+        },
+      })),
     snapshot: vi.fn(async () => ({
       providers: [{ id: providerId }],
     })) as unknown as ConfigRepository['snapshot'],
@@ -96,7 +98,10 @@ async function setup(initial?: TaskSession) {
     }),
     closeIfIdle: vi.fn(async () => {}),
   };
-  const platform = { permitted: vi.fn(async () => true), deliver: vi.fn(async () => true) };
+  const platform = {
+    permitted: vi.fn<(baseUrl: string) => Promise<boolean>>().mockResolvedValue(true),
+    deliver: vi.fn(async () => true),
+  };
   const broker = new TaskBroker(storage, repository, host, platform);
   await broker.ready;
   return {
@@ -127,7 +132,7 @@ describe('task ownership and durable dispatch', () => {
     expect(await f.broker.handle(request, who)).toEqual(first);
     expect(f.dispatches()).toBe(1);
     expect(JSON.stringify(f.saved())).not.toMatch(
-      /PRIVATE_SOURCE_TEXT|NEVER_PERSIST_KEY|model.example|PRIVATE_RESULT_TEXT/,
+      /PRIVATE_SOURCE_TEXT|NEVER_PERSIST_KEY|PRIVATE_RESULT_TEXT/,
     );
     expect(f.saved().routes[0]!.providerRevision).toBe(2);
   });
@@ -326,4 +331,79 @@ describe('completion, recovery, and cleanup', () => {
     expect(f.saved().routes[0]!.state).toBe('canceled');
     expect(f.host.closeIfIdle).toHaveBeenCalled();
   });
+});
+
+it('revoking host A preserves active and completed tasks on still-authorized host B', async () => {
+  const f = await setup();
+  const providerB = crypto.randomUUID();
+  f.repository.completionConfig.mockImplementation(async (id?: string) => ({
+    providerId: id ?? providerId,
+    providerRevision: 2,
+    model: 'fixture-model',
+    config: {
+      baseUrl: id === providerB ? 'https://b.example/private/v1' : 'https://a.example/private/v1',
+      apiKey: 'NEVER_PERSIST_KEY',
+      model: 'fixture-model',
+    },
+  }));
+  vi.mocked(f.repository.snapshot).mockResolvedValue({
+    providers: [{ id: providerId }, { id: providerB }],
+  } as unknown as Awaited<ReturnType<ConfigRepository['snapshot']>>);
+  const manual: TaskOwner = { ...owner(), kind: 'manual' };
+  const manualRequest = start(manual);
+  manualRequest.payload.providerId = providerB;
+  await f.broker.handle(manualRequest, manual);
+  const manualRoute = f.saved().routes[0]!;
+  f.views.set(manualRoute.taskId, { taskId: manualRoute.taskId, state: 'ready', result });
+  await f.broker.reconcile();
+  const onA = { ...owner(), tabId: 2 };
+  const requestA = start(onA);
+  await f.broker.handle(requestA, onA);
+  const onB = { ...owner(), tabId: 3 };
+  const requestB = start(onB);
+  requestB.payload.providerId = providerB;
+  await f.broker.handle(requestB, onB);
+  f.platform.permitted.mockImplementation(
+    async (baseUrl) => new URL(baseUrl).hostname !== 'a.example',
+  );
+  await f.broker.cancelRevokedOrigins(['https://a.example/*']);
+  expect(await f.broker.handle(control(requestB, 'translation.status'), onB)).toMatchObject({
+    data: { state: 'running' },
+  });
+  expect(await f.broker.readManual(manual.tabId)).toMatchObject({ result: result.text });
+  expect(await f.broker.handle(control(requestA, 'translation.status'), onA)).toMatchObject({
+    data: { state: 'canceled' },
+  });
+});
+
+it('a website revocation only cancels tasks owned by that site', async () => {
+  const f = await setup();
+  const a = { ...owner(), siteOrigin: 'https://a.example' };
+  const taskA = start(a);
+  await f.broker.handle(taskA, a);
+  const b = { ...owner(), tabId: 2, siteOrigin: 'https://b.example' };
+  const taskB = start(b);
+  await f.broker.handle(taskB, b);
+  await f.broker.cancelRevokedOrigins(['https://a.example/*']);
+  expect(await f.broker.handle(control(taskA, 'translation.status'), a)).toMatchObject({
+    data: { state: 'canceled' },
+  });
+  expect(await f.broker.handle(control(taskB, 'translation.status'), b)).toMatchObject({
+    data: { state: 'running' },
+  });
+});
+
+it('uses the dispatched API origin snapshot after configuration changes and retains overlapping grants', async () => {
+  const f = await setup();
+  const who = owner();
+  const request = start(who);
+  await f.broker.handle(request, who);
+  const route = f.saved().routes[0]!;
+  expect(route.apiOrigin).toBe('https://model.example');
+  await f.broker.cancelRevokedOrigins(['https://model.example/*']);
+  expect(f.saved().routes[0]!.state).toBe('running');
+  f.repository.completionConfig.mockRejectedValue(new Error('CONFIG_REQUIRED'));
+  f.platform.permitted.mockResolvedValue(false);
+  await f.broker.cancelRevokedOrigins(['https://model.example/*']);
+  expect(f.saved().routes[0]!.state).toBe('canceled');
 });

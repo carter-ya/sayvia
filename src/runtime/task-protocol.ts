@@ -59,6 +59,8 @@ export const RouteSchema = z
     frameId: z.literal(0),
     documentId: z.string().min(1).max(160).optional(),
     mode: z.enum(['read', 'write', 'manual']),
+    apiOrigin: z.url().max(2048),
+    siteOrigin: z.url().max(2048).optional(),
     epoch: z.uuid(),
     providerId: z.uuid(),
     providerRevision: z.int().nonnegative(),
