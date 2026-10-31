@@ -50,10 +50,29 @@ export async function handlePageMessage(
       return { ok: false, error: 'UNSUPPORTED' };
     const results = await browser.scripting.executeScript({
       target: { tabId: tab.id!, frameIds: [0] },
-      files: ['/content-scripts/translator.js'],
+      // Obtain the current document without restarting WXT's content-script context.
+      func: () => undefined,
     });
     const documentId = results[0]?.documentId;
     if (!documentId) return { ok: false, error: 'CONTEXT_LOST' };
+    let ready = false;
+    try {
+      const response = (await browser.tabs.sendMessage(
+        tab.id!,
+        { protocolVersion: 1, type: 'page.probe' },
+        { documentId, frameId: 0 },
+      )) as { ok?: boolean; type?: string; protocolVersion?: number } | undefined;
+      ready =
+        response?.ok === true && response.type === 'page.ready' && response.protocolVersion === 1;
+    } catch {
+      // No live controller in this document: inject once, then open that same document.
+    }
+    if (!ready) {
+      await browser.scripting.executeScript({
+        target: { tabId: tab.id!, documentIds: [documentId] },
+        files: ['/content-scripts/translator.js'],
+      });
+    }
     return (await browser.tabs.sendMessage(
       tab.id!,
       { protocolVersion: 1, type: 'page.show', mode: request.payload.mode },

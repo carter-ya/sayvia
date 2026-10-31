@@ -251,3 +251,75 @@ test('API authorization is tied to a user click and the displayed host', async (
     await f.close();
   }
 });
+
+for (const kind of ['rich-text', 'password', 'readonly'] as const) {
+  test(`an unsupported ${kind} target cannot reuse the previous editor`, async () => {
+    const f = await workflowFixture();
+    try {
+      await f.page.locator('#editor').focus();
+      const first = await f.open('write');
+      await expect(first.getByLabel('原文', { exact: true })).toHaveValue('前缀 中文 后缀');
+      await first.getByRole('button', { name: '关闭翻译面板' }).click();
+      await f.page.evaluate((kind) => {
+        const element = document.createElement(
+          kind === 'readonly' ? 'textarea' : kind === 'password' ? 'input' : 'div',
+        );
+        element.id = 'unsupported-editor';
+        if (element instanceof HTMLInputElement) {
+          element.type = 'password';
+          element.value = 'do-not-send';
+        } else if (element instanceof HTMLTextAreaElement) {
+          element.readOnly = true;
+          element.value = 'readonly source';
+        } else {
+          element.contentEditable = 'true';
+          element.textContent = 'rich editor source';
+        }
+        document.body.append(element);
+        element.focus();
+      }, kind);
+      const panel = await f.open('write');
+      await expect(panel.getByRole('status')).toHaveText('当前编辑框无法安全替换，请使用复制。');
+      await expect(panel.getByLabel('原文', { exact: true })).toHaveValue('');
+      await expect(panel.getByRole('button', { name: '翻译', exact: true })).toBeDisabled();
+      await panel.getByRole('button', { name: '全文', exact: true }).click();
+      await expect(panel.getByLabel('原文', { exact: true })).toHaveValue('');
+      expect(f.count()).toBe(0);
+      await expect(f.page.locator('#editor')).toHaveValue('前缀 中文 后缀');
+      await panel.getByRole('button', { name: '关闭翻译面板' }).click();
+      await f.page.locator('#other').focus();
+      const supported = await f.open('write');
+      await expect(supported.getByLabel('原文', { exact: true })).toHaveValue('另一份草稿');
+      await expect(supported.getByRole('button', { name: '翻译', exact: true })).toBeEnabled();
+    } finally {
+      await f.close();
+    }
+  });
+}
+
+test('reopening the toolbar preserves an edited candidate when discarding is declined', async () => {
+  const f = await workflowFixture();
+  try {
+    await f.page.locator('#editor').focus();
+    const panel = await f.open('write');
+    await panel.getByRole('button', { name: '翻译', exact: true }).click();
+    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('前缀 English 后缀');
+    await panel.getByLabel('译文', { exact: true }).fill('Edited English candidate');
+    let confirmations = 0;
+    f.page.once('dialog', async (dialog) => {
+      confirmations++;
+      await dialog.dismiss();
+    });
+    const reopened = await f.open('write');
+    await expect(reopened.getByLabel('译文', { exact: true })).toHaveValue(
+      'Edited English candidate',
+    );
+    expect(confirmations).toBe(1);
+    expect(f.count()).toBe(1);
+    await expect(reopened.getByRole('button', { name: '替换全文', exact: true })).toBeEnabled();
+    await reopened.getByRole('button', { name: '替换全文', exact: true }).click();
+    await expect(f.page.locator('#editor')).toHaveValue('Edited English candidate');
+  } finally {
+    await f.close();
+  }
+});
