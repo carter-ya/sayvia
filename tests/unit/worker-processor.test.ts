@@ -16,6 +16,15 @@ const setup = () => {
 };
 
 describe('per-task worker lifecycle', () => {
+  it('rejects oversized reconstruction before posting, rather than waiting for a deadline', async () => {
+    const { worker, processor, signal } = setup();
+    await expect(processor.reconstruct('x'.repeat(192_001), signal.signal)).rejects.toThrow(
+      'FORMAT_INVALID',
+    );
+    expect(worker.postMessage).not.toHaveBeenCalled();
+    processor.dispose();
+  }, 500);
+
   it('sends only the source and candidate to the worker, and correlates replies', async () => {
     const { worker, processor, signal } = setup();
     const prepared = processor.prepare(source, signal.signal);

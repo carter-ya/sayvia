@@ -1,12 +1,17 @@
 import { z } from 'zod';
 import { SourceInputSchema } from '../core/source-input';
+import { MAX_OUTPUT_CHARACTERS } from '../core/translation-plan';
 import { localProcessor } from '../core/translation-processor';
 
 const processor = localProcessor();
 const Request = z.discriminatedUnion('type', [
   z.object({ type: z.literal('prepare'), id: z.uuid(), value: SourceInputSchema }).strict(),
   z
-    .object({ type: z.literal('reconstruct'), id: z.uuid(), value: z.string().max(192_000) })
+    .object({
+      type: z.literal('reconstruct'),
+      id: z.uuid(),
+      value: z.string().max(MAX_OUTPUT_CHARACTERS * 8),
+    })
     .strict(),
 ]);
 self.addEventListener('message', (event: MessageEvent<unknown>) => {
