@@ -31,7 +31,8 @@
 | S04a | M1 | stack/04a-dom-source | S03 | 三类输入契约、DOM 选区语义与内存快照 |
 | S04b | M1 | stack/04b-translation-plan | S04a | Markdown／纯文本计划、结果重建校验与固定样例 |
 | S05 | M1 | stack/05-model-protocol | S04b | 模型协议、固定样例与早期真实模型验证 |
-| S06 | M1 | stack/06-task-runtime | S05 | Offscreen 执行、任务调度、取消与后台恢复 |
+| S06a | M1 | stack/06a-executor | S05 | Offscreen 执行器、真实 Worker、取消和有界结果保留 |
+| S06b | M1 | stack/06b-task-broker | S06a | 后台调度、来源路由、权限与重启恢复 |
 | S07 | M1 退出 | stack/07-core-workflow | S06 | 最小真实翻译闭环与 M1 证据 |
 | S08 | M2 | stack/08-settings-popup | S07 且 M1 通过 | 完整模型设置、权限管理与弹窗手动翻译 |
 | S09 | M2 | stack/09-reading-ui | S08 | 阅读面板、右键、快捷键和阅读场景完善 |
@@ -151,6 +152,10 @@ DOM 语义是否在纯文本化前保留、源串与索引是否一致、格式�
 实现后台任务代理、Offscreen 生命周期管理、真实 Dedicated Worker、请求执行、超时和取消。Offscreen 使用 WORKERS 用途且确实承担 Worker 任务。
 
 每标签页互斥、taskId 幂等、任务路由、无正文 session 索引、结果确认和迟到结果丢弃一并实现。后台重启只查询现有执行任务，不重发模型请求，不恢复快速覆盖资格。
+
+### 实际拆分
+
+S06a 先交付 Offscreen 内部执行器与真实 Dedicated Worker：沿用 S05 模型协议，Worker 只接收源文／模型候选，Key 与网络请求留在 Offscreen。使用 Offscreen 主动建立的内部 Port，避免携带 Key 的开始命令广播到扩展界面；不增加默认网站权限。S06b 再接入后台互斥、来源校验、按保存配置读取凭证、主机权限、生命周期串行锁和 session 恢复。创建／取消／关闭竞态及 35 秒真实延迟与后台重启在 S06b 集成验证；S06a 不宣称完整执行链路已完成。
 
 ### 验证与退出条件
 
