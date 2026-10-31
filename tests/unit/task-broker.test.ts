@@ -123,6 +123,13 @@ const result = {
 };
 
 describe('task ownership and durable dispatch', () => {
+  it('rejects a connection test whose configuration revision changed before dispatch', async () => {
+    const f = await setup();
+    const who = { ...owner(), kind: 'manual' as const };
+    expect(await f.broker.handle(start(who), who, 1)).toEqual({ ok: false, error: 'CONFLICT' });
+    expect(f.host.start).not.toHaveBeenCalled();
+    expect(f.dispatches()).toBe(0);
+  });
   it('persists a body-free route before dispatch, and deduplicates all client retries', async () => {
     const f = await setup();
     const who = owner();

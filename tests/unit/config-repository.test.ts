@@ -144,6 +144,48 @@ describe('permanent configuration repository', () => {
     expect((raw as StoredState).secrets).toEqual({});
   });
 
+  it('saves preferences without changing provider revisions or exposing keys', async () => {
+    const repo = new ConfigRepository(storage);
+    const first = await repo.save(input(0));
+    const second = await repo.save(input(1, { name: '备用', makeDefault: false }));
+    const preferences = {
+      ...second.preferences,
+      defaultProviderId: second.providers[1]!.id,
+      readTarget: 'ja',
+      writeTarget: 'fr',
+      quickReplace: true,
+      theme: 'dark' as const,
+    };
+    const changed = await handleSettings(
+      {
+        type: 'settings.preferences',
+        payload: {
+          expectedRevision: 2,
+          preferences,
+        },
+      },
+      repo,
+    );
+    expect(changed).toEqual({ ok: true, data: { ...second, revision: 3, preferences } });
+    expect((await repo.completionConfig()).providerId).toBe(second.providers[1]!.id);
+    expect(JSON.stringify(changed)).not.toContain(KEY);
+    expect((await repo.snapshot()).providers[0]!.revision).toBe(first.providers[0]!.revision);
+    expect((await new ConfigRepository(storage).snapshot()).preferences).toEqual(preferences);
+    await expect(repo.preferences({ expectedRevision: 2, preferences })).rejects.toThrow(
+      'CONFLICT',
+    );
+    await expect(
+      repo.preferences({
+        expectedRevision: 3,
+        preferences: {
+          ...preferences,
+          defaultProviderId: crypto.randomUUID(),
+        },
+      }),
+    ).rejects.toThrow('NOT_FOUND');
+    expect((await repo.snapshot()).revision).toBe(3);
+  });
+
   it('migrates the explicit flat prototype format without losing keys', async () => {
     const id = crypto.randomUUID();
     raw = {

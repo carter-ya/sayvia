@@ -27,6 +27,7 @@ export interface TaskPlatform {
 type Host = Pick<ExecutorHost, 'start' | 'task' | 'closeIfIdle'>;
 const ERRORS = new Set([
   'CONFIG_REQUIRED',
+  'CONFLICT',
   'PERMISSION_DENIED',
   'TASK_BUSY',
   'FORBIDDEN',
@@ -97,6 +98,7 @@ export class TaskBroker {
   async handle(
     request: Exclude<TaskMessage, { type: 'translation.manual.read' }>,
     owner: TaskOwner,
+    expectedProviderRevision?: number,
   ) {
     try {
       return await this.serial(async () => {
@@ -124,7 +126,7 @@ export class TaskBroker {
           if (route) return { ok: true, data: this.view(route) };
           if (this.state.canceled.some((entry) => entry.key === this.key(owner, clientTaskId)))
             return { ok: true, data: { clientTaskId, state: 'canceled', canApply: false } };
-          route = await this.start(request.payload, owner);
+          route = await this.start(request.payload, owner, expectedProviderRevision);
         } else if (route && ACTIVE.has(route.state)) await this.refresh(route);
         if (!route) return { ok: false, error: 'NOT_FOUND' };
         await this.persist();
@@ -142,7 +144,7 @@ export class TaskBroker {
       };
     }
   }
-  private async start(payload: StartPayload, owner: TaskOwner) {
+  private async start(payload: StartPayload, owner: TaskOwner, expectedProviderRevision?: number) {
     if ((owner.kind === 'manual') !== (payload.mode === 'manual')) throw new Error('FORBIDDEN');
     const active = this.state.routes.filter((route) => ACTIVE.has(route.state));
     if (
@@ -152,6 +154,11 @@ export class TaskBroker {
     )
       throw new Error('TASK_BUSY');
     const provider = await this.repository.completionConfig(payload.providerId);
+    if (
+      expectedProviderRevision !== undefined &&
+      provider.providerRevision !== expectedProviderRevision
+    )
+      throw new Error('CONFLICT');
     if (!(await this.platform.permitted(provider.config.baseUrl)))
       throw new Error('PERMISSION_DENIED');
     let route: TaskRoute | undefined;

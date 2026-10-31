@@ -11,9 +11,11 @@ export async function handleSettings(message: unknown, repository: ConfigReposit
     const data =
       request.type === 'settings.read'
         ? await repository.snapshot()
-        : request.type === 'settings.save'
-          ? await repository.save(request.payload)
-          : await repository.delete(request.payload.id, request.payload.expectedRevision);
+        : request.type === 'settings.preferences'
+          ? await repository.preferences(request.payload)
+          : request.type === 'settings.save'
+            ? await repository.save(request.payload)
+            : await repository.delete(request.payload.id, request.payload.expectedRevision);
     return { ok: true as const, data };
   } catch (error) {
     const code =

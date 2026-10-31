@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { handlePageMessage } from '../src/background/page-router';
+import { handleConnectionTest } from '../src/background/connection-test';
 import { handleSettings } from '../src/background/settings-router';
 import { chromeConfigStorage } from '../src/storage/chrome-storage';
 import { ConfigRepository } from '../src/storage/repository';
@@ -116,6 +117,10 @@ export default defineBackground(() => {
     if (sender.url?.split(/[?#]/)[0] !== browser.runtime.getURL('/options.html')) {
       sendResponse({ ok: false, error: 'FORBIDDEN' });
       return;
+    }
+    if (message.type.startsWith('settings.test.')) {
+      void handleConnectionTest(message, sender, repository, broker).then(sendResponse);
+      return true;
     }
     void handleSettings(message, repository)
       .then(async (result) => {
