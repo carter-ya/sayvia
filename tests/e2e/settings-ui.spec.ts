@@ -69,3 +69,23 @@ test('a stale save preserves the unsaved key and reloads the latest configuratio
     await f.close();
   }
 });
+
+test('reload discards unsaved fields even when the stored revision has not changed', async () => {
+  const f = await workflowFixture();
+  try {
+    await f.settings.getByLabel('模型名称').fill('unsaved-model');
+    await f.settings.getByLabel('API Key', { exact: true }).fill('UNSAVED_FIXTURE_RELOAD');
+    f.settings.once('dialog', (dialog) => void dialog.accept());
+    await f.settings.getByRole('button', { name: '重新载入' }).click();
+    await expect(f.settings.getByRole('status')).toHaveText('已载入最新设置。');
+    await expect(f.settings.getByLabel('API Key', { exact: true })).toHaveValue('');
+    await expect(f.settings.getByLabel('模型名称')).toHaveValue('fixture-model');
+    await expect(f.settings.getByTestId('connection-status')).toHaveText('尚未测试连接');
+    await f.settings.getByRole('button', { name: '测试连接', exact: true }).click();
+    await expect(f.settings.getByTestId('connection-status')).toHaveText('连接可用');
+    expect(JSON.parse(f.requestBodies[0]!).model).toBe('fixture-model');
+    expect(f.requestBodies[0]).not.toContain('UNSAVED_FIXTURE_RELOAD');
+  } finally {
+    await f.close();
+  }
+});

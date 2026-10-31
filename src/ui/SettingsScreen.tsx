@@ -6,6 +6,7 @@ import { ProviderForm } from './ProviderForm';
 export function SettingsScreen() {
   const [snapshot, setSnapshot] = useState<ConfigSnapshot>();
   const [selected, setSelected] = useState('');
+  const [formEpoch, setFormEpoch] = useState(0);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState('');
@@ -14,6 +15,7 @@ export function SettingsScreen() {
   function apply(next: ConfigSnapshot) {
     setSnapshot(next);
     setDirty(false);
+    setFormEpoch((value) => value + 1);
   }
   useEffect(() => {
     let active = true;
@@ -195,7 +197,7 @@ export function SettingsScreen() {
                 </select>
               </label>
               <ProviderForm
-                key={`${snapshot.revision}:${selected}`}
+                key={`${formEpoch}:${snapshot.revision}:${selected}`}
                 provider={provider}
                 busy={busy}
                 dirty={dirty}
