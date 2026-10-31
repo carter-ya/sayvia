@@ -98,3 +98,9 @@ button:disabled {
   color: inherit;
   border: 1px solid #809187;
 }
+
+.popup-actions {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}

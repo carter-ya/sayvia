@@ -1,3 +1,4 @@
+import { browserLaunchOptions } from '../fixtures/browser-options';
 import { chromium, expect, test } from '@playwright/test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -7,6 +8,7 @@ test('built extension connects popup and options, and executes its bundled worke
   const profile = await mkdtemp(join(tmpdir(), 'sayvia-smoke-'));
   const extension = resolve('.output/chrome-mv3');
   const context = await chromium.launchPersistentContext(profile, {
+    ...browserLaunchOptions(),
     channel: 'chromium',
     headless: true,
     args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],

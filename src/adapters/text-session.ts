@@ -68,7 +68,7 @@ export class TextEditorSession {
     this.revision += 1;
   };
 
-  capture(): EditorSnapshot {
+  capture(forceScope?: 'full'): EditorSnapshot {
     const reason = this.contextError();
     if (reason) throw new Error(reason);
     if (this.composing) throw new Error('COMPOSING');
@@ -77,7 +77,7 @@ export class TextEditorSession {
     this.observedValue = fullText;
     const start = this.element.selectionStart ?? 0;
     const end = this.element.selectionEnd ?? start;
-    const selection = end > start;
+    const selection = end > start && forceScope !== 'full';
     const snapshot: EditorSnapshot = Object.freeze({
       editorSessionId: this.id,
       documentNonce: this.documentNonce,
@@ -132,6 +132,18 @@ export class TextEditorSession {
 
   previousOriginal() {
     return this.record?.before;
+  }
+
+  canRestore() {
+    return (
+      !this.contextError() &&
+      !this.composing &&
+      Boolean(
+        this.record &&
+        this.record.revision === this.revision &&
+        this.record.after === this.element.value,
+      )
+    );
   }
 
   async restore(): Promise<ApplyResult> {

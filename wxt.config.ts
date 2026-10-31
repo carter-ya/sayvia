@@ -18,7 +18,7 @@ export default defineConfig({
     name: 'Sayvia',
     description: '在网页中阅读与表达，让语言不再成为障碍。',
     minimum_chrome_version: '116',
-    permissions: ['storage', 'offscreen'],
+    permissions: ['storage', 'offscreen', 'activeTab', 'scripting', 'clipboardWrite'],
     optional_host_permissions: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
     incognito: 'not_allowed',
     content_security_policy: {

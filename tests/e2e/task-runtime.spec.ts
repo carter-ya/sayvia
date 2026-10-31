@@ -1,3 +1,4 @@
+import { browserLaunchOptions } from '../fixtures/browser-options';
 import { chromium, expect, test, type Page } from '@playwright/test';
 import { createServer, type ServerResponse } from 'node:http';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -65,6 +66,7 @@ async function fixture() {
   if (!address || typeof address === 'string') throw new Error('Fixture server unavailable');
   const baseUrl = `http://127.0.0.1:${address.port}`;
   const context = await chromium.launchPersistentContext(join(temporary, 'profile'), {
+    ...browserLaunchOptions(),
     channel: 'chromium',
     headless: true,
     args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],

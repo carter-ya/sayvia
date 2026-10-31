@@ -31,6 +31,15 @@ afterEach(() => {
 });
 
 describe('editor safety', () => {
+  it('captures explicit full scope without mutating the native selection', () => {
+    const { element, session } = editor('前缀 中文 后缀');
+    element.setSelectionRange(3, 5);
+    const snapshot = session.capture('full');
+    expect(snapshot.scope).toBe('full');
+    expect(snapshot.range).toEqual({ start: 0, end: 8 });
+    expect([element.selectionStart, element.selectionEnd]).toEqual([3, 5]);
+  });
+
   it('replaces only the captured selection and restores the exact prior draft', async () => {
     const { element, session } = editor('前缀 中文 后缀');
     element.setSelectionRange(3, 5);

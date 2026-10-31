@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { ConfigSnapshot } from '../storage/schema';
 import { settingsRequest } from './settings-client';
 import { PROVIDER_PRESETS } from '../providers/presets';
+import { browser } from 'wxt/browser';
+import { normalizeBaseUrl } from '../providers/endpoint';
 
 type PublicProvider = ConfigSnapshot['providers'][number];
 
@@ -16,6 +18,21 @@ function ProviderForm({
 }) {
   const [kind, setKind] = useState(provider?.kind ?? 'openai');
   const [baseUrl, setBaseUrl] = useState(provider?.baseUrl ?? PROVIDER_PRESETS.openai.baseUrl);
+  const [permissionStatus, setPermissionStatus] = useState('');
+  function authorize() {
+    try {
+      const url = new URL(normalizeBaseUrl(baseUrl));
+      void browser.permissions.request({ origins: [`${url.protocol}//${url.hostname}/*`] }).then(
+        (granted) =>
+          setPermissionStatus(
+            granted ? `${url.hostname} 已获授权。` : '未获得授权，暂不能向此主机发起翻译。',
+          ),
+        () => setPermissionStatus('授权未完成，请重试。'),
+      );
+    } catch {
+      setPermissionStatus('请先填写有效的 API Base URL。');
+    }
+  }
   return (
     <form onSubmit={onSubmit}>
       <label>
@@ -30,6 +47,7 @@ function ProviderForm({
           onChange={(event) => {
             const value = event.target.value as PublicProvider['kind'];
             setKind(value);
+            setPermissionStatus('');
             setBaseUrl(PROVIDER_PRESETS[value].baseUrl);
           }}
         >
@@ -45,9 +63,23 @@ function ProviderForm({
           type="url"
           required
           value={baseUrl}
-          onChange={(event) => setBaseUrl(event.target.value)}
+          onChange={(event) => {
+            setBaseUrl(event.target.value);
+            setPermissionStatus('');
+          }}
         />
       </label>
+      <button
+        type="button"
+        className="secondary"
+        onClick={(event) => {
+          if (event.nativeEvent.isTrusted) authorize();
+        }}
+      >
+        授权此 API 主机
+      </button>
+      <p className="muted">API 授权用于请求翻译；页面翻译由你在当前网页点击插件开启。</p>
+      {permissionStatus && <p role="note">{permissionStatus}</p>}
       <label>
         模型名称
         <input name="model" required maxLength={160} defaultValue={provider?.model ?? ''} />

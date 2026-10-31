@@ -51,7 +51,10 @@ function protectedTokens(text: string, markdown: boolean) {
 }
 
 export function createTranslationPlan(input: SourceInput): TranslationPlan {
-  const source = parseSourceInput(input);
+  return planForSource(parseSourceInput(input));
+}
+
+function planForSource(source: SourceInput): TranslationPlan {
   let eligible: Interval[] = [{ start: 0, end: source.text.length }];
   const protectedRanges: Interval[] =
     source.kind === 'markdown' ? [] : protectedTokens(source.text, false);
@@ -263,4 +266,43 @@ export function reconstructTranslation(plan: TranslationPlan, json: string) {
   }
   if ([...result].length > MAX_OUTPUT_CHARACTERS) throw new PlanError('OUTPUT_TOO_LONG');
   return result;
+}
+
+// User edits are checked against the validated baseline, never sent back to a model.
+export function validateEditedTranslation(
+  kind: 'markdown' | 'plain-text',
+  baseline: string,
+  candidate: string,
+) {
+  if (
+    !candidate.trim() ||
+    [...candidate].length > MAX_OUTPUT_CHARACTERS ||
+    [...candidate].some((character) => {
+      const point = character.codePointAt(0)!;
+      return (
+        (point < 32 && !'\t\r\n'.includes(character)) ||
+        point === 127 ||
+        point === 0x2028 ||
+        point === 0x2029 ||
+        (point >= 0xd800 && point <= 0xdfff)
+      );
+    })
+  )
+    return false;
+  if (candidate === baseline) return true;
+  const signature = (text: string) => {
+    const plan = planForSource({ kind, text });
+    return JSON.stringify({
+      shape: plan.markdownShape,
+      protected: plan.parts
+        .filter((part) => part.kind === 'protected')
+        .map((part) => part.text)
+        .filter(Boolean),
+    });
+  };
+  try {
+    return signature(baseline) === signature(candidate);
+  } catch {
+    return false;
+  }
 }
