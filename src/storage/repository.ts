@@ -1,6 +1,8 @@
 import { loadState } from './migrations';
 import {
   SaveSchema,
+  PreferencesInputSchema,
+  type PreferencesInput,
   SnapshotSchema,
   StateSchema,
   type SaveInput,
@@ -102,6 +104,15 @@ export class ConfigRepository {
       if (checked.makeDefault || !state.preferences.defaultProviderId) {
         state.preferences.defaultProviderId = id;
       }
+    });
+  }
+
+  preferences(input: PreferencesInput) {
+    const checked = PreferencesInputSchema.parse(input);
+    return this.mutate(checked.expectedRevision, (state) => {
+      const id = checked.preferences.defaultProviderId;
+      if (id && !state.providers[id]) throw new Error('NOT_FOUND');
+      state.preferences = structuredClone(checked.preferences);
     });
   }
 

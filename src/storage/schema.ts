@@ -35,11 +35,11 @@ const Provider = z
     protocol: z.literal('chat-completions'),
   })
   .strict();
-const Preferences = z
+export const Preferences = z
   .object({
     defaultProviderId: Id.optional(),
-    readTarget: z.string().min(1).max(20),
-    writeTarget: z.string().min(1).max(20),
+    readTarget: z.string().trim().min(1).max(20),
+    writeTarget: z.string().trim().min(1).max(20),
     quickReplace: z.boolean(),
     theme: z.enum(['system', 'light', 'dark']),
   })
@@ -104,8 +104,17 @@ export const SaveSchema = z
   .strict();
 export type SaveInput = z.infer<typeof SaveSchema>;
 
+export const PreferencesInputSchema = z
+  .object({
+    expectedRevision: z.int().nonnegative(),
+    preferences: Preferences,
+  })
+  .strict();
+export type PreferencesInput = z.infer<typeof PreferencesInputSchema>;
+
 export const RequestSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('settings.read') }).strict(),
+  z.object({ type: z.literal('settings.preferences'), payload: PreferencesInputSchema }).strict(),
   z.object({ type: z.literal('settings.save'), payload: SaveSchema }).strict(),
   z
     .object({
