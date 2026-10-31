@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
+import { handlePageMessage } from '../src/background/page-router';
 import { handleSettings } from '../src/background/settings-router';
 import { chromeConfigStorage } from '../src/storage/chrome-storage';
 import { ConfigRepository } from '../src/storage/repository';
@@ -81,6 +82,10 @@ export default defineBackground(() => {
   });
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (typeof message !== 'object' || message === null) return;
+    if (typeof message.type === 'string' && message.type.startsWith('page.')) {
+      void handlePageMessage(message, sender, repository).then(sendResponse);
+      return true;
+    }
     if (typeof message.type === 'string' && message.type.startsWith('translation.')) {
       void handleTaskMessage(message, sender, broker).then(sendResponse, () =>
         sendResponse({ ok: false, error: 'RUNTIME_UNAVAILABLE' }),

@@ -18,7 +18,13 @@ const manifest = JSON.parse(readFileSync(join(output, 'manifest.json'), 'utf8'))
 describe('production extension package', () => {
   it('does not grant website access before a feature needs it', () => {
     expect(manifest.manifest_version).toBe(3);
-    expect(manifest.permissions ?? []).toEqual(['storage', 'offscreen']);
+    expect(manifest.permissions ?? []).toEqual([
+      'storage',
+      'offscreen',
+      'activeTab',
+      'scripting',
+      'clipboardWrite',
+    ]);
     expect(manifest.host_permissions ?? []).toEqual([]);
     expect(manifest.optional_host_permissions).toEqual([
       'https://*/*',

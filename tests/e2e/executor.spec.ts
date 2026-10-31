@@ -1,3 +1,4 @@
+import { browserLaunchOptions } from '../fixtures/browser-options';
 import { chromium, expect, test, type BrowserContext, type Worker } from '@playwright/test';
 import { createServer, type ServerResponse } from 'node:http';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -103,6 +104,7 @@ test('real offscreen execution uses a bundled Worker, private credentials, cance
   let context: BrowserContext | undefined;
   try {
     context = await chromium.launchPersistentContext(join(temporary, 'profile'), {
+      ...browserLaunchOptions(),
       channel: 'chromium',
       headless: true,
       args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],

@@ -1,0 +1,84 @@
+{
+  "baselineModelRunCommit": "cbf83616eebf422bd1b0bc87f69dbf43f994ace7",
+  "extensionCodeCommit": "dd9d8ac33c3199361768955ab0d03419b64d8bdc",
+  "checkedAt": "2026-10-31T02:50:36.210Z",
+  "matchingLocalPlans": 12,
+  "matchingModelPayloads": 12,
+  "matchingCompleteRequestBodies": 12,
+  "endpointAndPresetSourcesUnchanged": true,
+  "sampleFixturesUnchanged": true,
+  "samples": [
+    {
+      "id": "m1-01",
+      "planSha256": "abc84bb7c6af5577cd6fa6b06b799989e6c387fe1f4d3edda02feada563f9ed2",
+      "payloadSha256": "c00402d8dad19df1a175a6a56f05e1e94e70629dfaf3dd59c1967bff28ae715b",
+      "requestSha256": "7648d530155af317c33857a887842017d2fb964c4c91ce088a40c29f411029d4"
+    },
+    {
+      "id": "m1-02",
+      "planSha256": "c56d2f2d60ea27113166d71d8cf0ae33f592f8d3724a32d754c795c462ab7bb2",
+      "payloadSha256": "0ffa7473e08939c78c60aa243d2a556eaf751f5cb09d6b7479f4b6f1b110fb44",
+      "requestSha256": "31f7ad53b15c0821fc8c84dab24794e75d5d57a2cef8416d338cc05fad67ebfd"
+    },
+    {
+      "id": "m1-03",
+      "planSha256": "6596ac88818c5792e034b3ddc591b337dd81152cc17996ab0deb0632be6ecc22",
+      "payloadSha256": "92aba4f5bbbad05e532126a418c7bdbd339fe0c5ca95ff83966c424680690a3f",
+      "requestSha256": "047ab08eaa4e3c9f9bb5c00cac628a08a12b02dd207130238617409106b24b9b"
+    },
+    {
+      "id": "m1-04",
+      "planSha256": "5663f03730eaba228e0bd423c361821dd4fa66c6a26d32e91f0984fab7d77792",
+      "payloadSha256": "011e3be5cb75963e9b85e4999d30dc79b1ce84d77b4764ab85b2f50f91299c40",
+      "requestSha256": "0ef9c7bfefdb8b1bbecf6f45ac1901c3a57db57fd0955fa8bb808a1fd5fbea88"
+    },
+    {
+      "id": "m1-05",
+      "planSha256": "4f3431f06a8e6ff2d947ff25dd95a03bc00fe72a426dd8a63b831bf5ffc7a6c7",
+      "payloadSha256": "2e92098b44777a6c2e4ab03949bc1c2d1d96372c860cfe0d6eae2cf7fa29b359",
+      "requestSha256": "a2f43dab0d3f695df24fd81d99b65e4c2839a6368336017b6553f8881f440b33"
+    },
+    {
+      "id": "m1-06",
+      "planSha256": "74928431402ca8e39ae80fb2b0a2b60cae7aec223fc27f3303a800347ddf51a2",
+      "payloadSha256": "cde5a466fb5c799603c551e5c6e7007e879220608e59c6ccf0dcd8f9e9b8e632",
+      "requestSha256": "7029a8e8b901d38beca3fe367b608ae374acc6a3060342e364429f91252cace8"
+    },
+    {
+      "id": "m1-07",
+      "planSha256": "de1205bf513f47655dfe27bf4c2bab2ccef861a6bbb1b8638ff50c52d5d8ec24",
+      "payloadSha256": "10066f0660b980342f481bbd0bb3549558c10ef4e40109c606891f6a4e457daa",
+      "requestSha256": "b50c4c81a8a7754263b52649b73e8e00274a88b96beac9d135402326713930ce"
+    },
+    {
+      "id": "m1-08",
+      "planSha256": "d4e240f7c732fd28fd7ce0cb2fdd25e6be41443d9885557e484c6bd639f5c3a2",
+      "payloadSha256": "7cff527b9ad39b040d6b8c1cf8e618f9fa95a22b505c148186caf254ab0bf284",
+      "requestSha256": "9665fb36738e33147ff52735ecf4c08201889307ba6f660680f8277b78c1dbb0"
+    },
+    {
+      "id": "m1-09",
+      "planSha256": "2b5a7d053cca4a15a5f3bc5c7002dd6690f91bf11a4995a9459e0d6a8e5b450b",
+      "payloadSha256": "4680959355727eaedf02c7ef8f8f1cccc69b03d4344d67639c47866f14f74707",
+      "requestSha256": "2ffe62b92c8f2cff5f2915bc9aec2e2e8bed0977798a99025bd3ab7342dd4d66"
+    },
+    {
+      "id": "m1-10",
+      "planSha256": "712fb570eb5670a967ec7459892a2070382218bb343f90a7455a27f569bb2b6d",
+      "payloadSha256": "d1f40b1ef2c119b82f3787d1046f034bd1fa1a8bdff00f50a659de40fae0ad03",
+      "requestSha256": "37bd1da0f9b2d1db63e6fc6ca17bd9d12dcf285b4af515f587fde2ea31fc2e14"
+    },
+    {
+      "id": "m1-11",
+      "planSha256": "5e8aa4f3fc783f7ca037c3dc45864ea7d20ca99e977940eb71df8d3bca09cfdf",
+      "payloadSha256": "ea917acb40d3b36f3cc51315026bbab708ae77712cb4740210618d2fa01a7cb5",
+      "requestSha256": "66ab837e73c99a779800bff375a76d054867ee6a5fcb94cd4a0131853fe95a0b"
+    },
+    {
+      "id": "m1-12",
+      "planSha256": "83f48d9b51da6a536a8beffefdf9c8aaba28c36c9adf1af02339836033b4069b",
+      "payloadSha256": "40ab095484c7dbd90d214dd20421c6bae33f63e19e7a003dd045221b69c8c4ff",
+      "requestSha256": "f29a8df7c14f870fd7c309829d54b487486680a313fa5288b57def6baba93a2a"
+    }
+  ]
+}

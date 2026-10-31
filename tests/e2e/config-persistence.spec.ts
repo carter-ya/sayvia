@@ -1,3 +1,4 @@
+import { browserLaunchOptions } from '../fixtures/browser-options';
 import { chromium, expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { createServer } from 'node:http';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -55,6 +56,7 @@ test('keys survive browser restarts and same-id updates while page scripts canno
   let context: BrowserContext | undefined;
   const launch = () =>
     chromium.launchPersistentContext(profile, {
+      ...browserLaunchOptions(),
       channel: 'chromium',
       headless: true,
       args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],

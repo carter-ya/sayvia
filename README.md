@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-当前支持模型配置与 API Key 本机永久保存，已验证浏览器重启和同 ID 更新保留，扩展界面尚未接通翻译；开发用模型协议已完成 Luna／Flash 固定样例实测和 AI 质量初评，完整 M1 与真人验收待完成。首版优先适配 GitHub；Product Hunt 评论框专项适配安排在后续阶段。
+当前已接通最小阅读与写作翻译：原文预览、目标语言、候选编辑、复制、选区／全文替换、一步恢复及取消。支持模型配置与 API Key 本机永久保存；Luna／Flash 已完成固定样例和真实扩展链路实测。M1 尚待真人语义审阅与真实 GitHub 手动提交验收。首版优先适配 GitHub；Product Hunt 评论框专项适配安排在后续阶段。
 
 ## 本地开发
 
@@ -16,7 +16,7 @@ pnpm exec playwright install chromium
 pnpm dev
 ```
 
-pnpm build 生成 .output/chrome-mv3。在 Chrome 扩展管理页打开开发者模式，选择“加载已解压的扩展程序”并加载该目录。当前可打开弹窗与设置页，尚不会向网站注入功能或调用模型。
+pnpm build 生成 .output/chrome-mv3。在 Chrome 扩展管理页打开开发者模式，选择“加载已解压的扩展程序”并加载该目录。在设置中保存模型配置，并点击“授权此 API 主机”。回到网页，选中文字或聚焦编辑框，再从工具栏选择阅读／写作翻译；核对原文后点击翻译。付费模型只在明确操作后调用，评论仍由用户自行提交。
 
 ## 检查与打包
 
@@ -45,5 +45,9 @@ pnpm build 生成 .output/chrome-mv3。在 Chrome 扩展管理页打开开发者
 - [S04b 验证记录](docs/validation/S04b.md)
 - [S05 验证记录与评估方法](docs/validation/S05.md)
 - [S05 真实模型报告](docs/validation/S05-model-evaluation.md)
+- [S06a 执行器验证](docs/validation/S06a.md)
+- [S06b 后台调度验证](docs/validation/S06b.md)
+- [S07 核心闭环验证](docs/validation/S07.md)
+- [M1 验收记录与人工验证步骤](docs/validation/M1.md)
 
 S00 至 S12 是实施层号。M1 核心风险及真实模型验证通过后，再展开完整 MVP。许可证、商店上架和收费策略尚未确定。
