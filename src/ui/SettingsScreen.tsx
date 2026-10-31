@@ -1,132 +1,28 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { ConfigSnapshot } from '../storage/schema';
 import { settingsRequest } from './settings-client';
-import { PROVIDER_PRESETS } from '../providers/presets';
-import { browser } from 'wxt/browser';
-import { normalizeBaseUrl } from '../providers/endpoint';
-
-type PublicProvider = ConfigSnapshot['providers'][number];
-
-function ProviderForm({
-  provider,
-  busy,
-  onSubmit,
-}: {
-  provider: PublicProvider | undefined;
-  busy: boolean;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  const [kind, setKind] = useState(provider?.kind ?? 'openai');
-  const [baseUrl, setBaseUrl] = useState(provider?.baseUrl ?? PROVIDER_PRESETS.openai.baseUrl);
-  const [permissionStatus, setPermissionStatus] = useState('');
-  function authorize() {
-    try {
-      const url = new URL(normalizeBaseUrl(baseUrl));
-      void browser.permissions.request({ origins: [`${url.protocol}//${url.hostname}/*`] }).then(
-        (granted) =>
-          setPermissionStatus(
-            granted ? `${url.hostname} 已获授权。` : '未获得授权，暂不能向此主机发起翻译。',
-          ),
-        () => setPermissionStatus('授权未完成，请重试。'),
-      );
-    } catch {
-      setPermissionStatus('请先填写有效的 API Base URL。');
-    }
-  }
-  return (
-    <form onSubmit={onSubmit}>
-      <label>
-        配置名称
-        <input name="name" required maxLength={80} defaultValue={provider?.name ?? ''} />
-      </label>
-      <label>
-        服务商
-        <select
-          name="kind"
-          value={kind}
-          onChange={(event) => {
-            const value = event.target.value as PublicProvider['kind'];
-            setKind(value);
-            setPermissionStatus('');
-            setBaseUrl(PROVIDER_PRESETS[value].baseUrl);
-          }}
-        >
-          <option value="openai">OpenAI</option>
-          <option value="deepseek">DeepSeek</option>
-          <option value="openai-compatible">自定义兼容服务</option>
-        </select>
-      </label>
-      <label>
-        API Base URL
-        <input
-          name="baseUrl"
-          type="url"
-          required
-          value={baseUrl}
-          onChange={(event) => {
-            setBaseUrl(event.target.value);
-            setPermissionStatus('');
-          }}
-        />
-      </label>
-      <button
-        type="button"
-        className="secondary"
-        onClick={(event) => {
-          if (event.nativeEvent.isTrusted) authorize();
-        }}
-      >
-        授权此 API 主机
-      </button>
-      <p className="muted">API 授权用于请求翻译；页面翻译由你在当前网页点击插件开启。</p>
-      {permissionStatus && <p role="note">{permissionStatus}</p>}
-      <label>
-        模型名称
-        <input name="model" required maxLength={160} defaultValue={provider?.model ?? ''} />
-      </label>
-      <label>
-        API Key
-        <input
-          name="apiKey"
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          aria-describedby="key-help"
-        />
-      </label>
-      <p id="key-help" className="muted">
-        {provider?.hasApiKey ? '已保存 Key，留空保留原值。' : '输入后随配置永久保存在当前设备。'}
-        本机存储不等同于加密保险箱，卸载插件或清除数据会删除配置。
-      </p>
-      {provider?.hasApiKey && (
-        <label className="checkbox">
-          <input name="clearKey" type="checkbox" />
-          清除已保存 Key
-        </label>
-      )}
-      <label className="checkbox">
-        <input name="makeDefault" type="checkbox" />
-        设为默认模型
-      </label>
-      <button type="submit" disabled={busy}>
-        保存配置
-      </button>
-    </form>
-  );
-}
+import { ProviderForm } from './ProviderForm';
 
 export function SettingsScreen() {
   const [snapshot, setSnapshot] = useState<ConfigSnapshot>();
   const [selected, setSelected] = useState('');
   const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState('');
   const provider = snapshot?.providers.find((item) => item.id === selected);
-
+  const discard = () => !dirty || window.confirm('还有尚未保存的设置，是否放弃这些修改？');
+  function apply(next: ConfigSnapshot) {
+    setSnapshot(next);
+    setDirty(false);
+  }
   useEffect(() => {
     let active = true;
     void settingsRequest({ type: 'settings.read' }).then(
-      (data) => {
-        if (active) setSnapshot(data);
+      (next) => {
+        if (active) {
+          setSnapshot(next);
+          setSelected(next.preferences.defaultProviderId ?? '');
+        }
       },
       () => {
         if (active) setStatus('本机配置暂不可用，原有数据已保留。');
@@ -136,7 +32,30 @@ export function SettingsScreen() {
       active = false;
     };
   }, []);
-
+  useEffect(() => {
+    document.documentElement.style.colorScheme =
+      snapshot?.preferences.theme === 'system'
+        ? 'light dark'
+        : (snapshot?.preferences.theme ?? 'light dark');
+  }, [snapshot?.preferences.theme]);
+  useEffect(() => {
+    if (!dirty) return;
+    const leave = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', leave);
+    return () => window.removeEventListener('beforeunload', leave);
+  }, [dirty]);
+  async function reload() {
+    if (!discard()) return;
+    try {
+      const next = await settingsRequest({ type: 'settings.read' });
+      apply(next);
+      if (selected && !next.providers.some((item) => item.id === selected))
+        setSelected(next.preferences.defaultProviderId ?? '');
+      setStatus('已载入最新设置。');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '载入未完成。');
+    }
+  }
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!snapshot || busy) return;
@@ -166,7 +85,7 @@ export function SettingsScreen() {
               : { action: 'keep' },
         },
       });
-      setSnapshot(next);
+      apply(next);
       setSelected(
         selected ||
           next.providers.find((item) => !snapshot.providers.some((old) => old.id === item.id))
@@ -180,16 +99,16 @@ export function SettingsScreen() {
       setBusy(false);
     }
   }
-
   async function remove() {
     if (!snapshot || !provider || busy || !window.confirm('删除此配置及其保存的 Key？')) return;
     setBusy(true);
     try {
-      const next = await settingsRequest({
-        type: 'settings.delete',
-        payload: { id: provider.id, expectedRevision: snapshot.revision },
-      });
-      setSnapshot(next);
+      apply(
+        await settingsRequest({
+          type: 'settings.delete',
+          payload: { id: provider.id, expectedRevision: snapshot.revision },
+        }),
+      );
       setSelected('');
       setStatus('已删除配置及其 Key。');
     } catch (error) {
@@ -198,56 +117,125 @@ export function SettingsScreen() {
       setBusy(false);
     }
   }
-
   return (
-    <main className="settings">
-      <div className="wordmark">Sayvia</div>
-      <h1>模型设置</h1>
-      <p>配置你的翻译服务，开始跨语言阅读与表达。</p>
-      {snapshot && (
-        <>
-          <label>
-            选择配置
-            <select
-              value={selected}
-              disabled={busy}
-              onChange={(event) => {
-                setSelected(event.target.value);
-                setStatus('');
-              }}
-            >
-              <option value="">新增配置</option>
-              {snapshot.providers.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <ProviderForm
-            key={snapshot.revision + ':' + selected}
-            provider={provider}
-            busy={busy}
-            onSubmit={(event) => void save(event)}
-          />
-          {provider && (
-            <button className="secondary" disabled={busy} onClick={() => void remove()}>
-              删除配置
-            </button>
-          )}
-          {snapshot.preferences.defaultProviderId && (
-            <p className="muted">
+    <div className="settings-shell">
+      <aside className="settings-sidebar">
+        <div className="wordmark brand">
+          <span className="brand-mark" aria-hidden="true">
+            S
+          </span>
+          Sayvia
+        </div>
+        <p className="sidebar-tagline">自在阅读，从容表达。</p>
+        <nav aria-label="设置导航">
+          <button type="button" aria-current="page">
+            <span className="nav-symbol" aria-hidden="true">
+              ◈
+            </span>
+            模型服务
+          </button>
+        </nav>
+        <div className="sidebar-note">
+          <span className="local-dot" />
+          你的 Key，保存在你的设备。
+        </div>
+      </aside>
+      <main className="settings-main">
+        <header className="settings-heading">
+          <div>
+            <span className="eyebrow">Sayvia / 设置</span>
+            <h1>模型设置</h1>
+            <p className="muted">连接你信任的模型，让不同语言之间的表达更自然。</p>
+          </div>
+          <button
+            type="button"
+            className="text-button"
+            disabled={busy}
+            onClick={() => void reload()}
+          >
+            重新载入
+          </button>
+        </header>
+        {snapshot && (
+          <>
+            <section className="settings-card">
+              <div className="card-heading">
+                <div>
+                  <span className="eyebrow">
+                    {snapshot.providers.length ? '你的模型' : '开始使用'}
+                  </span>
+                  <h2>{provider ? provider.name : '添加一个模型服务'}</h2>
+                </div>
+                {provider?.id === snapshot.preferences.defaultProviderId && (
+                  <span className="badge">默认模型</span>
+                )}
+              </div>
+              {!snapshot.providers.length && (
+                <p className="muted">选择服务商，填写已有的 API Key 和模型名称，即可开始翻译。</p>
+              )}
+              <label className="provider-picker">
+                选择配置
+                <select
+                  value={selected}
+                  disabled={busy}
+                  onChange={(event) => {
+                    if (discard()) {
+                      setSelected(event.target.value);
+                      setDirty(false);
+                      setStatus('');
+                    }
+                  }}
+                >
+                  <option value="">新增配置</option>
+                  {snapshot.providers.map((item) => (
+                    <option value={item.id} key={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <ProviderForm
+                key={`${snapshot.revision}:${selected}`}
+                provider={provider}
+                busy={busy}
+                dirty={dirty}
+                onDirty={() => setDirty(true)}
+                onSubmit={(event) => void save(event)}
+              />
+              {provider && (
+                <div className="delete-row">
+                  <button
+                    type="button"
+                    className="text-button danger-text"
+                    disabled={busy}
+                    onClick={() => void remove()}
+                  >
+                    删除配置
+                  </button>
+                  <span className="field-help">同时删除这份配置保存的 Key。</span>
+                </div>
+              )}
+            </section>
+            <p className="footer-note">
               默认模型：
-              {
-                snapshot.providers.find(
-                  (item) => item.id === snapshot.preferences.defaultProviderId,
-                )?.name
-              }
+              {snapshot.providers.find((item) => item.id === snapshot.preferences.defaultProviderId)
+                ?.name ?? '尚未配置'}{' '}
+              · 仅在你主动翻译时调用
             </p>
-          )}
-        </>
-      )}
-      <p role="status">{status}</p>
-    </main>
+          </>
+        )}
+        {!snapshot && !status && (
+          <section className="settings-card" aria-busy="true">
+            正在读取本机设置…
+          </section>
+        )}
+        <p className={`settings-status${status ? ' visible' : ''}`} role="status">
+          {status}
+        </p>
+        <footer className="settings-footer">
+          Sayvia <span>为每一种表达，留一座桥。</span>
+        </footer>
+      </main>
+    </div>
   );
 }
