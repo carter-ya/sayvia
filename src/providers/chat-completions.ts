@@ -1,12 +1,7 @@
 import { z } from 'zod';
 import { type SourceInput, SourceError } from '../core/source-input';
-import {
-  createTranslationPlan,
-  needsTranslation,
-  PlanError,
-  reconstructTranslation,
-  translationPayload,
-} from '../core/translation-plan';
+import { PlanError } from '../core/translation-plan';
+import { localProcessor, type TranslationProcessor } from '../core/translation-processor';
 import { chatCompletionsEndpoint, EndpointError } from './endpoint';
 
 export const ALGORITHM_VERSION = 'segments-v2.1';
@@ -121,7 +116,11 @@ export interface TranslationRequest {
   deadlineAt?: number;
 }
 
-export async function translate(request: TranslationRequest, fetcher: typeof fetch = fetch) {
+export async function translate(
+  request: TranslationRequest,
+  fetcher: typeof fetch = fetch,
+  processor: TranslationProcessor = localProcessor(),
+) {
   const startedAt = Date.now();
   const remaining = Math.min(
     EXECUTION_BUDGET_MS,
@@ -142,11 +141,12 @@ export async function translate(request: TranslationRequest, fetcher: typeof fet
   if (request.signal?.aborted) cancel();
   try {
     if (abortCode) throw new ProviderError(abortCode);
-    const plan = createTranslationPlan(request.source);
+    const prepared = await processor.prepare(request.source, controller.signal);
+    if (abortCode) throw new ProviderError(abortCode);
     if (Date.now() - startedAt >= remaining) throw new ProviderError('TIMEOUT');
-    if (!needsTranslation(plan))
+    if (!prepared.required)
       return {
-        text: plan.sourceText,
+        text: prepared.sourceText,
         requested: false,
         durationMs: Date.now() - startedAt,
         algorithmVersion: ALGORITHM_VERSION,
@@ -178,7 +178,7 @@ export async function translate(request: TranslationRequest, fetcher: typeof fet
             content: JSON.stringify({
               sourceLanguage: sourceLanguage.data,
               targetLanguage: targetLanguage.data,
-              ...translationPayload(plan),
+              ...prepared.payload,
             }),
           },
         ],
@@ -210,7 +210,7 @@ export async function translate(request: TranslationRequest, fetcher: typeof fet
     ) {
       throw new ProviderError('UNSUPPORTED_RESPONSE');
     }
-    const text = reconstructTranslation(plan, content);
+    const text = await processor.reconstruct(content, controller.signal);
     if (text.includes(config.data.apiKey)) throw new ProviderError('UNSUPPORTED_RESPONSE');
     if (abortCode || Date.now() - startedAt >= remaining)
       throw new ProviderError(abortCode ?? 'TIMEOUT');
@@ -227,6 +227,7 @@ export async function translate(request: TranslationRequest, fetcher: typeof fet
     if (error instanceof PlanError) throw new ProviderError('FORMAT_INVALID');
     throw new ProviderError('NETWORK_ERROR');
   } finally {
+    processor.dispose();
     clearTimeout(timer);
     request.signal?.removeEventListener('abort', cancel);
   }

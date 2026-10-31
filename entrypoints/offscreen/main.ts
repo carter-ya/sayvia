@@ -1,3 +1,5 @@
+import { startOffscreenRuntime } from '../../src/executor/offscreen-runtime';
+
 const worker = new Worker(new URL('../../src/executor/bootstrap.worker.ts', import.meta.url), {
   type: 'module',
 });
@@ -15,3 +17,5 @@ worker.addEventListener('message', (event: MessageEvent<unknown>) => {
 });
 
 worker.postMessage({ type: 'runtime.check' });
+
+startOffscreenRuntime();
