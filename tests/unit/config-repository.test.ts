@@ -62,6 +62,34 @@ describe('permanent configuration repository', () => {
     expect(Object.values((raw as StoredState).secrets)[0]?.apiKey).toBe(KEY);
   });
 
+  it('normalizes newly saved path prefixes while retaining old configuration and its permanent key', async () => {
+    const first = await new ConfigRepository(storage).save(input(0));
+    const state = raw as StoredState;
+    state.providers[first.providers[0]!.id]!.baseUrl = 'https://api.openai.com/v1/chat/completions';
+    const restarted = new ConfigRepository(storage);
+    expect((await restarted.snapshot()).providers[0]!.hasApiKey).toBe(true);
+    const old = structuredClone(raw);
+    expect(() =>
+      restarted.save(
+        input(1, {
+          id: first.providers[0]!.id,
+          baseUrl: 'https://api.openai.com/v1/chat/completions',
+          key: { action: 'keep' },
+        }),
+      ),
+    ).toThrow();
+    expect(raw).toEqual(old);
+    const corrected = await restarted.save(
+      input(1, {
+        id: first.providers[0]!.id,
+        baseUrl: 'https://EXAMPLE.test/gateway/v1///',
+        key: { action: 'keep' },
+      }),
+    );
+    expect(corrected.providers[0]!.baseUrl).toBe('https://example.test/gateway/v1');
+    expect(Object.values((raw as StoredState).secrets)[0]!.apiKey).toBe(KEY);
+  });
+
   it('rejects stale concurrent writes without losing the first saved config', async () => {
     const repo = new ConfigRepository(storage);
     const results = await Promise.allSettled([repo.save(input(0)), repo.save(input(0))]);
