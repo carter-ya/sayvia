@@ -29,6 +29,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   let current: Draft | undefined;
   let disposed = false;
   let writing = false;
+  let automatic = false;
+  let visible = false;
   const host = document.createElement('div');
   host.dataset.sayviaUi = '';
   host.style.setProperty('display', 'none', 'important');
@@ -77,7 +79,6 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       focusTarget = element as HTMLElement;
     }
   };
-  bind(document.activeElement);
   const captureSelection = () => {
     const selected = window.getSelection();
     if (!selected || selected.isCollapsed || selected.rangeCount !== 1) return;
@@ -329,6 +330,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       current = undefined;
       state.source = '';
       state.candidate = '';
+      visible = false;
       host.style.setProperty('display', 'none', 'important');
       if (focusTarget?.isConnected) focusTarget.focus();
       render();
@@ -343,6 +345,15 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       return;
     if (message?.protocolVersion === 1 && message.type === 'page.reset') {
       dispose();
+      sendResponse({ ok: true });
+      return;
+    }
+    if (
+      message?.protocolVersion === 1 &&
+      message.type === 'page.automatic' &&
+      typeof message.enabled === 'boolean'
+    ) {
+      setAutomatic(message.enabled);
       sendResponse({ ok: true });
       return;
     }
@@ -387,10 +398,11 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     sendResponse({ taskId: event.taskId, documentNonce: registry.documentNonce });
   };
   const focus = (event: FocusEvent) => {
-    if (!owns(event) && event.target instanceof Element) bind(event.target);
+    if (visible && state.mode === 'write' && !owns(event) && event.target instanceof Element)
+      bind(event.target);
   };
   const selected = (event: Event) => {
-    if (event.isTrusted && !owns(event)) captureSelection();
+    if ((automatic || visible) && event.isTrusted && !owns(event)) captureSelection();
   };
   const changed = (event: Event) => {
     if (!owns(event)) {
@@ -438,6 +450,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       current = undefined;
       state.status = userError(error);
     }
+    visible = true;
     host.style.removeProperty('display');
     render();
     const target = state.target;
@@ -458,6 +471,10 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       })
       .catch(() => undefined);
   }
+  function setAutomatic(enabled: boolean) {
+    automatic = enabled;
+    if (!enabled && !visible) selection.clear();
+  }
   function dispose() {
     if (disposed) return;
     cancel();
@@ -476,11 +493,23 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     } catch {
       /* Context already invalidated. */
     }
+    window.removeEventListener('pagehide', dispose);
     registry.dispose();
     selection.clear();
     root.unmount();
     host.remove();
     onDisposed();
   }
-  return { open, dispose };
+  window.addEventListener('pagehide', dispose, { once: true });
+  void browser.runtime
+    .sendMessage({
+      protocolVersion: 1,
+      type: 'page.automatic-status',
+      requestId: crypto.randomUUID(),
+    })
+    .then((reply: { ok?: boolean; enabled?: boolean }) => {
+      if (!disposed && reply?.ok) setAutomatic(reply.enabled === true);
+    })
+    .catch(() => undefined);
+  return { open, dispose, setAutomatic };
 }

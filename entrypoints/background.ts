@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
+import { SiteAccess } from '../src/background/site-access';
 import { handlePageMessage } from '../src/background/page-router';
 import { handleConnectionTest } from '../src/background/connection-test';
 import { handleSettings } from '../src/background/settings-router';
@@ -16,6 +17,11 @@ import {
 
 export default defineBackground(() => {
   const repository = new ConfigRepository(chromeConfigStorage);
+  const sites = new SiteAccess(repository);
+  void sites.reconcile().catch(() => undefined);
+  browser.permissions.onAdded.addListener(() => {
+    void sites.reconcile().catch(() => undefined);
+  });
   const sessionReady = browser.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
   void repository.ready.catch(() => undefined);
   void sessionReady.catch(() => undefined);
@@ -79,12 +85,13 @@ export default defineBackground(() => {
       void broker.cancelWhere((route) => route.tabId === tabId, tabId).catch(() => undefined);
   });
   browser.permissions.onRemoved.addListener((removed) => {
+    void sites.reconcile(removed.origins ?? []).catch(() => undefined);
     void broker.cancelRevokedOrigins(removed.origins ?? []).catch(() => undefined);
   });
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (typeof message !== 'object' || message === null) return;
     if (typeof message.type === 'string' && message.type.startsWith('page.')) {
-      void handlePageMessage(message, sender, repository).then(sendResponse);
+      void handlePageMessage(message, sender, repository, sites).then(sendResponse);
       return true;
     }
     if (typeof message.type === 'string' && message.type.startsWith('translation.')) {
@@ -118,6 +125,10 @@ export default defineBackground(() => {
       sendResponse({ ok: false, error: 'FORBIDDEN' });
       return;
     }
+    if (message.type.startsWith('settings.sites.')) {
+      void sites.handle(message).then(sendResponse);
+      return true;
+    }
     if (message.type.startsWith('settings.test.')) {
       void handleConnectionTest(message, sender, repository, broker).then(sendResponse);
       return true;
@@ -127,6 +138,7 @@ export default defineBackground(() => {
         if (result.ok && message.type === 'settings.delete')
           await broker.cancelWhere((route) => route.providerId === message.payload.id);
         if (result.ok && message.type === 'settings.clear') {
+          await sites.reconcile();
           const tabs = await browser.tabs.query({});
           await Promise.allSettled(
             tabs

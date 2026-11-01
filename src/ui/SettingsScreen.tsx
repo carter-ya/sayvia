@@ -346,7 +346,16 @@ export function SettingsScreen() {
           </section>
         )}
         {snapshot && section === 'permissions' && (
-          <PermissionsPanel busy={busy} onClear={(revoke) => void clear(revoke)} />
+          <PermissionsPanel
+            snapshot={snapshot}
+            onSnapshot={(next) =>
+              setSnapshot((previous) =>
+                previous && previous.revision > next.revision ? previous : next,
+              )
+            }
+            busy={busy}
+            onClear={(revoke) => void clear(revoke)}
+          />
         )}
         {!snapshot && !status && (
           <section className="settings-card" aria-busy="true">

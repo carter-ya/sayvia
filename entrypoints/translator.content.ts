@@ -1,22 +1,40 @@
+import { browser } from 'wxt/browser';
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { mountWorkflow } from '../src/content/workflow';
 
+type Controller = { token: string; workflow: ReturnType<typeof mountWorkflow>; alive(): boolean };
 export default defineContentScript({
   registration: 'runtime',
   main(ctx) {
-    const global = globalThis as typeof globalThis & { __sayviaWorkflow?: string };
-    if (global.__sayviaWorkflow) return;
-    const token = crypto.randomUUID();
-    global.__sayviaWorkflow = token;
-    const clear = () => {
-      if (global.__sayviaWorkflow === token) delete global.__sayviaWorkflow;
-    };
-    const workflow = mountWorkflow(clear);
-    const dispose = () => {
-      workflow.dispose();
-      clear();
-    };
-    ctx.onInvalidated(dispose);
-    ctx.addEventListener(window, 'pagehide', dispose);
+    const global = globalThis as typeof globalThis & { __sayviaWorkflow?: Controller };
+    let controller = global.__sayviaWorkflow;
+    if (controller && !controller.alive()) {
+      controller.workflow.dispose();
+      controller = undefined;
+    }
+    if (!controller) {
+      const token = crypto.randomUUID();
+      const clear = () => {
+        if (global.__sayviaWorkflow?.token === token) delete global.__sayviaWorkflow;
+      };
+      controller = {
+        token,
+        workflow: mountWorkflow(clear),
+        alive: () => {
+          try {
+            return Boolean(browser.runtime.id);
+          } catch {
+            return false;
+          }
+        },
+      };
+      global.__sayviaWorkflow = controller;
+    }
+    const current = controller;
+    // WXT invalidates the previous context before main() on duplicate injection.
+    // Preserve its live workflow; the latest context now owns update cleanup.
+    ctx.onInvalidated(() => {
+      if (!current.alive()) current.workflow.dispose();
+    });
   },
 });
