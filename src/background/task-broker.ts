@@ -339,6 +339,24 @@ export class TaskBroker {
       return !(await this.platform.permitted(route.apiOrigin).catch(() => false));
     });
   }
+  clearAll<T>(clearConfiguration: () => Promise<T>) {
+    return this.serial(async () => {
+      // Hold the dispatch lock while deleting keys and canceling their captured tasks.
+      const result = await clearConfiguration();
+      for (const route of this.state.routes) {
+        await this.cancelRoute(route).catch(() => undefined);
+      }
+      this.state = { version: 1, routes: [], canceled: [], manual: [] };
+      // A failed final write must surface as a failure, never a successful clear.
+      try {
+        await this.persist();
+      } finally {
+        await this.closeIdle();
+      }
+      return result;
+    });
+  }
+
   readManual(tabId: number) {
     return this.serial(async () => {
       const draft = this.state.manual.find((value) => value.tabId === tabId);

@@ -186,6 +186,27 @@ describe('permanent configuration repository', () => {
     expect((await repo.snapshot()).revision).toBe(3);
   });
 
+  it('clears permanent keys and preferences without reusing an old revision', async () => {
+    const repo = new ConfigRepository(storage);
+    await repo.save(input(0));
+    const cleared = await repo.clear(1);
+    expect(cleared).toEqual({ revision: 2, providers: [], preferences: emptyState().preferences });
+    expect((raw as StoredState).secrets).toEqual({});
+    expect((raw as StoredState).allowedSites).toEqual([]);
+    await expect(repo.completionConfig()).rejects.toThrow('CONFIG_REQUIRED');
+    await expect(repo.save(input(1))).rejects.toThrow('CONFLICT');
+    expect(await new ConfigRepository(storage).snapshot()).toEqual(cleared);
+  });
+  it('never clears configuration without the task lifecycle coordinator', async () => {
+    const repo = new ConfigRepository(storage);
+    await repo.save(input(0));
+    const before = structuredClone(raw);
+    expect(
+      await handleSettings({ type: 'settings.clear', payload: { expectedRevision: 1 } }, repo),
+    ).toEqual({ ok: false, error: 'CLEAR_INCOMPLETE' });
+    expect(raw).toEqual(before);
+  });
+
   it('migrates the explicit flat prototype format without losing keys', async () => {
     const id = crypto.randomUUID();
     raw = {

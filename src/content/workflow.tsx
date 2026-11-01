@@ -341,6 +341,11 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   ) => {
     if (sender.id !== browser.runtime.id || sender.url !== browser.runtime.getURL('/background.js'))
       return;
+    if (message?.protocolVersion === 1 && message.type === 'page.reset') {
+      dispose();
+      sendResponse({ ok: true });
+      return;
+    }
     if (message?.protocolVersion === 1 && message.type === 'page.probe') {
       sendResponse({ ok: true, protocolVersion: 1, type: 'page.ready' });
       return;

@@ -122,13 +122,33 @@ export default defineBackground(() => {
       void handleConnectionTest(message, sender, repository, broker).then(sendResponse);
       return true;
     }
-    void handleSettings(message, repository)
+    void handleSettings(message, repository, broker)
       .then(async (result) => {
         if (result.ok && message.type === 'settings.delete')
           await broker.cancelWhere((route) => route.providerId === message.payload.id);
+        if (result.ok && message.type === 'settings.clear') {
+          const tabs = await browser.tabs.query({});
+          await Promise.allSettled(
+            tabs
+              .filter((tab) => tab.id !== undefined)
+              .map((tab) =>
+                browser.tabs.sendMessage(
+                  tab.id!,
+                  { protocolVersion: 1, type: 'page.reset' },
+                  { frameId: 0 },
+                ),
+              ),
+          );
+          void browser.runtime.sendMessage({ type: 'app.data-cleared' }).catch(() => undefined);
+        }
         return result;
       })
-      .then(sendResponse, () => sendResponse({ ok: false, error: 'CONFIG_UNAVAILABLE' }));
+      .then(sendResponse, () =>
+        sendResponse({
+          ok: false,
+          error: message.type === 'settings.clear' ? 'CLEAR_INCOMPLETE' : 'CONFIG_UNAVAILABLE',
+        }),
+      );
     return true;
   });
 });

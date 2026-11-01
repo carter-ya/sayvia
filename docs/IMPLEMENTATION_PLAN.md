@@ -4,7 +4,7 @@
 - 对应需求：[PRD v0.4](./PRD.md)
 - 对应方案：[技术方案 v0.4](./TECHNICAL_DESIGN.md)
 - 状态：实施中；各层代码、验证与合并状态分别记录在 PR 和 docs/validation
-- 更新日期：2026-10-31
+- 更新日期：2026-11-01
 - 远程仓库：https://github.com/carter-ya/sayvia
 - Git 远程地址：https://github.com/carter-ya/sayvia.git
 
@@ -37,9 +37,9 @@
 | S08a | M2 | stack/08a-settings-services | S07 自动技术验证完成 | 偏好存储与绑定版本的连接测试服务 |
 | S08b | M2 | stack/08b-settings-ui | S08a | 正式模型设置、连接测试与界面视觉 |
 | S08c | M2 | stack/08c-preferences-permissions | S08b | 语言主题偏好、权限管理与本地数据清理 |
-| S08d | M2 | stack/08d-manual-popup | S08c | 弹窗概览、手动翻译与 session 草稿 |
-| S09 | M2 | stack/09-reading-ui | S08d | 阅读面板、右键、快捷键和阅读场景完善 |
-| S10 | M2 退出 | stack/10-writing-ui | S09 | 写作预览、快速替换、恢复冲突和通用文本框体验 |
+| S09 | M2 | stack/09-reading-ui | S08c | 选区浮标直达翻译浮窗、阅读面板、右键与快捷键 |
+| S08d | M2 | stack/08d-manual-popup | S09 | 弹窗概览、手动翻译与 session 草稿 |
+| S10 | M2 退出 | stack/10-writing-ui | S08d | 写作预览、快速替换、恢复冲突和通用文本框体验 |
 | S11 | M3 | stack/11-system-regression | S10 | 完整跨模块、浏览器和正常更新回归 |
 | S12 | M3 退出 | stack/12-release-ready | S11 | 发布包、完整质量报告、使用与隐私说明 |
 
@@ -209,6 +209,8 @@ M1 通过条件以技术方案为准：每款 12 条固定样例格式与保护�
 用户能否独立完成首次配置，权限申请是否由明确操作触发，永久保存与删除语义是否可理解。
 
 ## 12 S09 阅读体验与触发入口
+
+2026-11-01 用户明确要求：选中文字后出现浮标，点击即在页面浮窗开始翻译并显示结果，不通过浏览器工具栏作为日常主路径。该项优先于 S08d 手动弹窗入口；网站首次授权后自动注入，选区事件只显示图标，不自动发起付费请求。工具栏作为备用入口保留。
 
 ### 范围
 

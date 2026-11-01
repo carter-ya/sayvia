@@ -1,6 +1,7 @@
 import { loadState } from './migrations';
 import {
   SaveSchema,
+  emptyState,
   PreferencesInputSchema,
   type PreferencesInput,
   SnapshotSchema,
@@ -113,6 +114,15 @@ export class ConfigRepository {
       const id = checked.preferences.defaultProviderId;
       if (id && !state.providers[id]) throw new Error('NOT_FOUND');
       state.preferences = structuredClone(checked.preferences);
+    });
+  }
+
+  clear(expectedRevision: number) {
+    return this.mutate(expectedRevision, (state) => {
+      state.providers = {};
+      state.secrets = {};
+      state.preferences = emptyState().preferences;
+      state.allowedSites = [];
     });
   }
 

@@ -456,3 +456,47 @@ p {
   margin: 0;
   min-width: 0;
 }
+
+.permission-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0 0;
+}
+.permission-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding: 8px 0;
+  font-size: 12px;
+}
+.permission-list code {
+  overflow-wrap: anywhere;
+}
+.empty-note {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 16px 0 0;
+  border-top: 1px solid var(--line);
+}
+.danger-card {
+  padding-top: 24px;
+}
+.danger-card .checkbox {
+  margin: 20px 0;
+}
+.danger-button {
+  background: transparent;
+  color: light-dark(#aa4b43, #e6a29a);
+  border: 1px solid light-dark(#e6c9c4, #68473e);
+}
+.danger-button:hover:not(:disabled) {
+  background: light-dark(#fff3f0, #402b27);
+}
+
+.language-field {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}

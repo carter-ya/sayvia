@@ -10,7 +10,8 @@ type ChromeGlobal = { chrome: typeof browser };
 export async function workflowFixture() {
   const temporary = await mkdtemp(join(tmpdir(), 'sayvia-workflow-'));
   let count = 0;
-  let delay = false;
+  let delay = 0;
+  const pending = new Set<object>();
   const requestBodies: string[] = [];
   const server = await createServer({
     configFile: false,
@@ -36,6 +37,8 @@ export async function workflowFixture() {
             });
             request.on('end', () => {
               count++;
+              pending.add(response);
+              response.on('close', () => pending.delete(response));
               requestBodies.push(raw);
               const finish = () => {
                 if (response.destroyed) return;
@@ -59,7 +62,7 @@ export async function workflowFixture() {
                 );
               };
               if (delay) {
-                const timer = setTimeout(finish, 500);
+                const timer = setTimeout(finish, delay);
                 response.on('close', () => clearTimeout(timer));
               } else finish();
             });
@@ -137,8 +140,9 @@ export async function workflowFixture() {
     open,
     count: () => count,
     requestBodies,
-    delay: () => {
-      delay = true;
+    pending: () => pending.size,
+    delay: (milliseconds = 500) => {
+      delay = milliseconds;
     },
     async close() {
       await context.close();

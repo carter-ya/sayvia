@@ -123,6 +123,57 @@ const result = {
 };
 
 describe('task ownership and durable dispatch', () => {
+  it('holds dispatch while clearing, aborts active work and removes private session drafts', async () => {
+    const f = await setup();
+    const first = owner();
+    const manual = { ...owner(), tabId: 2, kind: 'manual' as const };
+    await f.broker.handle(start(first), first);
+    await f.broker.handle(start(manual), manual);
+    expect(JSON.stringify(f.saved())).toContain('PRIVATE_SOURCE_TEXT');
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const clear = f.broker.clearAll(async () => {
+      await gate;
+      f.repository.completionConfig.mockRejectedValue(new Error('CONFIG_REQUIRED'));
+      return 'cleared';
+    });
+    const next = { ...owner(), tabId: 3 };
+    const queued = f.broker.handle(start(next), next);
+    expect(f.dispatches()).toBe(2);
+    release();
+    expect(await clear).toBe('cleared');
+    expect(await queued).toEqual({ ok: false, error: 'CONFIG_REQUIRED' });
+    expect(f.saved()).toEqual({ version: 1, routes: [], canceled: [], manual: [] });
+    expect(f.host.task.mock.calls.filter(([type]) => type === 'cancel')).toHaveLength(2);
+    expect(f.dispatches()).toBe(2);
+  });
+  it('does not cancel tasks or lose drafts if configuration deletion fails', async () => {
+    const f = await setup();
+    const who = owner();
+    await f.broker.handle(start(who), who);
+    const before = f.saved();
+    await expect(
+      f.broker.clearAll(async () => {
+        throw new Error('CONFLICT');
+      }),
+    ).rejects.toThrow('CONFLICT');
+    expect(f.saved()).toEqual(before);
+    expect(f.host.task).not.toHaveBeenCalled();
+  });
+  it('reports an incomplete session deletion while still aborting work and closing the executor', async () => {
+    const f = await setup();
+    const who = owner();
+    await f.broker.handle(start(who), who);
+    f.storage.write.mockRejectedValue(new Error('SESSION_WRITE_FAILED'));
+    await expect(f.broker.clearAll(async () => 'keys-cleared')).rejects.toThrow(
+      'SESSION_WRITE_FAILED',
+    );
+    expect(f.host.task).toHaveBeenCalledWith('cancel', expect.any(String), epoch);
+    expect(f.host.closeIfIdle).toHaveBeenCalled();
+  });
+
   it('rejects a connection test whose configuration revision changed before dispatch', async () => {
     const f = await setup();
     const who = { ...owner(), kind: 'manual' as const };

@@ -114,6 +114,12 @@ export type PreferencesInput = z.infer<typeof PreferencesInputSchema>;
 
 export const RequestSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('settings.read') }).strict(),
+  z
+    .object({
+      type: z.literal('settings.clear'),
+      payload: z.object({ expectedRevision: z.int().nonnegative() }).strict(),
+    })
+    .strict(),
   z.object({ type: z.literal('settings.preferences'), payload: PreferencesInputSchema }).strict(),
   z.object({ type: z.literal('settings.save'), payload: SaveSchema }).strict(),
   z

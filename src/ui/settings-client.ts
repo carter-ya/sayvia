@@ -2,6 +2,7 @@ import { browser } from 'wxt/browser';
 import { SnapshotSchema } from '../storage/schema';
 
 const errors: Record<string, string> = {
+  CLEAR_INCOMPLETE: '清除未完成，请重新载入核对配置与会话状态。',
   CONFLICT: '配置已在其他窗口更新，请重新载入后再保存。',
   NOT_FOUND: '这份配置已被删除，请重新载入。',
   INVALID_REQUEST: '请检查地址、模型和必填信息。',
