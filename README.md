@@ -59,6 +59,7 @@ pnpm build 生成 .output/chrome-mv3。在 Chrome 扩展管理页打开开发者
 - [S08d2 手动翻译弹窗](docs/validation/S08d2.md)
 - [S10 写作与快速替换](docs/validation/S10.md)
 - [S11 系统回归与验收映射](docs/validation/S11.md)
+- [S12 候选包与发布准备验证](docs/validation/S12.md)
 - [30 条真实模型发布评估](docs/validation/release-model-results/README.md)
 - [数据与隐私说明](PRIVACY.md)
 - [发布前检查单](docs/RELEASE_CHECKLIST.md)
