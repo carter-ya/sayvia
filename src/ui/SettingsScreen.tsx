@@ -190,7 +190,7 @@ export function SettingsScreen() {
             <div className="wordmark brand">
               <span className="brand-mark">S</span>Sayvia
             </div>
-            <h1>模型设置</h1>
+            <h1>{advanced ? '更多设置' : '模型设置'}</h1>
           </div>
           <button
             type="button"
@@ -201,7 +201,7 @@ export function SettingsScreen() {
             重新载入
           </button>
         </header>
-        {snapshot && (
+        {snapshot && !advanced && (
           <>
             <section className="settings-card">
               {!snapshot.providers.length && (
@@ -268,7 +268,7 @@ export function SettingsScreen() {
                 }
               }}
             >
-              更多设置
+              {advanced ? '返回模型设置' : '更多设置'}
             </button>
             {advanced && (
               <section className="settings-card">

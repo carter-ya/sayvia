@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { workflowFixture } from '../fixtures/core-workflow-extension';
 async function quick(f: Awaited<ReturnType<typeof workflowFixture>>, enabled: boolean) {
   const more = f.settings.getByRole('button', { name: '更多设置', exact: true });
-  if ((await more.getAttribute('aria-expanded')) !== 'true') await more.click();
+  if (await more.count()) await more.click();
   await f.settings.getByLabel('开启写作快速替换', { exact: true }).setChecked(enabled);
   await f.settings.getByRole('button', { name: '保存偏好', exact: true }).click();
   await expect(f.settings.getByRole('status')).toHaveText('已保存偏好。');

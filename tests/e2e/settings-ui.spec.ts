@@ -89,3 +89,64 @@ test('reload discards unsaved fields even when the stored revision has not chang
     await f.close();
   }
 });
+
+test('opening advanced settings asks before abandoning an unsaved model and never shows both forms', async () => {
+  const f = await workflowFixture();
+  try {
+    await f.settings.getByLabel('API Key', { exact: true }).fill('UNSAVED_SWITCH_KEY');
+    let prompts = 0;
+    f.settings.once('dialog', (d) => {
+      prompts++;
+      void d.dismiss();
+    });
+    await f.settings.getByRole('button', { name: '更多设置', exact: true }).click();
+    await expect.poll(() => prompts).toBe(1);
+    await expect(f.settings.getByLabel('API Key', { exact: true })).toHaveValue(
+      'UNSAVED_SWITCH_KEY',
+    );
+    await expect(f.settings.getByRole('button', { name: '保存偏好', exact: true })).toHaveCount(0);
+    f.settings.once('dialog', (d) => {
+      prompts++;
+      void d.accept();
+    });
+    await f.settings.getByRole('button', { name: '更多设置', exact: true }).click();
+    await expect.poll(() => prompts).toBe(2);
+    await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toBeVisible();
+    await expect(f.settings.getByRole('button', { name: '保存配置', exact: true })).toHaveCount(0);
+    await expect(f.settings.getByLabel('API Key', { exact: true })).toHaveCount(0);
+    await f.settings.getByRole('button', { name: '返回模型设置', exact: true }).click();
+    await expect(f.settings.getByLabel('API Key', { exact: true })).toHaveValue('');
+    expect(f.count()).toBe(0);
+  } finally {
+    await f.close();
+  }
+});
+
+test('returning to model settings preserves advanced drafts until discard is confirmed', async () => {
+  const f = await workflowFixture();
+  try {
+    await f.settings.getByRole('button', { name: '更多设置', exact: true }).click();
+    await f.settings.getByLabel('阅读目标语言', { exact: true }).selectOption('ja');
+    let prompts = 0;
+    f.settings.once('dialog', (d) => {
+      prompts++;
+      void d.dismiss();
+    });
+    await f.settings.getByRole('button', { name: '返回模型设置', exact: true }).click();
+    await expect.poll(() => prompts).toBe(1);
+    await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toHaveValue('ja');
+    await expect(f.settings.getByRole('button', { name: '保存配置', exact: true })).toHaveCount(0);
+    f.settings.once('dialog', (d) => {
+      prompts++;
+      void d.accept();
+    });
+    await f.settings.getByRole('button', { name: '返回模型设置', exact: true }).click();
+    await expect.poll(() => prompts).toBe(2);
+    await expect(f.settings.getByLabel('模型名称')).toHaveValue('fixture-model');
+    await f.settings.getByRole('button', { name: '更多设置', exact: true }).click();
+    await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toHaveValue('zh-Hans');
+    expect(f.count()).toBe(0);
+  } finally {
+    await f.close();
+  }
+});
