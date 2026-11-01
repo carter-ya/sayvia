@@ -53,7 +53,16 @@ export async function handlePageMessage(
       sender.url?.split(/[?#]/)[0] !== browser.runtime.getURL('/popup.html')
     )
       return { ok: false, error: 'FORBIDDEN' };
-    const tab = await browser.tabs.get(request.payload.tabId);
+    return await openPage(request.payload.tabId, request.payload.mode);
+  } catch {
+    return { ok: false, error: 'PERMISSION_DENIED' };
+  }
+}
+
+// Only trusted browser gesture handlers call this; it is not a public message action.
+export async function openPage(tabId: number, mode: 'read' | 'write', autoTranslate = false) {
+  try {
+    const tab = await browser.tabs.get(tabId);
     const url = new URL(tab.url ?? '');
     if (
       url.protocol !== 'https:' &&
@@ -87,7 +96,12 @@ export async function handlePageMessage(
     }
     return (await browser.tabs.sendMessage(
       tab.id!,
-      { protocolVersion: 1, type: 'page.show', mode: request.payload.mode },
+      {
+        protocolVersion: 1,
+        type: 'page.show',
+        mode,
+        ...(autoTranslate ? { autoTranslate: true } : {}),
+      },
       { documentId, frameId: 0 },
     )) as unknown;
   } catch {

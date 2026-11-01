@@ -18,8 +18,22 @@ export default defineConfig({
     name: 'Sayvia',
     description: '在网页中阅读与表达，让语言不再成为障碍。',
     minimum_chrome_version: '116',
-    permissions: ['storage', 'offscreen', 'activeTab', 'scripting', 'clipboardWrite'],
+    permissions: [
+      'storage',
+      'offscreen',
+      'activeTab',
+      'scripting',
+      'clipboardWrite',
+      'contextMenus',
+    ],
     optional_host_permissions: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
+    commands: {
+      'translate-selection': {
+        suggested_key: { default: 'Ctrl+Shift+Y', mac: 'Command+Shift+Y' },
+        description: 'Sayvia：翻译当前正文选区',
+      },
+      'translate-editor': { description: 'Sayvia：打开当前编辑框翻译' },
+    },
     incognito: 'not_allowed',
     content_security_policy: {
       extension_pages: "script-src 'self'; object-src 'none'; worker-src 'self'",

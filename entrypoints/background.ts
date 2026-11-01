@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
+import { installGestureEntries } from '../src/background/gesture-entry';
 import { SiteAccess } from '../src/background/site-access';
 import { handlePageMessage } from '../src/background/page-router';
 import { handleConnectionTest } from '../src/background/connection-test';
@@ -16,6 +17,7 @@ import {
 } from '../src/background/task-router';
 
 export default defineBackground(() => {
+  installGestureEntries();
   const repository = new ConfigRepository(chromeConfigStorage);
   const sites = new SiteAccess(repository);
   void sites.reconcile().catch(() => undefined);

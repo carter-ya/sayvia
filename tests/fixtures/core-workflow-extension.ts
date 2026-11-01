@@ -134,6 +134,7 @@ export async function workflowFixture() {
   };
   return {
     page,
+    worker,
     popup,
     settings,
     context,

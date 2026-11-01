@@ -384,7 +384,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       message.type === 'page.show' &&
       ['read', 'write'].includes(message.mode)
     ) {
-      open(message.mode);
+      open(message.mode, false, message.autoTranslate === true);
       sendResponse({ ok: true });
       return;
     }
@@ -470,8 +470,13 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     if (!host.isConnected) dispose();
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
-  function open(mode: 'read' | 'write', inline = false) {
-    if (writing || !discard()) return;
+  function open(mode: 'read' | 'write', inline = false, autoTranslate = inline) {
+    if (writing || state.busy) {
+      state.status = userError('TASK_BUSY');
+      render();
+      return;
+    }
+    if (!discard()) return;
     cancel();
     entry.hide();
     entryMode = inline ? 'inline' : 'toolbar';
@@ -485,8 +490,11 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     state.model = '';
     state.hasOriginal = false;
     state.canRestore = false;
-    if (mode === 'read' && !inline) captureSelection();
-    else if (mode === 'write') bind(document.activeElement);
+    if (mode === 'read' && !inline) {
+      const live = window.getSelection();
+      if (autoTranslate && (!live || live.isCollapsed || live.rangeCount !== 1)) selection.clear();
+      captureSelection();
+    } else if (mode === 'write') bind(document.activeElement);
     try {
       capture();
       state.status = '确认原文和目标语言后，点击翻译。';
@@ -512,7 +520,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
           ok?: boolean;
           data?: { readTarget: string; writeTarget: string; theme: string; model?: string };
         }) => {
-          if (inline && sequence === openSequence && !response?.ok) {
+          if (autoTranslate && sequence === openSequence && !response?.ok) {
             state.status = userError('CONTEXT_LOST');
             render();
             return;
@@ -531,12 +539,12 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
             host.style.colorScheme =
               response.data.theme === 'system' ? 'light dark' : response.data.theme;
             render();
-            if (inline && automatic && current) void begin();
+            if (autoTranslate && (!inline || automatic) && current) void begin();
           }
         },
       )
       .catch(() => {
-        if (inline && sequence === openSequence) {
+        if (autoTranslate && sequence === openSequence) {
           state.status = userError('CONTEXT_LOST');
           render();
         }
