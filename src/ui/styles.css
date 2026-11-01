@@ -500,3 +500,132 @@ p {
   gap: 14px;
   align-content: start;
 }
+
+/* Toolbar popup */
+.popup {
+  width: min(380px, 100vw);
+  min-width: 320px;
+  padding: 20px;
+  max-height: 590px;
+  overflow-y: auto;
+}
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.popup h1 {
+  font-size: 20px;
+  line-height: 1.55;
+  margin-top: 18px;
+  letter-spacing: -0.4px;
+}
+.popup-subtitle {
+  color: var(--muted);
+  margin: 5px 0 18px;
+  font-size: 12px;
+}
+.popup-page {
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.popup-page > strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.popup-actions {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+.popup-actions button {
+  flex: 1;
+  font-size: 12px;
+  padding: 9px 12px;
+}
+.popup .field-help {
+  margin: 8px 0;
+  line-height: 1.7;
+  font-size: 11px;
+}
+.popup-manual {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.popup h2 {
+  font-size: 17px;
+  margin: 0;
+}
+.popup .card-heading {
+  margin-bottom: 10px;
+}
+.popup label {
+  margin-top: 14px;
+  font-size: 12px;
+}
+.popup textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.65;
+  font-weight: 400;
+}
+.popup-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 6px;
+}
+.popup-status {
+  font-size: 12px;
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.popup-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--tint);
+  border-radius: 10px;
+  margin: 16px 0 8px;
+}
+.popup-tabs button {
+  flex: 1;
+  font-size: 12px;
+  padding: 7px 10px;
+  color: var(--muted);
+  background: transparent;
+}
+.popup-tabs button[aria-selected='true'] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 4px #132a2410;
+}
+.popup-manual {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 0;
+}
+.popup-selectors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.popup-selectors .language-field {
+  gap: 0;
+}
+.popup textarea {
+  min-height: 72px;
+  padding: 8px 10px;
+}
+.popup-overview {
+  font-size: 11px;
+  color: var(--muted);
+}

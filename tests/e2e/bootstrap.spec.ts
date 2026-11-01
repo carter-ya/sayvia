@@ -18,7 +18,9 @@ test('built extension connects popup and options, and executes its bundled worke
     const extensionId = new URL(background.url()).host;
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-    await expect(popup.getByRole('heading')).toHaveText('用自己的语言，参与世界的讨论。');
+    await expect(popup.getByRole('heading', { level: 1 })).toHaveText(
+      '用自己的语言，参与世界的讨论。',
+    );
     await expect(popup.getByRole('status')).toHaveText('版本 0.1.0');
     const closedRoot = await popup.evaluate(() => {
       const host = document.createElement('div');
