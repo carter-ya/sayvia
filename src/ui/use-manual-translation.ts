@@ -4,7 +4,13 @@ import { SnapshotSchema, type ConfigSnapshot } from '../storage/schema';
 import type { ManualDraftView } from '../runtime/manual-draft';
 import { userError } from '../runtime/user-errors';
 
-type Fields = { input: string; result: string; targetLanguage: string; providerId: string };
+type Fields = {
+  input: string;
+  result: string;
+  targetLanguage: string;
+  sourceLanguage: string;
+  providerId: string;
+};
 type StartingTask = { clientTaskId: string; documentNonce: string; canceled: boolean };
 type Context = {
   tabId: number;
@@ -14,7 +20,13 @@ type Context = {
   editSession: string;
   sequence: number;
 };
-const initial: Fields = { input: '', result: '', targetLanguage: 'en', providerId: '' };
+const initial: Fields = {
+  input: '',
+  result: '',
+  targetLanguage: 'en',
+  sourceLanguage: 'auto',
+  providerId: '',
+};
 const message = (type: string, payload: unknown) => ({
   protocolVersion: 1,
   requestId: crypto.randomUUID(),
@@ -71,6 +83,7 @@ export function useManualTranslation() {
         input: next.input,
         result: next.result ?? '',
         targetLanguage: next.targetLanguage ?? values.current.targetLanguage,
+        sourceLanguage: next.sourceLanguage ?? 'auto',
         providerId: next.providerId ?? values.current.providerId,
       };
       values.current = value;
@@ -206,6 +219,7 @@ export function useManualTranslation() {
     if (
       patch.input !== undefined ||
       patch.targetLanguage !== undefined ||
+      patch.sourceLanguage !== undefined ||
       patch.providerId !== undefined
     )
       next.result = '';
@@ -231,6 +245,7 @@ export function useManualTranslation() {
           input: next.input,
           result: next.result,
           targetLanguage: next.targetLanguage,
+          sourceLanguage: next.sourceLanguage,
           ...(next.providerId ? { providerId: next.providerId } : {}),
           editSession: ctx.editSession,
           sequence,
@@ -286,7 +301,7 @@ export function useManualTranslation() {
         mode: 'manual',
         scope: 'full',
         source: { kind: 'plain-text', text: value.input },
-        sourceLanguage: 'auto',
+        sourceLanguage: value.sourceLanguage,
         targetLanguage: value.targetLanguage,
         ...(value.providerId ? { providerId: value.providerId } : {}),
         manualRevision: ctx.revision,

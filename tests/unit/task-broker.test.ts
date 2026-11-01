@@ -611,3 +611,34 @@ it('allows an incomplete blank language draft without weakening the eventual sta
   expect(SessionSchema.safeParse(f.saved()).success).toBe(true);
   expect((await f.broker.readManual(1))?.targetLanguage).toBe('');
 });
+
+it.each(['ja', undefined])(
+  'preserves manual source language %s through saving and task start',
+  async (sourceLanguage) => {
+    const f = await setup();
+    const who: TaskOwner = { ...owner(), kind: 'manual' };
+    const generation = await f.broker.manualGeneration();
+    await f.broker.saveManual({
+      generation,
+      tabId: who.tabId,
+      input: 'PRIVATE_SOURCE_TEXT',
+      result: '',
+      targetLanguage: 'en',
+      ...(sourceLanguage ? { sourceLanguage } : {}),
+      editSession: crypto.randomUUID(),
+      sequence: 1,
+      expectedRevision: 0,
+    });
+    const saved = (await f.broker.readManual(who.tabId))!;
+    expect(saved.sourceLanguage).toBe(sourceLanguage ?? 'auto');
+    const request = start(who);
+    Object.assign(request.payload, {
+      sourceLanguage: sourceLanguage ?? 'auto',
+      manualGeneration: generation,
+      manualRevision: saved.revision,
+    });
+    expect(await f.broker.handle(request, who)).toMatchObject({ ok: true });
+    expect((await f.broker.readManual(who.tabId))?.sourceLanguage).toBe(sourceLanguage ?? 'auto');
+    expect(() => SessionSchema.parse(f.saved())).not.toThrow();
+  },
+);

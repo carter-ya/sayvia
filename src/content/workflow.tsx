@@ -53,6 +53,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     source: '',
     candidate: '',
     target: 'en',
+    sourceLanguage: 'auto',
     scope: 'selection',
     replaceScope: 'full',
     model: '',
@@ -220,7 +221,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
           ...(entryMode === 'inline' ? { entry: 'inline' } : {}),
           scope: draft.snapshot?.scope ?? 'selection',
           source: draft.source,
-          sourceLanguage: 'auto',
+          sourceLanguage: state.sourceLanguage,
           targetLanguage: state.target,
           ...(draft.snapshot
             ? {
@@ -286,6 +287,15 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         current?.editor && value && !state.canReplace
           ? '原稿或格式保护校验未通过，仅可复制译文。'
           : '可继续修改译文，确认后再操作。';
+      render();
+    },
+    sourceLanguage(value) {
+      if (writing || state.busy || !discard()) return;
+      cancel();
+      state.sourceLanguage = value;
+      state.candidate = '';
+      state.canReplace = false;
+      state.status = '点击翻译以使用新的源语言。';
       render();
     },
     target(value) {
@@ -531,6 +541,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       focusTarget = document.activeElement;
     state.scope = 'selection';
     state.target = mode === 'read' ? 'zh-Hans' : 'en';
+    state.sourceLanguage = 'auto';
     state.source = '';
     state.candidate = '';
     state.model = '';

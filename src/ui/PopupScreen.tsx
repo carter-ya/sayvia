@@ -148,7 +148,7 @@ export function PopupScreen() {
           aria-label="手动翻译"
         >
           <div className="popup-selectors">
-            <label>
+            <label className="popup-model-select">
               翻译模型
               <select
                 aria-label="翻译模型"
@@ -169,6 +169,13 @@ export function PopupScreen() {
                 ))}
               </select>
             </label>
+            <LanguageField
+              label="源语言"
+              value={fields.sourceLanguage}
+              allowAuto
+              disabled={!ready || busy}
+              onChange={(sourceLanguage) => manual.update({ sourceLanguage })}
+            />
             <LanguageField
               label="目标语言"
               value={fields.targetLanguage}
@@ -220,7 +227,7 @@ export function PopupScreen() {
               }}
             />
           </label>
-          {model && <p className="field-help">本次模型：{model}</p>}
+          {model && (fields.result || busy) && <p className="field-help">本次模型：{model}</p>}
           <div className="popup-actions">
             <button
               type="button"
@@ -231,6 +238,7 @@ export function PopupScreen() {
                 saving ||
                 !fields.input.trim() ||
                 !fields.targetLanguage.trim() ||
+                !fields.sourceLanguage.trim() ||
                 !config?.providers.length ||
                 [...fields.input].length > 12_000
               }

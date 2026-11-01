@@ -13,6 +13,7 @@ export const ManualRecord = z
     input: z.string().max(24_000),
     result: z.string().max(48_000).optional(),
     targetLanguage: DraftLanguage.optional(),
+    sourceLanguage: DraftLanguage.optional(),
     providerId: z.uuid().optional(),
     revision: z.int().nonnegative().optional(),
     editSession: z.uuid().optional(),
@@ -35,6 +36,7 @@ export const ManualSave = z
           .refine((value) => [...value].length <= 12_000),
         result: z.string().max(48_000),
         targetLanguage: DraftLanguage,
+        sourceLanguage: DraftLanguage.optional(),
         providerId: z.uuid().optional(),
         editSession: z.uuid(),
         sequence: z.int().nonnegative(),
@@ -52,6 +54,7 @@ export type ManualDraftView = Pick<
   | 'input'
   | 'result'
   | 'targetLanguage'
+  | 'sourceLanguage'
   | 'providerId'
   | 'revision'
 > & {
