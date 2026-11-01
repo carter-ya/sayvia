@@ -19,7 +19,8 @@
     "test": "pnpm build && vitest run",
     "test:e2e": "playwright test",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e",
-    "evaluate": "tsx scripts/evaluate.ts"
+    "evaluate": "tsx scripts/evaluate.ts",
+    "icons": "tsx scripts/generate-icons.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -5,7 +5,7 @@ import {
   ALGORITHM_VERSION,
   type CompletionConfig,
 } from '../providers/chat-completions';
-import { M1_SAMPLES } from './samples';
+import { M1_SAMPLES, type EvaluationSample } from './samples';
 
 export interface EvaluationEntry {
   id: string;
@@ -28,9 +28,10 @@ export async function runEvaluation(
   config: CompletionConfig,
   onEntry: (entry: EvaluationEntry) => void | Promise<void>,
   fetcher: typeof fetch = fetch,
+  samples: readonly EvaluationSample[] = M1_SAMPLES,
 ) {
   const entries: EvaluationEntry[] = [];
-  for (const sample of M1_SAMPLES) {
+  for (const sample of samples) {
     const startedAt = Date.now();
     let entry: EvaluationEntry;
     const common = {
