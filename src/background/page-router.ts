@@ -38,6 +38,7 @@ export async function handlePageMessage(
       return {
         ok: true,
         data: {
+          quickReplace: snapshot.preferences.quickReplace,
           theme: snapshot.preferences.theme,
           model: snapshot.providers.find(
             (provider) => provider.id === snapshot.preferences.defaultProviderId,

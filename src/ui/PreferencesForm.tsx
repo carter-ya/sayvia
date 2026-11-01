@@ -60,6 +60,19 @@ export function PreferencesForm({
             onChange={(writeTarget) => change({ writeTarget })}
           />
         </div>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={preferences.quickReplace}
+            onChange={(event) => {
+              if (event.nativeEvent.isTrusted) change({ quickReplace: event.target.checked });
+            }}
+          />
+          开启写作快速替换
+        </label>
+        <p className="field-help">
+          翻译成功且原稿未改动时自动替换，可一步恢复；原稿变化、后台恢复或格式校验失败时只提供预览与复制。
+        </p>
         <label>
           界面主题
           <select

@@ -279,7 +279,9 @@ for (const kind of ['rich-text', 'password', 'readonly'] as const) {
         element.focus();
       }, kind);
       const panel = await f.open('write');
-      await expect(panel.getByRole('status')).toHaveText('当前编辑框无法安全替换，请使用复制。');
+      await expect(panel.getByRole('status')).toHaveText(
+        '当前编辑框无法安全替换，请通过工具栏手动粘贴翻译。',
+      );
       await expect(panel.getByLabel('原文', { exact: true })).toHaveValue('');
       await expect(panel.getByRole('button', { name: '翻译', exact: true })).toBeDisabled();
       await panel.getByRole('button', { name: '全文', exact: true }).click();

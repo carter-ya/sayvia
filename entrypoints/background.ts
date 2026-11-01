@@ -65,6 +65,10 @@ export default defineBackground(() => {
             documentNonce: route.documentNonce,
             result,
             canApply: canApply && route.mode === 'write',
+            quickReplaceAllowed:
+              canApply &&
+              route.mode === 'write' &&
+              (await repository.snapshot()).preferences.quickReplace,
             provider: {
               id: route.providerId,
               revision: route.providerRevision,

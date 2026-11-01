@@ -21,6 +21,7 @@ type Draft = {
   eligible: boolean;
   backendAllows: boolean;
   applied: boolean;
+  quickReplace?: boolean;
 };
 export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const registry = new EditorRegistry();
@@ -55,6 +56,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     replaceScope: 'full',
     model: '',
     busy: false,
+    ready: false,
+    quickReplace: false,
     canReplace: false,
     canRestore: false,
     hasOriginal: false,
@@ -164,7 +167,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     }
   };
   const begin = async () => {
-    if (writing || state.busy || !discard()) return;
+    if (!state.ready || writing || state.busy || !discard()) return;
     try {
       if (entryMode === 'inline' && !automatic) throw new Error('SITE_DISABLED');
       const draft = current;
@@ -178,6 +181,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         throw new Error('SELECTION_LOST');
       const clientTaskId = crypto.randomUUID();
       draft.clientTaskId = clientTaskId;
+      draft.quickReplace = state.mode === 'write' && state.quickReplace;
       state.candidate = '';
       state.busy = true;
       state.canReplace = false;
@@ -413,6 +417,13 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       state.status = userError(event.error ?? 'CONTEXT_LOST');
     }
     render();
+    if (
+      event.type === 'translation.result' &&
+      current.quickReplace &&
+      event.quickReplaceAllowed === true &&
+      state.canReplace
+    )
+      actions.replace();
     sendResponse({ taskId: event.taskId, documentNonce: registry.documentNonce });
   };
   const focus = (event: FocusEvent) => {
@@ -488,6 +499,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     state.source = '';
     state.candidate = '';
     state.model = '';
+    state.ready = false;
+    state.quickReplace = false;
     state.hasOriginal = false;
     state.canRestore = false;
     if (mode === 'read' && !inline) captureSelection();
@@ -515,7 +528,13 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       .then(
         (response: {
           ok?: boolean;
-          data?: { readTarget: string; writeTarget: string; theme: string; model?: string };
+          data?: {
+            readTarget: string;
+            writeTarget: string;
+            theme: string;
+            model?: string;
+            quickReplace: boolean;
+          };
         }) => {
           if (autoTranslate && sequence === openSequence && !response?.ok) {
             state.status = userError('CONTEXT_LOST');
@@ -532,6 +551,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
             !state.candidate
           ) {
             state.target = mode === 'read' ? response.data.readTarget : response.data.writeTarget;
+            state.ready = true;
+            state.quickReplace = response.data.quickReplace;
             state.model = response.data.model ?? '';
             host.style.colorScheme =
               response.data.theme === 'system' ? 'light dark' : response.data.theme;

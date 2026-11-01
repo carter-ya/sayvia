@@ -11,6 +11,8 @@ export interface PanelState {
   replaceScope: 'selection' | 'full';
   model: string;
   busy: boolean;
+  ready: boolean;
+  quickReplace: boolean;
   canReplace: boolean;
   canRestore: boolean;
   hasOriginal: boolean;
@@ -61,11 +63,17 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
         <h2>{state.mode === 'write' ? '让表达更自然' : '跨过语言，读懂原意'}</h2>
         <span className="mode-badge">{state.mode === 'write' ? '写作' : '阅读'}</span>
       </div>
+      {state.mode === 'write' && (
+        <p className="model-note">
+          本次范围：{state.replaceScope === 'full' ? '全文' : '选区'} ·{' '}
+          {state.quickReplace ? '快速替换已开启' : '预览后手动替换'}
+        </p>
+      )}
       {state.model && <p className="model-note">模型：{state.model}</p>}
       <LanguageField
         label="目标语言"
         value={state.target}
-        disabled={state.busy}
+        disabled={!state.ready || state.busy}
         onChange={actions.target}
       />
       {state.mode === 'write' && (
@@ -73,7 +81,7 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
           <span>翻译范围</span>
           <button
             type="button"
-            disabled={state.busy}
+            disabled={!state.ready || state.busy}
             aria-pressed={state.scope === 'selection'}
             onClick={trusted(() => actions.scope('selection'))}
           >
@@ -81,7 +89,7 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
           </button>
           <button
             type="button"
-            disabled={state.busy}
+            disabled={!state.ready || state.busy}
             aria-pressed={state.scope === 'full'}
             onClick={trusted(() => actions.scope('full'))}
           >
@@ -103,12 +111,16 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
         </label>
       )}
       <div className="actions">
-        <button type="button" disabled={state.busy} onClick={trusted(actions.refresh)}>
+        <button
+          type="button"
+          disabled={!state.ready || state.busy}
+          onClick={trusted(actions.refresh)}
+        >
           重新读取原文
         </button>
         <button
           type="button"
-          disabled={state.busy || !state.source.trim() || !state.target.trim()}
+          disabled={!state.ready || state.busy || !state.source.trim() || !state.target.trim()}
           onClick={trusted(actions.translate)}
         >
           翻译
@@ -126,7 +138,7 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
           value={state.candidate}
           rows={state.mode === 'read' ? 3 : 6}
           maxLength={48_000}
-          disabled={state.busy}
+          disabled={!state.ready || state.busy}
           onChange={(event) => {
             if (event.nativeEvent.isTrusted) actions.edit(event.target.value);
           }}
