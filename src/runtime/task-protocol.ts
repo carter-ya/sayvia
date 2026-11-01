@@ -26,7 +26,7 @@ export const StartPayload = Owner.extend({
     if (
       ((value.manualRevision !== undefined || value.manualGeneration !== undefined) &&
         value.mode !== 'manual') ||
-      (value.entry === 'inline' && value.mode !== 'read') ||
+      (value.entry === 'inline' && value.mode === 'manual') ||
       (value.mode === 'read' && value.source.kind !== 'dom-selection') ||
       (value.mode === 'manual' && value.source.kind !== 'plain-text') ||
       (value.mode === 'write' &&

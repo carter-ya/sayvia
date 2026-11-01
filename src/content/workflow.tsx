@@ -10,6 +10,7 @@ import { TaskEventSchema } from '../runtime/public-events';
 import { userError } from '../runtime/user-errors';
 import { TranslationPanel, type PanelActions, type PanelState } from '../ui/TranslationPanel';
 import { SelectionEntry } from './selection-entry';
+import { EditorEntries } from './editor-entry';
 import { panelStyle } from './panel-style';
 
 type Draft = {
@@ -66,7 +67,11 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const entry = new SelectionEntry(() => {
     if (automatic) open('read', true);
   });
-  const owns = (event: Event) => event.composedPath().includes(host) || entry.owns(event);
+  const editorEntries = new EditorEntries((element) => {
+    if (automatic) open('write', true, true, element);
+  });
+  const owns = (event: Event) =>
+    event.composedPath().includes(host) || entry.owns(event) || editorEntries.owns(event);
   const render = () => {
     if (!disposed) root.render(<TranslationPanel state={{ ...state }} actions={actions} />);
   };
@@ -500,7 +505,12 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     if (!host.isConnected) dispose();
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
-  function open(mode: 'read' | 'write', inline = false, autoTranslate = inline) {
+  function open(
+    mode: 'read' | 'write',
+    inline = false,
+    autoTranslate = inline,
+    editorTarget?: Element,
+  ) {
     if (writing || state.busy) {
       state.status = userError('TASK_BUSY');
       render();
@@ -532,7 +542,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       const live = window.getSelection();
       if (autoTranslate && (!live || live.isCollapsed || live.rangeCount !== 1)) selection.clear();
       captureSelection();
-    } else if (mode === 'write') bind(document.activeElement);
+    } else if (mode === 'write') bind(editorTarget ?? document.activeElement);
     try {
       capture();
       state.status = '确认原文和目标语言后，点击翻译。';
@@ -541,7 +551,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       state.status = userError(error);
     }
     visible = true;
-    if (inline) entry.placePanel(host);
+    if (inline && mode === 'read') entry.placePanel(host);
     else {
       host.style.removeProperty('left');
       host.style.removeProperty('right');
@@ -599,6 +609,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   function setAutomatic(enabled: boolean) {
     automaticEpoch += 1;
     automatic = enabled;
+    editorEntries.setEnabled(enabled);
     if (!enabled) {
       entry.hide();
       if (entryMode === 'inline' && state.busy) {
@@ -629,6 +640,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     }
     window.removeEventListener('pagehide', dispose);
     entry.dispose();
+    editorEntries.dispose();
     registry.dispose();
     selection.clear();
     root.unmount();

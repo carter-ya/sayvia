@@ -478,28 +478,34 @@ it('uses the dispatched API origin snapshot after configuration changes and reta
   expect(f.saved().routes[0]!.state).toBe('canceled');
 });
 
-it('checks explicit website opt-in before executor creation and again before dispatch', async () => {
-  const f = await setup();
-  const who = { ...owner(), siteOrigin: 'https://site.example' };
-  const request = start(who);
-  request.payload = {
-    clientTaskId: request.payload.clientTaskId,
-    documentNonce: who.documentNonce,
-    entry: 'inline',
-    mode: 'read',
-    scope: 'selection',
-    source: { kind: 'dom-selection', text: 'Hello', protectedRanges: [], marks: [] },
-    sourceLanguage: 'auto',
-    targetLanguage: 'zh-Hans',
-  };
-  f.platform.sitePermitted.mockResolvedValue(false);
-  expect(await f.broker.handle(request, who)).toEqual({ ok: false, error: 'SITE_DISABLED' });
-  expect(f.host.start).not.toHaveBeenCalled();
-  f.platform.sitePermitted.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-  expect(await f.broker.handle(request, who)).toEqual({ ok: false, error: 'SITE_DISABLED' });
-  expect(f.dispatches()).toBe(0);
-  expect(f.saved().routes).toEqual([]);
-});
+it.each(['read', 'write'] as const)(
+  'checks %s website opt-in before executor creation and again before dispatch',
+  async (mode) => {
+    const f = await setup();
+    const who = { ...owner(), siteOrigin: 'https://site.example' };
+    const request = start(who);
+    request.payload =
+      mode === 'write'
+        ? { ...request.payload, entry: 'inline' }
+        : {
+            clientTaskId: request.payload.clientTaskId,
+            documentNonce: who.documentNonce,
+            entry: 'inline',
+            mode: 'read',
+            scope: 'selection',
+            source: { kind: 'dom-selection', text: 'Hello', protectedRanges: [], marks: [] },
+            sourceLanguage: 'auto',
+            targetLanguage: 'zh-Hans',
+          };
+    f.platform.sitePermitted.mockResolvedValue(false);
+    expect(await f.broker.handle(request, who)).toEqual({ ok: false, error: 'SITE_DISABLED' });
+    expect(f.host.start).not.toHaveBeenCalled();
+    f.platform.sitePermitted.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    expect(await f.broker.handle(request, who)).toEqual({ ok: false, error: 'SITE_DISABLED' });
+    expect(f.dispatches()).toBe(0);
+    expect(f.saved().routes).toEqual([]);
+  },
+);
 it('saves immediately dispatched draft edits in sequence and rejects stale competing windows', async () => {
   const f = await setup();
   const base = {
