@@ -153,3 +153,33 @@ describe('browser-derived task ownership', () => {
     expect(permissionPattern('https://api.example/prefix')).toBe('https://api.example/*');
   });
 });
+
+it('never permits a web page or settings context to save a popup draft', async () => {
+  const f = stub();
+  const message = {
+    type: 'translation.manual.save',
+    protocolVersion: 1,
+    requestId: crypto.randomUUID(),
+    payload: {
+      generation: crypto.randomUUID(),
+      tabId: 9,
+      input: 'private draft',
+      result: '',
+      targetLanguage: 'en',
+      editSession: crypto.randomUUID(),
+      sequence: 1,
+      expectedRevision: 0,
+    },
+  };
+  expect(await handleTaskMessage(message, sender, f.broker)).toEqual({
+    ok: false,
+    error: 'FORBIDDEN',
+  });
+  expect(
+    await handleTaskMessage(
+      { ...message, payload: { ...message.payload, apiKey: 'fake' } },
+      sender,
+      f.broker,
+    ),
+  ).toEqual({ ok: false, error: 'INVALID_REQUEST' });
+});
