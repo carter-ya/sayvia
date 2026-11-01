@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { z } from 'zod';
+import type { SiteAccess } from './site-access';
 import type { ConfigRepository } from '../storage/repository';
 import { pageOwner, type MessageSender } from './task-router';
 
@@ -13,16 +14,23 @@ const Request = z.discriminatedUnion('type', [
     })
     .strict(),
   z.object({ ...Envelope, type: z.literal('page.preferences') }).strict(),
+  z.object({ ...Envelope, type: z.literal('page.automatic-status') }).strict(),
 ]);
 export async function handlePageMessage(
   message: unknown,
   sender: MessageSender,
   repository: ConfigRepository,
+  sites?: Pick<SiteAccess, 'permitted'>,
 ) {
   const parsed = Request.safeParse(message);
   if (!parsed.success) return { ok: false, error: 'INVALID_REQUEST' };
   try {
     const request = parsed.data;
+    if (request.type === 'page.automatic-status') {
+      const owner = pageOwner(sender, crypto.randomUUID(), browser.runtime.id);
+      if (!owner?.siteOrigin || !sites) return { ok: false, error: 'FORBIDDEN' };
+      return { ok: true, enabled: await sites.permitted(owner.siteOrigin) };
+    }
     if (request.type === 'page.preferences') {
       if (!pageOwner(sender, crypto.randomUUID(), browser.runtime.id))
         return { ok: false, error: 'FORBIDDEN' };

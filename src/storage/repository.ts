@@ -1,3 +1,4 @@
+import { siteOrigin } from '../runtime/site-access';
 import { loadState } from './migrations';
 import {
   SaveSchema,
@@ -64,10 +65,11 @@ export class ConfigRepository {
     });
   }
 
-  private mutate(expectedRevision: number, change: (state: StoredState) => void) {
+  private mutate(expectedRevision: number | undefined, change: (state: StoredState) => void) {
     const operation = this.queue.then(async () => {
       await this.ready;
-      if (this.state.revision !== expectedRevision) throw new Error('CONFLICT');
+      if (expectedRevision !== undefined && this.state.revision !== expectedRevision)
+        throw new Error('CONFLICT');
       const next = structuredClone(this.state);
       change(next);
       next.revision += 1;
@@ -114,6 +116,28 @@ export class ConfigRepository {
       const id = checked.preferences.defaultProviderId;
       if (id && !state.providers[id]) throw new Error('NOT_FOUND');
       state.preferences = structuredClone(checked.preferences);
+    });
+  }
+
+  async siteOrigins() {
+    await this.ready;
+    await this.queue;
+    return [...this.state.allowedSites];
+  }
+
+  setSite(origin: string, enabled: boolean, expectedRevision: number) {
+    const canonical = siteOrigin(origin);
+    return this.mutate(expectedRevision, (state) => {
+      state.allowedSites = state.allowedSites.filter((item) => item !== canonical);
+      if (enabled) state.allowedSites.push(canonical);
+      if (state.allowedSites.length > 200) throw new Error('SITE_LIMIT');
+    });
+  }
+
+  // Only permission reconciliation may remove intent without a UI revision.
+  removeSites(origins: string[]) {
+    return this.mutate(undefined, (state) => {
+      state.allowedSites = state.allowedSites.filter((origin) => !origins.includes(origin));
     });
   }
 

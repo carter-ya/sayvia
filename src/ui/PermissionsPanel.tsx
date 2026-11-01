@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
+import { SitePanel } from './SitePanel';
+import type { ConfigSnapshot } from '../storage/schema';
 export function PermissionsPanel({
   busy,
+  snapshot,
+  onSnapshot,
   onClear,
 }: {
   busy: boolean;
+  snapshot: ConfigSnapshot;
+  onSnapshot(next: ConfigSnapshot): void;
   onClear(revoke: boolean): void;
 }) {
   const [origins, setOrigins] = useState<string[]>([]);
-  const [site, setSite] = useState('');
   const [message, setMessage] = useState('');
   const [pending, setPending] = useState(false);
   const [revoke, setRevoke] = useState(true);
@@ -29,33 +34,6 @@ export function PermissionsPanel({
       browser.permissions.onRemoved.removeListener(changed);
     };
   }, []);
-  function grant() {
-    try {
-      const url = new URL(site);
-      if (
-        url.username ||
-        url.password ||
-        (url.protocol !== 'https:' &&
-          !(url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)))
-      )
-        throw new Error();
-      setPending(true);
-      void browser.permissions
-        .request({ origins: [`${url.protocol}//${url.hostname}/*`] })
-        .then(
-          async (granted) => {
-            setMessage(
-              granted ? `${url.hostname} 已获授权。` : '未获得授权，该网站的自动入口暂不可用。',
-            );
-            await refresh();
-          },
-          () => setMessage('授权未完成，请重试。'),
-        )
-        .finally(() => setPending(false));
-    } catch {
-      setMessage('请输入 HTTPS 网站地址；本地测试可使用 localhost 或 127.0.0.1。');
-    }
-  }
   async function remove(origin: string) {
     setPending(true);
     try {
@@ -74,35 +52,12 @@ export function PermissionsPanel({
   }
   return (
     <>
+      <SitePanel snapshot={snapshot} busy={busy} onSnapshot={onSnapshot} />
       <section className="settings-card">
         <h2>网站与 API 授权</h2>
         <p className="muted">
           授权按主机生效。相同主机可能同时用于网页和模型服务；撤销后会影响相应功能。
         </p>
-        <label>
-          网站地址
-          <input
-            type="url"
-            value={site}
-            placeholder="https://github.com"
-            disabled={pending}
-            onChange={(event) => {
-              setSite(event.target.value);
-              setMessage('');
-            }}
-          />
-        </label>
-        <button
-          className="secondary"
-          type="button"
-          disabled={pending || busy || !site.trim()}
-          onClick={(event) => {
-            if (event.nativeEvent.isTrusted) grant();
-          }}
-        >
-          授权此网站
-        </button>
-        <p className="field-help">授权后仍由你主动发起翻译。页面路径和端口不形成独立授权。</p>
         <ul className="permission-list">
           {origins.map((origin) => (
             <li key={origin}>
@@ -140,7 +95,7 @@ export function PermissionsPanel({
           <input
             type="checkbox"
             checked={revoke}
-            disabled={busy}
+            disabled={busy || pending}
             onChange={(event) => setRevoke(event.target.checked)}
           />
           同时撤销已授权主机
@@ -148,7 +103,7 @@ export function PermissionsPanel({
         <button
           type="button"
           className="danger-button"
-          disabled={busy}
+          disabled={busy || pending}
           onClick={(event) => {
             if (event.nativeEvent.isTrusted) onClear(revoke);
           }}
