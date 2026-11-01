@@ -11,6 +11,7 @@ export const TaskEventSchema = z.discriminatedUnion('type', [
       ...Identity,
       type: z.literal('translation.result'),
       canApply: z.boolean(),
+      quickReplaceAllowed: z.boolean().optional(),
       result: z
         .object({
           text: z.string().max(48_000),

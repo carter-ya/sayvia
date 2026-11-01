@@ -13,7 +13,7 @@ const messages: Record<string, string> = {
   CONTEXT_LOST: '翻译已中断，请重新选择原文。',
   SOURCE_CHANGED: '原稿已修改，仅可复制译文。',
   COMPOSING: '请先完成输入法组词，再进行操作。',
-  UNSUPPORTED: '当前编辑框无法安全替换，请使用复制。',
+  UNSUPPORTED: '当前编辑框无法安全替换，请通过工具栏手动粘贴翻译。',
   WRITE_REJECTED: '网页未接受此次替换，请复制译文后手动修改。',
   FORMAT_INVALID: '译文格式校验未通过，请手动重试。',
   UNSUPPORTED_RESPONSE: '服务返回的结果不受支持。',

@@ -30,6 +30,7 @@ const repository = {
   snapshot: vi.fn(async () => ({
     providers: [{ id: 'default', model: 'test-model' }],
     preferences: {
+      quickReplace: false,
       readTarget: 'zh-Hans',
       writeTarget: 'en',
       theme: 'dark',
@@ -118,7 +119,13 @@ describe('explicit page translation entry', () => {
     };
     expect(await handlePageMessage(request, page, repository)).toEqual({
       ok: true,
-      data: { readTarget: 'zh-Hans', writeTarget: 'en', theme: 'dark', model: 'test-model' },
+      data: {
+        readTarget: 'zh-Hans',
+        writeTarget: 'en',
+        theme: 'dark',
+        model: 'test-model',
+        quickReplace: false,
+      },
     });
     expect(await handlePageMessage(request, { ...page, frameId: 1 }, repository)).toEqual({
       ok: false,

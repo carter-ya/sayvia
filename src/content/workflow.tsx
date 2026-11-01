@@ -21,6 +21,7 @@ type Draft = {
   eligible: boolean;
   backendAllows: boolean;
   applied: boolean;
+  quickReplace?: boolean;
 };
 export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const registry = new EditorRegistry();
@@ -55,6 +56,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     replaceScope: 'full',
     model: '',
     busy: false,
+    ready: false,
+    quickReplace: false,
     canReplace: false,
     canRestore: false,
     hasOriginal: false,
@@ -164,10 +167,11 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     }
   };
   const begin = async () => {
-    if (writing || state.busy || !discard()) return;
+    if (!state.ready || writing || state.busy || !discard()) return;
+    const draft = current;
+    let clientTaskId: string | undefined;
     try {
       if (entryMode === 'inline' && !automatic) throw new Error('SITE_DISABLED');
-      const draft = current;
       if (!draft) throw new Error('EMPTY_SOURCE');
       if (draft.editor && draft.snapshot && !draft.editor.validate(draft.snapshot).ok)
         throw new Error('SOURCE_CHANGED');
@@ -176,13 +180,30 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         JSON.stringify(selection.read(document)) !== JSON.stringify(draft.source)
       )
         throw new Error('SELECTION_LOST');
-      const clientTaskId = crypto.randomUUID();
+      clientTaskId = crypto.randomUUID();
       draft.clientTaskId = clientTaskId;
+      draft.quickReplace = false;
       state.candidate = '';
       state.busy = true;
       state.canReplace = false;
       state.status = '正在翻译…';
       render();
+      if (state.mode === 'write') {
+        const preferences = (await browser.runtime.sendMessage({
+          protocolVersion: 1,
+          type: 'page.preferences',
+          requestId: crypto.randomUUID(),
+        })) as { ok?: boolean; data?: { quickReplace?: boolean } };
+        if (disposed || current !== draft || draft.clientTaskId !== clientTaskId || !state.busy)
+          return;
+        if (!preferences?.ok || typeof preferences.data?.quickReplace !== 'boolean')
+          throw new Error('CONTEXT_LOST');
+        state.quickReplace = preferences.data.quickReplace;
+        draft.quickReplace = state.quickReplace;
+        if (draft.editor && draft.snapshot && !draft.editor.validate(draft.snapshot).ok)
+          throw new Error('SOURCE_CHANGED');
+        render();
+      }
       const response = (await browser.runtime.sendMessage({
         protocolVersion: 1,
         requestId: crypto.randomUUID(),
@@ -216,6 +237,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         render();
       }
     } catch (error) {
+      if (clientTaskId && (disposed || current !== draft || draft?.clientTaskId !== clientTaskId))
+        return;
       state.busy = false;
       state.canReplace = false;
       state.status =
@@ -413,6 +436,13 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       state.status = userError(event.error ?? 'CONTEXT_LOST');
     }
     render();
+    if (
+      event.type === 'translation.result' &&
+      current.quickReplace &&
+      event.quickReplaceAllowed === true &&
+      state.canReplace
+    )
+      actions.replace();
     sendResponse({ taskId: event.taskId, documentNonce: registry.documentNonce });
   };
   const focus = (event: FocusEvent) => {
@@ -488,6 +518,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     state.source = '';
     state.candidate = '';
     state.model = '';
+    state.ready = false;
+    state.quickReplace = false;
     state.hasOriginal = false;
     state.canRestore = false;
     if (mode === 'read' && !inline) {
@@ -518,7 +550,13 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       .then(
         (response: {
           ok?: boolean;
-          data?: { readTarget: string; writeTarget: string; theme: string; model?: string };
+          data?: {
+            readTarget: string;
+            writeTarget: string;
+            theme: string;
+            model?: string;
+            quickReplace: boolean;
+          };
         }) => {
           if (autoTranslate && sequence === openSequence && !response?.ok) {
             state.status = userError('CONTEXT_LOST');
@@ -535,6 +573,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
             !state.candidate
           ) {
             state.target = mode === 'read' ? response.data.readTarget : response.data.writeTarget;
+            state.ready = true;
+            state.quickReplace = response.data.quickReplace;
             state.model = response.data.model ?? '';
             host.style.colorScheme =
               response.data.theme === 'system' ? 'light dark' : response.data.theme;
