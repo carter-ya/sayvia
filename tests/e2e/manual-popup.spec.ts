@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { workflowFixture } from '../fixtures/core-workflow-extension';
+import type { browser } from 'wxt/browser';
 async function popup(f: Awaited<ReturnType<typeof workflowFixture>>, target: Page = f.page) {
   const url = f.popup.url();
   const result = await f.context.newPage();
@@ -75,3 +76,40 @@ test('manual drafts belong to the captured tab and are removed by clear-all in a
     await f.close();
   }
 });
+
+for (const restored of [false, true]) {
+  test(`cancel targets the new request before the start reply (${restored ? 'restored draft' : 'fresh popup'})`, async () => {
+    const f = await workflowFixture();
+    try {
+      let p = await popup(f);
+      if (restored) {
+        await p.getByLabel('待翻译文本', { exact: true }).fill('你好');
+        await p.getByRole('button', { name: '翻译文本', exact: true }).click();
+        await expect(p.getByLabel('手动译文', { exact: true })).toHaveValue('English');
+        await p.close();
+        p = await popup(f);
+      }
+      await p.getByLabel('待翻译文本', { exact: true }).fill('中文');
+      await p.evaluate(() => {
+        const chrome = (globalThis as unknown as { chrome: typeof browser }).chrome;
+        const original = chrome.runtime.sendMessage.bind(chrome.runtime);
+        chrome.runtime.sendMessage = ((request: { type?: string }) => {
+          const reply = original(request);
+          if (request.type !== 'translation.start') return reply;
+          return reply.then(
+            (value) => new Promise((resolve) => setTimeout(() => resolve(value), 2500)),
+          );
+        }) as typeof chrome.runtime.sendMessage;
+      });
+      f.delay(30_000);
+      await p.getByRole('button', { name: '翻译文本', exact: true }).click();
+      await expect.poll(f.pending).toBe(1);
+      await p.getByRole('button', { name: '取消翻译', exact: true }).click();
+      await expect.poll(f.pending, { timeout: 1500 }).toBe(0);
+      await expect(p.getByRole('button', { name: '翻译文本', exact: true })).toBeEnabled();
+      expect(f.count()).toBe(restored ? 2 : 1);
+    } finally {
+      await f.close();
+    }
+  });
+}
