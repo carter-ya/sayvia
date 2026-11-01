@@ -55,12 +55,14 @@ export class SiteAccess {
       const tabs = await browser.tabs.query({});
       await Promise.allSettled(
         tabs.map(async (tab) => {
-          if (tab.id === undefined || !tab.url) return;
-          let enabled: boolean;
-          try {
-            enabled = matches.includes(pattern(siteOrigin(tab.url)));
-          } catch {
-            return;
+          if (tab.id === undefined) return;
+          let enabled = false;
+          if (tab.url) {
+            try {
+              enabled = matches.includes(pattern(siteOrigin(tab.url)));
+            } catch {
+              /* Treat inaccessible documents as disabled. */
+            }
           }
           if (!enabled) {
             await browser.tabs

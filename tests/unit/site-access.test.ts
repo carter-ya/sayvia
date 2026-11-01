@@ -121,3 +121,12 @@ it('reports a failed script registration without clearing other configuration', 
   expect(raw.allowedSites).toEqual(['https://example.test']);
   expect(raw.providers).toEqual({});
 });
+it('disables existing controllers even when permission removal hides their tab URL', async () => {
+  api.tabs.query.mockResolvedValueOnce([{ id: 12 }]);
+  await sites.reconcile(['https://example.test/*']);
+  expect(api.tabs.sendMessage).toHaveBeenCalledWith(
+    12,
+    { protocolVersion: 1, type: 'page.automatic', enabled: false },
+    { frameId: 0 },
+  );
+});
