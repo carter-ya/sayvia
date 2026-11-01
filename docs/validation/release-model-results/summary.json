@@ -1,0 +1,38 @@
+{
+  "verifiedAt": "2026-11-01T11:04:38.758365+00:00",
+  "algorithmVersion": "segments-v2.1",
+  "manualReviewPending": true,
+  "releaseReady": false,
+  "providers": [
+    {
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "sourceRevision": "ac22b4d8dd8ff8e27c647d35264f6f0386550cf6",
+      "corpusSha256": "5604cfc40683337a4ab696de65e7f66609ed55a39eb85c1ea5df67f3ee0965fd",
+      "sampleCount": 30,
+      "ready": 30,
+      "protectionPassed": 30,
+      "minMs": 1339,
+      "medianMs": 2240.5,
+      "p95Ms": 4121,
+      "maxMs": 8562,
+      "manualReviewPending": true,
+      "rawSha256": "4e1807ea970db945586422d2e4a14cff463546e47f52b1ebe8a15a1ca5b4b9dd"
+    },
+    {
+      "provider": "deepseek",
+      "model": "deepseek-flash",
+      "sourceRevision": "ac22b4d8dd8ff8e27c647d35264f6f0386550cf6",
+      "corpusSha256": "5604cfc40683337a4ab696de65e7f66609ed55a39eb85c1ea5df67f3ee0965fd",
+      "sampleCount": 30,
+      "ready": 30,
+      "protectionPassed": 30,
+      "minMs": 979,
+      "medianMs": 1663.5,
+      "p95Ms": 6009,
+      "maxMs": 8082,
+      "manualReviewPending": true,
+      "rawSha256": "0ec7f31974b9f07b4e3dcb8f0812b622477bb6fe21b8664988130d1da41aff9b"
+    }
+  ]
+}
