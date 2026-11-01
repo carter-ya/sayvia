@@ -5,6 +5,7 @@ import type { ManualDraftView } from '../runtime/manual-draft';
 import { userError } from '../runtime/user-errors';
 
 type Fields = { input: string; result: string; targetLanguage: string; providerId: string };
+type StartingTask = { clientTaskId: string; documentNonce: string; canceled: boolean };
 type Context = {
   tabId: number;
   generation: string;
@@ -52,6 +53,7 @@ export function useManualTranslation() {
   const locked = useRef(false);
   const running = useRef(false);
   const dispatching = useRef(false);
+  const startingTask = useRef<StartingTask | null>(null);
   const epoch = useRef(0);
   function accept(next: ManualDraftView | null, resetLease: boolean) {
     draft.current = next;
@@ -152,6 +154,8 @@ export function useManualTranslation() {
       values.current = initial;
       setFields(initial);
       draft.current = null;
+      startingTask.current = null;
+      dispatching.current = false;
       setModel('');
       running.current = false;
       setBusy(false);
@@ -252,7 +256,13 @@ export function useManualTranslation() {
   }
   async function translate() {
     const ctx = context.current;
-    if (!ready || !ctx || running.current || locked.current) return;
+    if (!ready || !ctx || running.current || dispatching.current || locked.current) return;
+    const attempt: StartingTask = {
+      clientTaskId: crypto.randomUUID(),
+      documentNonce: crypto.randomUUID(),
+      canceled: false,
+    };
+    startingTask.current = attempt;
     running.current = true;
     dispatching.current = true;
     setBusy(true);
@@ -261,12 +271,18 @@ export function useManualTranslation() {
     let accepted = false;
     try {
       await Promise.all(pending.current);
-      if (locked.current || context.current !== ctx || epoch.current !== currentEpoch) return;
+      if (
+        attempt.canceled ||
+        locked.current ||
+        context.current !== ctx ||
+        epoch.current !== currentEpoch
+      )
+        return;
       const value = values.current;
       await send('translation.start', {
         tabId: ctx.tabId,
-        clientTaskId: crypto.randomUUID(),
-        documentNonce: crypto.randomUUID(),
+        clientTaskId: attempt.clientTaskId,
+        documentNonce: attempt.documentNonce,
         mode: 'manual',
         scope: 'full',
         source: { kind: 'plain-text', text: value.input },
@@ -276,20 +292,24 @@ export function useManualTranslation() {
         manualRevision: ctx.revision,
         manualGeneration: ctx.generation,
       });
+      if (attempt.canceled) return;
       const saved = await send('translation.manual.read', { tabId: ctx.tabId });
-      if (mounted.current && currentEpoch === epoch.current) {
+      if (!attempt.canceled && mounted.current && currentEpoch === epoch.current) {
         accept(saved ?? null, true);
         accepted = true;
       }
     } catch (error) {
-      if (mounted.current && currentEpoch === epoch.current) {
+      if (!attempt.canceled && mounted.current && currentEpoch === epoch.current) {
         if (error instanceof Error && error.message === 'CONFLICT') locked.current = true;
         running.current = false;
         setBusy(false);
         setStatus(errorText(error));
       }
     } finally {
-      dispatching.current = false;
+      if (startingTask.current === attempt) {
+        startingTask.current = null;
+        dispatching.current = false;
+      }
       if (!accepted && currentEpoch === epoch.current && mounted.current) {
         running.current = false;
         setBusy(false);
@@ -298,8 +318,9 @@ export function useManualTranslation() {
   }
   async function cancel() {
     const ctx = context.current,
-      saved = draft.current;
+      saved = startingTask.current ?? draft.current;
     if (!ctx || !saved) return;
+    if (startingTask.current) startingTask.current.canceled = true;
     const currentEpoch = epoch.current;
     try {
       await send('translation.cancel', {
@@ -310,9 +331,11 @@ export function useManualTranslation() {
       const refreshed = await send('translation.manual.read', { tabId: ctx.tabId });
       if (!mounted.current || currentEpoch !== epoch.current) return;
       accept(refreshed ?? null, true);
+      // Keep the form locked until the outstanding start reply settles.
+      if (dispatching.current) setBusy(true);
       setStatus(userError('CANCELED'));
     } catch (error) {
-      setStatus(errorText(error));
+      if (mounted.current && currentEpoch === epoch.current) setStatus(errorText(error));
     }
   }
   return {
