@@ -1,3 +1,5 @@
+import { copyText } from './copy-text';
+import { newId } from '../runtime/uuid';
 import { createRoot } from 'react-dom/client';
 import { browser } from 'wxt/browser';
 import { EditorRegistry } from '../adapters/registry';
@@ -162,7 +164,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         void browser.runtime
           .sendMessage({
             protocolVersion: 1,
-            requestId: crypto.randomUUID(),
+            requestId: newId(),
             type: 'translation.cancel',
             payload: { clientTaskId: id, documentNonce: registry.documentNonce },
           })
@@ -186,7 +188,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         JSON.stringify(selection.read(document)) !== JSON.stringify(draft.source)
       )
         throw new Error('SELECTION_LOST');
-      clientTaskId = crypto.randomUUID();
+      clientTaskId = newId();
       draft.clientTaskId = clientTaskId;
       draft.quickReplace = false;
       state.candidate = '';
@@ -198,7 +200,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         const preferences = (await browser.runtime.sendMessage({
           protocolVersion: 1,
           type: 'page.preferences',
-          requestId: crypto.randomUUID(),
+          requestId: newId(),
         })) as { ok?: boolean; data?: { quickReplace?: boolean } };
         if (disposed || current !== draft || draft.clientTaskId !== clientTaskId || !state.busy)
           return;
@@ -212,7 +214,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       }
       const response = (await browser.runtime.sendMessage({
         protocolVersion: 1,
-        requestId: crypto.randomUUID(),
+        requestId: newId(),
         type: 'translation.start',
         payload: {
           clientTaskId,
@@ -324,7 +326,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     copy(original = false) {
       const text = original ? current?.editor?.previousOriginal() : state.candidate;
       if (!text) return;
-      void navigator.clipboard.writeText(text).then(
+      void copyText(text, shadow).then(
         () => {
           state.status = '已复制。';
           render();
@@ -576,7 +578,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     render();
     const target = state.target;
     void browser.runtime
-      .sendMessage({ protocolVersion: 1, type: 'page.preferences', requestId: crypto.randomUUID() })
+      .sendMessage({ protocolVersion: 1, type: 'page.preferences', requestId: newId() })
       .then(
         (response: {
           ok?: boolean;
@@ -667,7 +669,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     .sendMessage({
       protocolVersion: 1,
       type: 'page.automatic-status',
-      requestId: crypto.randomUUID(),
+      requestId: newId(),
     })
     .then((reply: { ok?: boolean; enabled?: boolean }) => {
       if (!disposed && automaticEpoch === initializationEpoch && reply?.ok)

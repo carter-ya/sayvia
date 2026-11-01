@@ -158,3 +158,13 @@ it('trusted browser gesture entry opens the verified document with direct transl
     { documentId: 'verified-document', frameId: 0 },
   );
 });
+
+it('allows toolbar entry on ordinary HTTP websites', async () => {
+  api.tabs.get.mockResolvedValueOnce({ id: 8, url: 'http://remote.example/article' });
+  expect(await openPage(8, 'write')).toEqual({ ok: true });
+  expect(api.tabs.sendMessage).toHaveBeenLastCalledWith(
+    8,
+    { protocolVersion: 1, type: 'page.show', mode: 'write' },
+    { documentId: 'verified-document', frameId: 0 },
+  );
+});

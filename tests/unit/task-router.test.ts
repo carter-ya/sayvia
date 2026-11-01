@@ -72,7 +72,7 @@ describe('browser-derived task ownership', () => {
     { origin: 'https://attacker.test' },
     { documentLifecycle: 'prerender' },
     { url: 'about:blank' },
-    { url: 'http://remote.example', origin: 'http://remote.example' },
+    { url: 'https://user:password@github.com/test', origin: 'https://github.com' },
     { tab: undefined },
   ])('rejects missing or untrusted browser context %j', (overrides) => {
     expect(pageOwner({ ...sender, ...overrides } as MessageSender, nonce, 'self')).toBeUndefined();
@@ -182,4 +182,13 @@ it('never permits a web page or settings context to save a popup draft', async (
       f.broker,
     ),
   ).toEqual({ ok: false, error: 'INVALID_REQUEST' });
+});
+
+it('accepts a verified ordinary HTTP page without relaxing sender identity', () => {
+  const page = { ...sender, url: 'http://remote.example/article', origin: 'http://remote.example' };
+  expect(pageOwner(page, nonce, 'self')).toMatchObject({
+    kind: 'page',
+    siteOrigin: 'http://remote.example',
+  });
+  expect(pageOwner({ ...page, origin: 'http://different.example' }, nonce, 'self')).toBeUndefined();
 });

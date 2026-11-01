@@ -18,7 +18,7 @@ export function installGestureEntries() {
     void browser.contextMenus
       .removeAll()
       .then(() => {
-        const documentUrlPatterns = ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'];
+        const documentUrlPatterns = ['https://*/*', 'http://*/*'];
         browser.contextMenus.create({
           id: READ,
           title: '使用 Sayvia 翻译选中文字',

@@ -110,3 +110,50 @@ test('selection icon stays inside the viewport and keyboard selection uses its o
     await f.close();
   }
 });
+
+test('ordinary non-local HTTP pages support direct selection and toolbar writing', async () => {
+  const f = await workflowFixture();
+  const url = 'http://sayvia-fixture.test/article';
+  const clipboardUrl = f.page.url();
+  try {
+    await f.context.route(url, (route) =>
+      route.fulfill({
+        contentType: 'text/html; charset=utf-8',
+        body: '<!doctype html><meta charset="utf-8"><p id="article" style="font:24px system-ui;margin:70px">Read <code>timeout</code> first.</p><textarea id="http-editor">你好</textarea>',
+      }),
+    );
+    await f.page.goto(url);
+    expect(await f.page.evaluate(() => isSecureContext)).toBe(false);
+    await f.page.locator('#article').click({ clickCount: 3 });
+    const icon = f.page.getByRole('button', { name: '使用 Sayvia 翻译选中文字' });
+    await expect(icon).toBeVisible();
+    await icon.click();
+    const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' });
+    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('阅读 timeout 优先。');
+    expect(f.requestBodies[0]).not.toContain('timeout');
+    await panel.getByRole('button', { name: '复制译文', exact: true }).click();
+    await expect(panel.getByRole('status')).toHaveText('已复制。');
+    const verification = await f.context.newPage();
+    await verification.goto(clipboardUrl);
+    await verification.locator('#other').fill('');
+    await verification.locator('#other').focus();
+    await verification.keyboard.press('ControlOrMeta+V');
+    await expect(verification.locator('#other')).toHaveValue('阅读 timeout 优先。');
+    await verification.close();
+    await f.page.bringToFront();
+
+    await panel.getByRole('button', { name: '关闭翻译面板' }).click();
+    await f.page.locator('#http-editor').focus();
+    const writing = await f.open('write');
+    await writing.getByRole('button', { name: '翻译', exact: true }).click();
+    await expect(writing.getByLabel('译文', { exact: true })).toHaveValue('English');
+    await expect(f.page.locator('#http-editor')).toHaveValue('你好');
+    await writing.getByRole('button', { name: '替换全文', exact: true }).click();
+    await expect(f.page.locator('#http-editor')).toHaveValue('English');
+    await writing.getByRole('button', { name: '恢复原文', exact: true }).click();
+    await expect(f.page.locator('#http-editor')).toHaveValue('你好');
+    expect(f.count()).toBe(2);
+  } finally {
+    await f.close();
+  }
+});

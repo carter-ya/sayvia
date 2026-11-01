@@ -1,9 +1,10 @@
+import { newId } from '../runtime/uuid';
 import { isEligible } from './detect';
 import { trackDocument } from './document-lifetime';
 import type { AdapterKind, ApplyResult, EditorSnapshot, RestoreRecord, TextControl } from './types';
 
 export class TextEditorSession {
-  readonly id = crypto.randomUUID();
+  readonly id = newId();
   private revision = 0;
   private composing = false;
   private invalid = false;

@@ -34,7 +34,7 @@ it('creates scoped context menus on install and does not access selected text', 
     expect.objectContaining({
       id: 'sayvia-read-selection',
       contexts: ['selection'],
-      documentUrlPatterns: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
+      documentUrlPatterns: ['https://*/*', 'http://*/*'],
     }),
   );
   const info = {

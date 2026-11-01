@@ -1,8 +1,9 @@
+import { newId } from '../runtime/uuid';
 import { detectAdapter, isTextControl } from './detect';
 import { TextEditorSession } from './text-session';
 
 export class EditorRegistry {
-  readonly documentNonce = crypto.randomUUID();
+  readonly documentNonce = newId();
   private readonly byElement = new WeakMap<Element, TextEditorSession>();
   private readonly sessions = new Set<TextEditorSession>();
 
