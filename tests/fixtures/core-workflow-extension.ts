@@ -12,6 +12,8 @@ export async function workflowFixture() {
   let count = 0;
   let delay = 0;
   let responseMode: 'normal' | 'invalid' | 'rate-limited' = 'normal';
+  let held = false;
+  const heldResponses = new Set<() => void>();
   const pending = new Set<object>();
   const requestBodies: string[] = [];
   const server = await createServer({
@@ -89,7 +91,10 @@ export async function workflowFixture() {
                   }),
                 );
               };
-              if (delay) {
+              if (held) {
+                heldResponses.add(finish);
+                response.on('close', () => heldResponses.delete(finish));
+              } else if (delay) {
                 const timer = setTimeout(finish, delay);
                 response.on('close', () => clearTimeout(timer));
               } else finish();
@@ -172,6 +177,14 @@ export async function workflowFixture() {
     pending: () => pending.size,
     response: (mode: typeof responseMode) => {
       responseMode = mode;
+    },
+    hold: () => {
+      held = true;
+      return () => {
+        held = false;
+        for (const finish of heldResponses) finish();
+        heldResponses.clear();
+      };
     },
     delay: (milliseconds = 500) => {
       delay = milliseconds;
