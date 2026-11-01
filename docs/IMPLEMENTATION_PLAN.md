@@ -1,8 +1,8 @@
 # Sayvia 实施计划与 PR Stack
 
 - 文档版本：v0.2
-- 对应需求：[PRD v0.4](./PRD.md)
-- 对应方案：[技术方案 v0.4](./TECHNICAL_DESIGN.md)
+- 对应需求：[PRD v0.5](./PRD.md)
+- 对应方案：[技术方案 v0.5](./TECHNICAL_DESIGN.md)
 - 状态：实施中；各层代码、验证与合并状态分别记录在 PR 和 docs/validation
 - 更新日期：2026-11-01
 - 远程仓库：https://github.com/carter-ya/sayvia

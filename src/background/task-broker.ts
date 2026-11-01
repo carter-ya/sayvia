@@ -17,6 +17,7 @@ export interface TaskOwner {
 }
 export interface TaskPlatform {
   notify?(route: TaskRoute): Promise<void>;
+  sitePermitted?(origin: string): Promise<boolean>;
   permitted(baseUrl: string): Promise<boolean>;
   deliver(
     route: TaskRoute,
@@ -26,6 +27,7 @@ export interface TaskPlatform {
 }
 type Host = Pick<ExecutorHost, 'start' | 'task' | 'closeIfIdle'>;
 const ERRORS = new Set([
+  'SITE_DISABLED',
   'CONFIG_REQUIRED',
   'CONFLICT',
   'PERMISSION_DENIED',
@@ -146,6 +148,14 @@ export class TaskBroker {
   }
   private async start(payload: StartPayload, owner: TaskOwner, expectedProviderRevision?: number) {
     if ((owner.kind === 'manual') !== (payload.mode === 'manual')) throw new Error('FORBIDDEN');
+    const checkSite = async () => {
+      if (
+        payload.entry === 'inline' &&
+        (!owner.siteOrigin || !(await this.platform.sitePermitted?.(owner.siteOrigin)))
+      )
+        throw new Error('SITE_DISABLED');
+    };
+    await checkSite();
     const active = this.state.routes.filter((route) => ACTIVE.has(route.state));
     if (
       this.state.routes.length >= 256 ||
@@ -172,6 +182,7 @@ export class TaskBroker {
           throw new Error('CONFIG_REQUIRED');
         if (!(await this.platform.permitted(provider.config.baseUrl)))
           throw new Error('PERMISSION_DENIED');
+        await checkSite();
         const startedAt = Date.now();
         route = {
           taskId: crypto.randomUUID(),
@@ -181,6 +192,7 @@ export class TaskBroker {
           frameId: 0,
           ...(owner.documentId ? { documentId: owner.documentId } : {}),
           mode: payload.mode,
+          ...(payload.entry ? { entry: payload.entry } : {}),
           apiOrigin: new URL(provider.config.baseUrl).origin,
           ...(owner.siteOrigin ? { siteOrigin: owner.siteOrigin } : {}),
           epoch,

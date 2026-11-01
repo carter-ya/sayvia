@@ -29,6 +29,7 @@ export default defineBackground(() => {
     void broker.reconcile().catch(() => undefined);
   });
   const broker = new TaskBroker(taskStorage, repository, host, {
+    sitePermitted: (origin) => sites.permitted(origin),
     permitted: (baseUrl) => browser.permissions.contains({ origins: [permissionPattern(baseUrl)] }),
     async notify(route) {
       if (route.mode === 'manual' || !route.documentId) return;
@@ -126,7 +127,19 @@ export default defineBackground(() => {
       return;
     }
     if (message.type.startsWith('settings.sites.')) {
-      void sites.handle(message).then(sendResponse);
+      void sites
+        .handle(message)
+        .then(async (result) => {
+          if (result.ok)
+            await broker.cancelWhere(
+              async (route) =>
+                route.entry === 'inline' &&
+                Boolean(route.siteOrigin) &&
+                !(await sites.permitted(route.siteOrigin!)),
+            );
+          return result;
+        })
+        .then(sendResponse, () => sendResponse({ ok: false, error: 'SITE_UNAVAILABLE' }));
       return true;
     }
     if (message.type.startsWith('settings.test.')) {

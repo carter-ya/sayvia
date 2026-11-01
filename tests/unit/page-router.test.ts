@@ -28,7 +28,13 @@ const page = {
 } as MessageSender;
 const repository = {
   snapshot: vi.fn(async () => ({
-    preferences: { readTarget: 'zh-Hans', writeTarget: 'en' },
+    providers: [{ id: 'default', model: 'test-model' }],
+    preferences: {
+      readTarget: 'zh-Hans',
+      writeTarget: 'en',
+      theme: 'dark',
+      defaultProviderId: 'default',
+    },
     secrets: 'SECRET_NEVER_PROJECT',
   })),
 } as unknown as ConfigRepository;
@@ -112,7 +118,7 @@ describe('explicit page translation entry', () => {
     };
     expect(await handlePageMessage(request, page, repository)).toEqual({
       ok: true,
-      data: { readTarget: 'zh-Hans', writeTarget: 'en' },
+      data: { readTarget: 'zh-Hans', writeTarget: 'en', theme: 'dark', model: 'test-model' },
     });
     expect(await handlePageMessage(request, { ...page, frameId: 1 }, repository)).toEqual({
       ok: false,
