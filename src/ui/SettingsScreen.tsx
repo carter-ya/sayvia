@@ -4,19 +4,12 @@ import type { ConfigSnapshot } from '../storage/schema';
 import { settingsRequest } from './settings-client';
 import { ProviderForm } from './ProviderForm';
 import { PreferencesForm } from './PreferencesForm';
-import { PermissionsPanel } from './PermissionsPanel';
 
-type Section = 'models' | 'preferences' | 'permissions';
-const sections: [Section, string, string][] = [
-  ['models', '模型服务', '模型设置'],
-  ['preferences', '翻译偏好', '让翻译贴合你的习惯'],
-  ['permissions', '权限与数据', '由你掌控每一次访问'],
-];
 export function SettingsScreen() {
   const [snapshot, setSnapshot] = useState<ConfigSnapshot>();
   const [selected, setSelected] = useState('');
   const [formEpoch, setFormEpoch] = useState(0);
-  const [section, setSection] = useState<Section>('models');
+  const [advanced, setAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState('');
@@ -98,10 +91,6 @@ export function SettingsScreen() {
     if (!snapshot || busy) return;
     const data = new FormData(event.currentTarget);
     const key = String(data.get('apiKey') ?? '').trim();
-    if (key && data.get('clearKey')) {
-      setStatus('请分别选择更新或清除 Key。');
-      return;
-    }
     setBusy(true);
     setStatus('');
     try {
@@ -110,16 +99,13 @@ export function SettingsScreen() {
         payload: {
           ...(selected ? { id: selected } : {}),
           expectedRevision: snapshot.revision,
-          name: String(data.get('name')),
+          name:
+            String(data.get('name') ?? '').trim() || String(data.get('model')).trim().slice(0, 80),
           kind: String(data.get('kind')),
           baseUrl: String(data.get('baseUrl')),
           model: String(data.get('model')),
-          makeDefault: Boolean(data.get('makeDefault')),
-          key: key
-            ? { action: 'set', value: key }
-            : data.get('clearKey')
-              ? { action: 'clear' }
-              : { action: 'keep' },
+          makeDefault: false,
+          key: key ? { action: 'set', value: key } : { action: 'keep' },
         },
       });
       apply(next);
@@ -171,7 +157,7 @@ export function SettingsScreen() {
       setBusy(false);
     }
   }
-  async function clear(revoke: boolean) {
+  async function clear() {
     if (
       !snapshot ||
       busy ||
@@ -189,20 +175,7 @@ export function SettingsScreen() {
       ownClearRevision.current = cleared.revision;
       apply(cleared);
       setSelected('');
-      let revoked = true;
-      if (revoke) {
-        try {
-          const origins = (await browser.permissions.getAll()).origins ?? [];
-          if (origins.length) revoked = await browser.permissions.remove({ origins });
-        } catch {
-          revoked = false;
-        }
-      }
-      setStatus(
-        revoked
-          ? '已清除本地配置、Key 和会话数据。'
-          : '本地数据已清除，部分浏览器授权未撤销，请在 Chrome 扩展详情中检查。',
-      );
+      setStatus('已清除本地配置、Key 和会话数据。');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : '清除未完成，请重新载入后检查。');
     } finally {
@@ -211,50 +184,13 @@ export function SettingsScreen() {
   }
   return (
     <div className="settings-shell">
-      <aside className="settings-sidebar">
-        <div className="wordmark brand">
-          <span className="brand-mark">S</span>Sayvia
-        </div>
-        <p className="sidebar-tagline">自在阅读，从容表达。</p>
-        <nav aria-label="设置导航">
-          {sections.map(([key, title], index) => (
-            <button
-              key={key}
-              type="button"
-              aria-current={section === key ? 'page' : undefined}
-              disabled={busy}
-              onClick={() => {
-                if (section !== key && discard()) {
-                  setSection(key);
-                  setDirty(false);
-                  setStatus('');
-                }
-              }}
-            >
-              <span className="nav-symbol" aria-hidden="true">
-                {['◈', '≋', '▤'][index]}
-              </span>
-              {title}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-note">
-          <span className="local-dot" />
-          你的 Key，保存在你的设备。
-        </div>
-      </aside>
       <main className="settings-main">
         <header className="settings-heading">
           <div>
-            <span className="eyebrow">Sayvia / 设置</span>
-            <h1>{sections.find(([key]) => key === section)![2]}</h1>
-            <p className="muted">
-              {section === 'models'
-                ? '连接你信任的模型，让不同语言之间的表达更自然。'
-                : section === 'preferences'
-                  ? '分别设置阅读与写作的语言，选择适合自己的使用方式。'
-                  : '按需授权，随时撤销。你的配置和草稿始终由你决定。'}
-            </p>
+            <div className="wordmark brand">
+              <span className="brand-mark">S</span>Sayvia
+            </div>
+            <h1>{advanced ? '更多设置' : '模型设置'}</h1>
           </div>
           <button
             type="button"
@@ -265,20 +201,9 @@ export function SettingsScreen() {
             重新载入
           </button>
         </header>
-        {snapshot && section === 'models' && (
+        {snapshot && !advanced && (
           <>
             <section className="settings-card">
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">
-                    {snapshot.providers.length ? '你的模型' : '开始使用'}
-                  </span>
-                  <h2>{provider ? provider.name : '添加一个模型服务'}</h2>
-                </div>
-                {provider?.id === snapshot.preferences.defaultProviderId && (
-                  <span className="badge">默认模型</span>
-                )}
-              </div>
               {!snapshot.providers.length && (
                 <p className="muted">选择服务商，填写已有的 API Key 和模型名称，即可开始翻译。</p>
               )}
@@ -325,37 +250,51 @@ export function SettingsScreen() {
                 </div>
               )}
             </section>
-            <p className="footer-note">
-              默认模型：
-              {snapshot.providers.find((item) => item.id === snapshot.preferences.defaultProviderId)
-                ?.name ?? '尚未配置'}{' '}
-              · 仅在你主动翻译时调用
-            </p>
           </>
         )}
-        {snapshot && section === 'preferences' && (
-          <section className="settings-card">
-            <h2>你的翻译偏好</h2>
-            <PreferencesForm
-              key={`${formEpoch}:${snapshot.revision}`}
-              snapshot={snapshot}
-              busy={busy}
-              onDirty={() => setDirty(true)}
-              onSave={(value) => void preferences(value)}
-            />
-          </section>
-        )}
-        {snapshot && section === 'permissions' && (
-          <PermissionsPanel
-            snapshot={snapshot}
-            onSnapshot={(next) =>
-              setSnapshot((previous) =>
-                previous && previous.revision > next.revision ? previous : next,
-              )
-            }
-            busy={busy}
-            onClear={(revoke) => void clear(revoke)}
-          />
+        {snapshot && (
+          <div className="advanced-settings">
+            <button
+              type="button"
+              className="text-button"
+              aria-expanded={advanced}
+              disabled={busy}
+              onClick={() => {
+                if (discard()) {
+                  if (dirty) apply(snapshot);
+                  setAdvanced(!advanced);
+                  setDirty(false);
+                  setStatus('');
+                }
+              }}
+            >
+              {advanced ? '返回模型设置' : '更多设置'}
+            </button>
+            {advanced && (
+              <section className="settings-card">
+                <h2>翻译偏好</h2>
+                <PreferencesForm
+                  key={`${formEpoch}:${snapshot.revision}`}
+                  snapshot={snapshot}
+                  busy={busy}
+                  onDirty={() => setDirty(true)}
+                  onSave={(value) => void preferences(value)}
+                />
+                <div className="delete-row">
+                  <button
+                    type="button"
+                    className="text-button danger-text"
+                    disabled={busy}
+                    onClick={(event) => {
+                      if (event.nativeEvent.isTrusted) void clear();
+                    }}
+                  >
+                    清除全部本地数据
+                  </button>
+                </div>
+              </section>
+            )}
+          </div>
         )}
         {!snapshot && !status && (
           <section className="settings-card" aria-busy="true">
@@ -365,9 +304,6 @@ export function SettingsScreen() {
         <p className={`settings-status${status ? ' visible' : ''}`} role="status">
           {status}
         </p>
-        <footer className="settings-footer">
-          Sayvia <span>为每一种表达，留一座桥。</span>
-        </footer>
       </main>
     </div>
   );

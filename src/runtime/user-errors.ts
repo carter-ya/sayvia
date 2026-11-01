@@ -1,7 +1,7 @@
 const messages: Record<string, string> = {
-  SITE_DISABLED: '网站入口已停用，请重新授权后翻译；已有译文仍可复制。',
+  SITE_DISABLED: '网站访问已停用，请在 Chrome 扩展菜单中允许访问；已有译文仍可复制。',
   CONFIG_REQUIRED: '请先在插件设置中保存模型和 API Key。',
-  PERMISSION_DENIED: '请在插件设置中授权当前 API 主机。',
+  PERMISSION_DENIED: 'Chrome 已限制此服务的访问，请在扩展菜单中允许网站访问。',
   AUTH_FAILED: 'API Key 验证未通过，请检查设置。',
   RATE_LIMITED: '服务暂时限流，请稍后手动重试。',
   QUOTA_EXCEEDED: '服务额度不足，请检查账户。',

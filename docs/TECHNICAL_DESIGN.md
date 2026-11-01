@@ -15,7 +15,7 @@ PRD 中尚未确认的用户自带 Key、自定义接口首版上线、默认预
 | 编号 | 决策 | 原因与边界 |
 | --- | --- | --- |
 | D01 | 使用 WXT 管理 MV3 扩展构建，TypeScript strict 模式 | 统一后台、内容脚本、弹窗、设置页和构建产物 |
-| D02 | React 用于弹窗、设置页和翻译面板；显式启用网站后加载轻量选区入口 | 选中文字只显示图标，点击才打开面板并调用模型 |
+| D02 | React 用于弹窗、设置页和翻译面板；在 Chrome 允许访问的普通网页加载轻量选区入口 | 选中文字只显示图标，点击才打开面板并调用模型 |
 | D03 | 内容脚本运行于 ISOLATED world，面板使用 Shadow DOM | 隔离扩展脚本变量与网站样式；不把样式隔离当作安全隔离 |
 | D04 | Service Worker 负责权限、配置、凭证和任务调度 | 页面不能提交任意 URL 或获取 Key |
 | D05 | 按任务创建 Offscreen Document，实际创建 Dedicated Worker 执行文本解析与校验，网络请求由 Offscreen Document 执行 | 避免将长请求绑定到弹窗或 Service Worker 存活时间；最后一个执行任务释放后关闭 |
@@ -156,8 +156,7 @@ sayvia/
 | 配置 | 内容 | 用途 |
 | --- | --- | --- |
 | permissions | storage、activeTab、scripting、contextMenus、offscreen、clipboardWrite | 本地保存、当前页触发、动态注入、右键翻译、任务执行及复制 |
-| optional_host_permissions | https://*/* | 运行时按用户选择申请单个网站或 API 主机，不一次性授予全部 HTTPS 网站 |
-| optional_host_permissions | http://localhost/*、http://127.0.0.1/* | 支持明确启用的本地模型服务 |
+| host_permissions | https://*/*、http://*/* | 按用户 2026-11-01 体验反馈在安装时声明网页与模型访问；不再逐主机申请 |
 | commands | translate-selection、translate-editor | 右键与快捷键之外的固定入口 |
 | incognito | not_allowed | MVP 不处理无痕上下文及跨配置文件状态 |
 | minimum_chrome_version | 116 | 所用 runtime.getContexts 的 API 下限；实际发布仍按 PRD 验证当时稳定版与前一主版本 |
@@ -166,15 +165,15 @@ sayvia/
 
 ### 5.2 授权流程
 
-网站操作可先使用 activeTab 的临时授权；用户希望持续显示翻译按钮时，在弹窗明确开启该网站，并请求准确主机的可选权限。API 域名授权在“保存并测试”点击事件中申请，不能等异步网络工作结束后再依赖同一次用户手势。
+2026-11-01 用户要求去除独立网站和 API 授权步骤：安装／更新由 Chrome 统一确认所需主机权限。扩展只声明普通 HTTP／HTTPS 访问，不申请与翻译无关的浏览器能力。Chrome 自身的网站访问限制仍由 permissions.contains 检查，受限地址不给予绕过。
 
-Chrome 主机权限不能作为精确端口、URL 路径或业务用途的边界。后台另存 allowedSites 和已保存服务地址，分别限制脚本注入和网络请求。给某 API 主机授权不代表允许注入该主机网页。[Chrome 权限文档](https://developer.chrome.com/docs/extensions/reference/api/permissions)
+不再使用 allowedSites 作为第二层启用开关；旧 storage.local 字段保留兼容，不读取它决定入口。模型请求仍仅允许后台从已保存配置解析出的地址，内容脚本不能指定任意 URL 或获取 Key。[Chrome 权限文档](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions)
 
 ### 5.3 动态内容脚本
 
-持续授权的网站通过 scripting.registerContentScripts 注册 ISOLATED world 脚本；已打开的当前文档通过 executeScript 补注入。WXT 内容入口设置为只构建、不自动为所有网站生成静态匹配；初始化时核对该版本的 include/exclude 选项和最终 manifest。
+通过 scripting.registerContentScripts 对普通 HTTP／HTTPS 网页注册 ISOLATED world 脚本，是否实际运行服从 Chrome 网站访问控制；已打开的当前文档通过 executeScript 补注入。WXT 内容入口设置为只构建、不自动为所有网站生成静态匹配；初始化时核对该版本的 include/exclude 选项和最终 manifest。
 
-脚本使用文档级单例标记防止重复初始化，仅注入主 frame。撤销权限时取消对应任务、注销脚本并尝试通知当前文档销毁 UI；页面脚本自行处理扩展上下文失效。[Chrome scripting 文档](https://developer.chrome.com/docs/extensions/reference/api/scripting)
+脚本使用文档级单例标记防止重复初始化，仅注入主 frame。Chrome 限制访问时取消对应任务，核对实时权限并通知可通信文档停用入口；页面脚本自行处理扩展上下文失效。[Chrome scripting 文档](https://developer.chrome.com/docs/extensions/reference/api/scripting)
 
 ### 5.4 扩展页面策略
 
@@ -251,7 +250,7 @@ onInstalled 中只在缺少数据时写入默认值；更新不得执行 storage
 | 来源 | 可调用操作 |
 | --- | --- |
 | 内容脚本 | 获取脱敏偏好、开始本标签页任务、取消或查询自己的任务 |
-| 弹窗 | 读取脱敏配置、当前页操作、手动输入任务、用户手势下申请权限 |
+| 弹窗 | 读取脱敏配置、当前页操作、手动输入任务、无需逐主机授权 |
 | 设置页 | 保存与删除配置、提交新 Key、测试连接、清除数据 |
 | 后台 | 下发内部执行任务、取消任务，向准确文档交付结果 |
 | Offscreen Document | 回报执行状态、结果和取消确认，不可修改模型配置 |
@@ -405,7 +404,7 @@ Markdown 的自然语言链接标签和图片替代文字可翻译；完整引�
 
 ### 9.2 网页选区捕获
 
-网站启用意图 allowedSites 与 Chrome 主机授权分开，只有两者同时满足才注册主框架动态内容脚本。API 授权不会自动启用网页捕获。动态注册覆盖后续导航，首次启用时向已验证 documentId 注入；同文档重复执行 bundle 复用控制器，不清除候选译文。撤销授权或停用入口会移除自动捕获能力；即使标签页 URL 因权限移除而不可见，也向已有控制器发送停用通知。
+普通网页默认具备轻量入口，由 Chrome 网站访问控制决定是否可用，不再读取旧 allowedSites 开关。动态注册覆盖后续导航，后台初始化时向已验证 documentId 补注入；同文档重复执行 bundle 复用控制器，不清除候选译文。Chrome 限制访问时停用入口并取消相关任务；标签页 URL 不可见时也向已有控制器发送停用通知。
 
 在可信 pointerup／keyup 后捕获 DOM Range 和语义签名，显示选区附近图标。图标的可信点击冻结已捕获源，先读取阅读目标语言，再自动开始一次翻译；不重新采用被网页脚本换掉的原生 Selection。派发前重新验证原 Range 和 DOM 签名；原节点或文本变化后不请求模型。inline 请求携带 entry 标识，后台在创建执行器前、实际派发前均验证网站启用和实际权限，停用时取消 inline 任务。已完成候选仍可复制。工具栏备用入口继续受 activeTab 和精确文档校验约束。
 
@@ -525,13 +524,13 @@ Chrome 后台可能空闲终止，且长时间等待 fetch 响应也受生命周
 
 ## 12 页面面板与交互实现
 
-内容脚本初始只安装必要监听器，首次触发再加载 React 面板。Shadow Root 内局部 reset，关键尺寸用 px 或组件变量，避免网站根 rem 值影响；主题使用 CSS variables 与 prefers-color-scheme。WXT 提供内容脚本上下文清理和 Shadow Root UI 工具。[WXT 内容脚本文档](https://wxt.dev/guide/essentials/content-scripts.html)
+内容脚本默认安装轻量入口，首次触发才渲染 React 面板。选区图标为 26px；指针选择使用 pointerup 的 clientX／clientY，键盘选择使用最后一行矩形，视口边缘进行夹取。Shadow Root 内局部 reset，关键尺寸用 px 或组件变量，避免网站根 rem 值影响；主题使用 CSS variables 与 prefers-color-scheme。WXT 提供内容脚本上下文清理和 Shadow Root UI 工具。[WXT 内容脚本文档](https://wxt.dev/guide/essentials/content-scripts.html)
 
 面板使用纯文本原文区和可编辑译文 textarea，不以 innerHTML 渲染模型结果。模型与目标语言切换创建新任务，不修改正在执行任务。清晰区分复制、替换选区和替换全文；只在能力与校验均有效时显示可用替换操作。
 
 关闭按钮和切换任务检查未应用的译文编辑；点击网页空白不关闭。Escape 也遵守未保存确认。提供可读按钮名称、合理的键盘焦点顺序，关闭后回到原编辑框或触发入口。
 
-复制由实际用户点击触发 navigator.clipboard.writeText，使用当前译文编辑值；失败时保留文本并提示手动选择。获 clipboardWrite 权限也不能假设所有焦点状态下复制都成功。
+复制由实际用户点击触发，优先 navigator.clipboard.writeText，使用当前译文编辑值。普通 HTTP 内容脚本没有此 API 时，受信任点击内使用临时 Shadow Root 文本控件执行 Chrome 的 copy 命令，随后移除并还原焦点；命令失败仍保留文本并提示手动复制。兼容路径以两代实际 Chrome 为验收范围，不承诺已废弃命令未来可用。获 clipboardWrite 权限也不能假设所有焦点状态下复制都成功。
 
 快速替换只有任务未恢复重连、源快照有效、IME 已结束且格式检查通过时执行，随后显示恢复入口。页面面板不包含凭证设置字段，所有凭证输入只在受信任设置页。
 
@@ -634,7 +633,7 @@ Product Hunt 增加独立网站适配器和实站验收集；块级阅读翻译�
 | 输出在语义上出错 | 默认预览、固定评审样例，不把结构校验当语义证明 |
 | 自动语言识别或分段影响翻译质量 | 将自动识别委托模型，不以识别结果阻断同语言翻译；保持选区内片段上下文并做人工质量验证 |
 | 用户修改译文后破坏格式 | 替换前重新校验，保留复制入口 |
-| Chrome 权限粒度较粗 | 业务层按服务地址和网站用途分开检查，拒绝任意地址消息与重定向 |
+| Chrome 权限粒度较粗 | 业务层按已保存服务地址检查，尊重 Chrome 网站访问控制，拒绝任意地址消息与重定向 |
 | 后台全局变量消失或消息乱序 | 无正文任务索引、幂等 taskId、执行环境查询和迟到结果丢弃 |
 
 不在本次方案中引入云端网关、平台密钥、计费、同步或远程适配脚本。未来新增这些能力时需补充独立数据流与技术设计。

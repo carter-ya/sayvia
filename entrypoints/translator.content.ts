@@ -1,3 +1,4 @@
+import { newId } from '../src/runtime/uuid';
 import { browser } from 'wxt/browser';
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { mountWorkflow } from '../src/content/workflow';
@@ -13,7 +14,7 @@ export default defineContentScript({
       controller = undefined;
     }
     if (!controller) {
-      const token = crypto.randomUUID();
+      const token = newId();
       const clear = () => {
         if (global.__sayviaWorkflow?.token === token) delete global.__sayviaWorkflow;
       };

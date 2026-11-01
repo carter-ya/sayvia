@@ -1,3 +1,4 @@
+import { siteOrigin } from '../runtime/site-access';
 import { ManualSave } from '../runtime/manual-draft';
 import { browser } from 'wxt/browser';
 import { TaskMessageSchema, type TaskMessage } from '../runtime/task-protocol';
@@ -21,12 +22,8 @@ export function pageOwner(
     return;
   try {
     const url = new URL(sender.url ?? '');
-    if (
-      sender.origin !== url.origin ||
-      (url.protocol !== 'https:' &&
-        !(url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)))
-    )
-      return;
+    if (sender.origin !== url.origin) return;
+    siteOrigin(url.href);
     return {
       tabId: sender.tab.id,
       frameId: 0,

@@ -1,3 +1,4 @@
+import { siteOrigin } from '../runtime/site-access';
 import { browser } from 'wxt/browser';
 import { z } from 'zod';
 import type { SiteAccess } from './site-access';
@@ -64,12 +65,11 @@ export async function handlePageMessage(
 export async function openPage(tabId: number, mode: 'read' | 'write', autoTranslate = false) {
   try {
     const tab = await browser.tabs.get(tabId);
-    const url = new URL(tab.url ?? '');
-    if (
-      url.protocol !== 'https:' &&
-      !(url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname))
-    )
+    try {
+      siteOrigin(tab.url ?? '');
+    } catch {
       return { ok: false, error: 'UNSUPPORTED' };
+    }
     const results = await browser.scripting.executeScript({
       target: { tabId: tab.id!, frameIds: [0] },
       // Obtain the current document without restarting WXT's content-script context.

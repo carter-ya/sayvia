@@ -16,7 +16,7 @@ const manifest = JSON.parse(readFileSync(join(output, 'manifest.json'), 'utf8'))
 };
 
 describe('production extension package', () => {
-  it('does not grant website access before a feature needs it', () => {
+  it('declares web and model access once without per-host setup', () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.permissions ?? []).toEqual([
       'storage',
@@ -26,12 +26,8 @@ describe('production extension package', () => {
       'clipboardWrite',
       'contextMenus',
     ]);
-    expect(manifest.host_permissions ?? []).toEqual([]);
-    expect(manifest.optional_host_permissions).toEqual([
-      'https://*/*',
-      'http://localhost/*',
-      'http://127.0.0.1/*',
-    ]);
+    expect(manifest.host_permissions).toEqual(['https://*/*', 'http://*/*']);
+    expect(manifest.optional_host_permissions ?? []).toEqual([]);
     expect(manifest.content_scripts ?? []).toEqual([]);
   });
 

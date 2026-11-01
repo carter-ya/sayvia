@@ -3,14 +3,9 @@ import type { browser } from 'wxt/browser';
 import { workflowFixture } from '../fixtures/core-workflow-extension';
 type ChromeGlobal = { chrome: typeof browser };
 
-test('API grants never opt in to website capture; explicit enable registers current and future documents', async () => {
+test('ordinary pages have an entry immediately and after navigation without website setup', async () => {
   const f = await workflowFixture();
   try {
-    await expect(f.page.locator('[data-sayvia-ui]')).toHaveCount(0);
-    await f.settings.getByRole('button', { name: '权限与数据', exact: true }).click();
-    await f.settings.getByLabel('网站地址').fill(f.page.url());
-    await f.settings.getByRole('button', { name: '授权此网站', exact: true }).click();
-    await expect(f.settings.getByRole('note')).toContainText('已启用网站入口');
     await expect(f.page.locator('[data-sayvia-ui]')).toHaveCount(1);
     const scripts = await f.settings.evaluate(() =>
       (globalThis as unknown as ChromeGlobal).chrome.scripting.getRegisteredContentScripts(),
@@ -18,7 +13,7 @@ test('API grants never opt in to website capture; explicit enable registers curr
     expect(scripts).toEqual([
       expect.objectContaining({
         id: 'sayvia-selection-v1',
-        matches: ['http://127.0.0.1/*'],
+        matches: expect.arrayContaining(['https://*/*', 'http://*/*']),
         allFrames: false,
         persistAcrossSessions: true,
       }),
@@ -26,23 +21,6 @@ test('API grants never opt in to website capture; explicit enable registers curr
     await f.page.reload();
     await expect(f.page.locator('[data-sayvia-ui]')).toHaveCount(1);
     expect(f.count()).toBe(0);
-    await f.settings.getByRole('button', { name: '停用 http://127.0.0.1', exact: true }).click();
-    await expect(f.settings.getByRole('note')).toContainText('已停用网站自动入口');
-    expect(
-      await f.settings.evaluate(() =>
-        (globalThis as unknown as ChromeGlobal).chrome.permissions.contains({
-          origins: ['http://127.0.0.1/*'],
-        }),
-      ),
-    ).toBe(true);
-    await f.page.reload();
-    await expect(f.page.locator('[data-sayvia-ui]')).toHaveCount(0);
-    // Stopping automatic capture does not revoke the shared API host grant.
-    await f.page.locator('#editor').focus();
-    const panel = await f.open('write');
-    await panel.getByRole('button', { name: '翻译', exact: true }).click();
-    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('前缀 English 后缀');
-    expect(f.count()).toBe(1);
   } finally {
     await f.close();
   }

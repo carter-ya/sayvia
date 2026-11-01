@@ -18,10 +18,8 @@ test('built extension connects popup and options, and executes its bundled worke
     const extensionId = new URL(background.url()).host;
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-    await expect(popup.getByRole('heading', { level: 1 })).toHaveText(
-      '用自己的语言，参与世界的讨论。',
-    );
-    await expect(popup.getByRole('status')).toHaveText('版本 0.1.0');
+    await expect(popup.getByRole('button', { name: '翻译网页选区' })).toBeVisible();
+    await expect(popup.getByRole('button', { name: '打开设置' })).toBeVisible();
     const closedRoot = await popup.evaluate(() => {
       const host = document.createElement('div');
       const root = host.attachShadow({ mode: 'closed' });

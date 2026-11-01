@@ -40,6 +40,11 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
   useLayoutEffect(() => {
     panel.current?.focus();
   }, [state.openSequence]);
+  const quiet = [
+    '确认原文和目标语言后，点击翻译。',
+    '译文已就绪，请预览后操作。',
+    '正在翻译…',
+  ].includes(state.status);
   return (
     <section
       aria-busy={state.busy}
@@ -52,26 +57,15 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
     >
       <header>
         <strong>
-          <span className="brand-mark" aria-hidden="true">
-            S
+          Sayvia{' '}
+          <span className="mode-badge">
+            {state.mode === 'write' ? (state.quickReplace ? '自动替换' : '写作') : '翻译'}
           </span>
-          Sayvia
         </strong>
         <button type="button" aria-label="关闭翻译面板" onClick={trusted(actions.close)}>
           ×
         </button>
       </header>
-      <div className="panel-heading">
-        <h2>{state.mode === 'write' ? '让表达更自然' : '跨过语言，读懂原意'}</h2>
-        <span className="mode-badge">{state.mode === 'write' ? '写作' : '阅读'}</span>
-      </div>
-      {state.mode === 'write' && (
-        <p className="model-note">
-          本次范围：{state.replaceScope === 'full' ? '全文' : '选区'} ·{' '}
-          {state.quickReplace ? '快速替换已开启' : '预览后手动替换'}
-        </p>
-      )}
-      {state.model && <p className="model-note">模型：{state.model}</p>}
       <div className="language-pair">
         <LanguageField
           label="源语言"
@@ -80,6 +74,9 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
           disabled={!state.ready || state.busy}
           onChange={actions.sourceLanguage}
         />
+        <span className="language-arrow" aria-hidden="true">
+          →
+        </span>
         <LanguageField
           label="目标语言"
           value={state.target}
@@ -87,84 +84,48 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
           onChange={actions.target}
         />
       </div>
-      {state.mode === 'write' && (
-        <div className="actions" role="group" aria-label="翻译范围">
-          <span>翻译范围</span>
-          <button
-            type="button"
-            disabled={!state.ready || state.busy}
-            aria-pressed={state.scope === 'selection'}
-            onClick={trusted(() => actions.scope('selection'))}
-          >
-            优先使用选区
-          </button>
-          <button
-            type="button"
-            disabled={!state.ready || state.busy}
-            aria-pressed={state.scope === 'full'}
-            onClick={trusted(() => actions.scope('full'))}
-          >
-            全文
-          </button>
-        </div>
-      )}
-      {state.mode === 'read' ? (
-        <details className="source-details">
-          <summary>
-            所选原文 <span>{state.source.length} 字符</span>
-          </summary>
-          <textarea aria-label="原文" readOnly value={state.source} rows={4} />
-        </details>
-      ) : (
-        <label>
-          原文
-          <textarea aria-label="原文" readOnly value={state.source} rows={4} />
-        </label>
-      )}
-      <div className="actions">
-        <button
-          type="button"
-          disabled={!state.ready || state.busy}
-          onClick={trusted(actions.refresh)}
-        >
-          重新读取原文
-        </button>
-        <button
-          type="button"
-          disabled={
-            !state.ready ||
-            state.busy ||
-            !state.source.trim() ||
-            !state.sourceLanguage.trim() ||
-            !state.target.trim()
-          }
-          onClick={trusted(actions.translate)}
-        >
-          翻译
-        </button>
-        {state.busy && (
-          <button type="button" onClick={trusted(actions.cancel)}>
-            取消翻译
-          </button>
-        )}
-      </div>
-      <label>
-        译文
+      <details className="source-details">
+        <summary>
+          原文 <span>{[...state.source].length} 字符</span>
+        </summary>
+        <textarea aria-label="原文" readOnly value={state.source} rows={3} />
+      </details>
+      <label className="result-label">
+        <span className="sr-only">译文</span>
         <textarea
           aria-label="译文"
           value={state.candidate}
-          rows={state.mode === 'read' ? 3 : 6}
+          rows={3}
           maxLength={48_000}
+          placeholder={state.busy ? '正在翻译…' : '译文'}
           disabled={!state.ready || state.busy}
           onChange={(event) => {
             if (event.nativeEvent.isTrusted) actions.edit(event.target.value);
           }}
         />
       </label>
-      <div className="actions">
+      <div className="actions main-actions">
+        {state.busy ? (
+          <button type="button" onClick={trusted(actions.cancel)}>
+            取消翻译
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={
+              !state.ready ||
+              !state.source.trim() ||
+              !state.sourceLanguage.trim() ||
+              !state.target.trim()
+            }
+            onClick={trusted(actions.translate)}
+          >
+            翻译
+          </button>
+        )}
         <button
           type="button"
-          className="primary-action"
+          className={state.mode === 'read' ? 'primary-action' : ''}
           disabled={!state.candidate || state.busy}
           onClick={trusted(() => actions.copy())}
         >
@@ -173,6 +134,7 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
         {state.mode === 'write' && (
           <button
             type="button"
+            className="primary-action"
             disabled={!state.canReplace || state.busy}
             onClick={trusted(actions.replace)}
           >
@@ -180,23 +142,58 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
           </button>
         )}
         {state.hasOriginal && (
-          <>
+          <button
+            type="button"
+            disabled={!state.canRestore || state.busy}
+            onClick={trusted(actions.restore)}
+          >
+            恢复原文
+          </button>
+        )}
+      </div>
+      {!quiet && state.status && (
+        <p className="panel-status" role="status" aria-live="polite">
+          {state.status}
+        </p>
+      )}
+      <details className="panel-options">
+        <summary>更多选项</summary>
+        {state.model && <p className="model-note">模型：{state.model}</p>}
+        {state.mode === 'write' && (
+          <div className="actions" role="group" aria-label="翻译范围">
             <button
               type="button"
-              disabled={!state.canRestore || state.busy}
-              onClick={trusted(actions.restore)}
+              disabled={!state.ready || state.busy}
+              aria-pressed={state.scope === 'selection'}
+              onClick={trusted(() => actions.scope('selection'))}
             >
-              恢复原文
+              优先使用选区
             </button>
+            <button
+              type="button"
+              disabled={!state.ready || state.busy}
+              aria-pressed={state.scope === 'full'}
+              onClick={trusted(() => actions.scope('full'))}
+            >
+              全文
+            </button>
+          </div>
+        )}
+        <div className="actions">
+          <button
+            type="button"
+            disabled={!state.ready || state.busy}
+            onClick={trusted(actions.refresh)}
+          >
+            重新读取原文
+          </button>
+          {state.hasOriginal && (
             <button type="button" onClick={trusted(() => actions.copy(true))}>
               复制替换前原文
             </button>
-          </>
-        )}
-      </div>
-      <p className="panel-status" role="status" aria-live="polite">
-        {state.status}
-      </p>
+          )}
+        </div>
+      </details>
     </section>
   );
 }

@@ -19,17 +19,10 @@ async function githubFixture() {
   await f.page.goto(url);
   return f;
 }
-async function enable(f: Awaited<ReturnType<typeof workflowFixture>>) {
-  await f.settings.getByRole('button', { name: '权限与数据', exact: true }).click();
-  await f.settings.getByLabel('网站地址').fill(url);
-  await f.settings.getByRole('button', { name: '授权此网站', exact: true }).click();
-}
 test('an enabled GitHub editor has its own trusted direct entry, preserving selection and never submitting', async () => {
   const f = await githubFixture();
   try {
     const button = f.page.getByRole('button', { name: '使用 Sayvia 翻译这份评论', exact: true });
-    await expect(button).toHaveCount(0);
-    await enable(f);
     await expect(button).toHaveCount(1);
     await f.page.screenshot({ path: test.info().outputPath('writing-entry-light.png') });
     await f.page.emulateMedia({ colorScheme: 'dark' });
@@ -61,7 +54,6 @@ test('an enabled GitHub editor has its own trusted direct entry, preserving sele
 test('dynamic editors deduplicate, re-check eligibility and remove entries and running work when disabled', async () => {
   const f = await githubFixture();
   try {
-    await enable(f);
     const buttons = f.page.getByRole('button', { name: '使用 Sayvia 翻译这份评论', exact: true });
     await expect(buttons).toHaveCount(1);
     await f.page.evaluate(() => {
@@ -105,7 +97,7 @@ test('dynamic editors deduplicate, re-check eligibility and remove entries and r
     await buttons.focus();
     await f.page.keyboard.press('Enter');
     expect(f.count()).toBe(1);
-    await f.settings.getByRole('button', { name: '停用 https://github.com', exact: true }).click();
+    await f.blockSite('https://github.com');
     await expect.poll(f.pending).toBe(0);
     await expect(buttons).toHaveCount(0);
     expect(f.count()).toBe(1);
@@ -117,7 +109,6 @@ test('dynamic editors deduplicate, re-check eligibility and remove entries and r
 test('same-document navigation removes GitHub entries outside the supported Issue and PR routes', async () => {
   const f = await githubFixture();
   try {
-    await enable(f);
     const button = f.page.getByRole('button', { name: '使用 Sayvia 翻译这份评论', exact: true });
     await expect(button).toHaveCount(1);
     await f.page.evaluate(() => history.pushState({}, '', '/sayvia-fixture/repo/discussions/2'));
