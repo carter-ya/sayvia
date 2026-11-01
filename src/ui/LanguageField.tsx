@@ -56,3 +56,7 @@ export function LanguageField({
     </div>
   );
 }
+
+export function languageName(value: string) {
+  return LANGUAGES.find(([code]) => code === value)?.[1] ?? value;
+}
