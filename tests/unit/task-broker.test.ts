@@ -146,7 +146,13 @@ describe('task ownership and durable dispatch', () => {
     release();
     expect(await clear).toBe('cleared');
     expect(await queued).toEqual({ ok: false, error: 'CONFIG_REQUIRED' });
-    expect(f.saved()).toEqual({ version: 1, routes: [], canceled: [], manual: [] });
+    expect(f.saved()).toEqual({
+      version: 1,
+      routes: [],
+      canceled: [],
+      manual: [],
+      manualGeneration: expect.any(String),
+    });
     expect(f.host.task.mock.calls.filter(([type]) => type === 'cancel')).toHaveLength(2);
     expect(f.dispatches()).toBe(2);
   });
@@ -488,4 +494,70 @@ it('checks explicit website opt-in before executor creation and again before dis
   expect(await f.broker.handle(request, who)).toEqual({ ok: false, error: 'SITE_DISABLED' });
   expect(f.dispatches()).toBe(0);
   expect(f.saved().routes).toEqual([]);
+});
+it('saves immediately dispatched draft edits in sequence and rejects stale competing windows', async () => {
+  const f = await setup();
+  const base = {
+    generation: await f.broker.manualGeneration(),
+    tabId: 1,
+    input: 'first',
+    result: '',
+    targetLanguage: 'en',
+    editSession: crypto.randomUUID(),
+    sequence: 1,
+    expectedRevision: 0,
+  };
+  await f.broker.saveManual(base);
+  await f.broker.saveManual({ ...base, sequence: 3, input: 'newest' });
+  await f.broker.saveManual({ ...base, sequence: 2, input: 'stale' });
+  expect((await f.broker.readManual(1))?.input).toBe('newest');
+  const saved = await f.broker.readManual(1);
+  expect(saved).not.toHaveProperty('editSession');
+  await f.broker.saveManual({
+    ...base,
+    editSession: crypto.randomUUID(),
+    expectedRevision: saved!.revision,
+    input: 'another window',
+  });
+  await expect(
+    f.broker.saveManual({ ...base, sequence: 4, input: 'late old window' }),
+  ).rejects.toThrow('CONFLICT');
+  expect(f.dispatches()).toBe(0);
+});
+it('rotates draft generation on clear and prevents old windows from resurrecting cleared text', async () => {
+  const f = await setup();
+  const old = {
+    generation: await f.broker.manualGeneration(),
+    tabId: 1,
+    input: 'private draft',
+    result: '',
+    targetLanguage: 'en',
+    editSession: crypto.randomUUID(),
+    sequence: 1,
+    expectedRevision: 0,
+  };
+  await f.broker.saveManual(old);
+  await f.broker.clearAll(async () => undefined);
+  await expect(f.broker.saveManual({ ...old, sequence: 2 })).rejects.toThrow('CONFLICT');
+  expect(await f.broker.readManual(1)).toBeNull();
+  expect(await f.broker.manualGeneration()).not.toBe(old.generation);
+});
+it('preserves the prior draft after a session write fails', async () => {
+  const f = await setup();
+  const base = {
+    generation: await f.broker.manualGeneration(),
+    tabId: 1,
+    input: 'kept draft',
+    result: '',
+    targetLanguage: 'en',
+    editSession: crypto.randomUUID(),
+    sequence: 1,
+    expectedRevision: 0,
+  };
+  await f.broker.saveManual(base);
+  f.storage.write.mockRejectedValueOnce(new Error('storage unavailable'));
+  await expect(
+    f.broker.saveManual({ ...base, sequence: 2, input: 'failed change' }),
+  ).rejects.toThrow();
+  expect((await f.broker.readManual(1))?.input).toBe('kept draft');
 });

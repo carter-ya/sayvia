@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
+import { PopupContext } from '../src/runtime/manual-draft';
 import { installGestureEntries } from '../src/background/gesture-entry';
 import { SiteAccess } from '../src/background/site-access';
 import { handlePageMessage } from '../src/background/page-router';
@@ -119,6 +120,32 @@ export default defineBackground(() => {
       sender.origin !== new URL(browser.runtime.getURL('/')).origin
     )
       return;
+    if (
+      message.type === 'popup.context' &&
+      sender.url?.split(/[?#]/)[0] === browser.runtime.getURL('/popup.html')
+    ) {
+      const parsed = PopupContext.safeParse(message);
+      if (!parsed.success) {
+        sendResponse({ ok: false, error: 'INVALID_REQUEST' });
+        return;
+      }
+      void browser.tabs
+        .get(parsed.data.tabId)
+        .then(async (tab) => {
+          let siteEnabled = false;
+          try {
+            if (tab.url) siteEnabled = await sites.permitted(tab.url);
+          } catch {
+            /* Restricted page. */
+          }
+          return { ...(await broker.readPopup(parsed.data.tabId)), siteEnabled };
+        })
+        .then(
+          (view) => sendResponse({ ok: true, ...view }),
+          () => sendResponse({ ok: false, error: 'CONFIG_UNAVAILABLE' }),
+        );
+      return true;
+    }
     if (message.type === 'app.get-status') {
       sendResponse({ version: browser.runtime.getManifest().version });
       return;

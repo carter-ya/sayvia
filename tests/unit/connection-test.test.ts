@@ -63,6 +63,7 @@ function fixture() {
       clientTaskId: identity.clientTaskId,
       documentNonce: identity.documentNonce,
       input: 'Hello from Sayvia.',
+      revision: 0,
       task,
     }),
   };

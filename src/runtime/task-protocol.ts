@@ -1,3 +1,4 @@
+import { ManualRecord } from './manual-draft';
 import { z } from 'zod';
 import { SourceInputSchema } from '../core/source-input';
 import { LanguageSchema } from './executor-protocol';
@@ -9,6 +10,8 @@ const Owner = z.object({
 });
 export const StartPayload = Owner.extend({
   providerId: z.uuid().optional(),
+  manualRevision: z.int().nonnegative().optional(),
+  manualGeneration: z.uuid().optional(),
   entry: z.literal('inline').optional(),
   mode: z.enum(['read', 'write', 'manual']),
   scope: z.enum(['selection', 'full']),
@@ -21,6 +24,8 @@ export const StartPayload = Owner.extend({
   .strict()
   .superRefine((value, ctx) => {
     if (
+      ((value.manualRevision !== undefined || value.manualGeneration !== undefined) &&
+        value.mode !== 'manual') ||
       (value.entry === 'inline' && value.mode !== 'read') ||
       (value.mode === 'read' && value.source.kind !== 'dom-selection') ||
       (value.mode === 'manual' && value.source.kind !== 'plain-text') ||
@@ -89,23 +94,12 @@ export type TaskRoute = z.infer<typeof RouteSchema>;
 export const SessionSchema = z
   .object({
     version: z.literal(1),
+    manualGeneration: z.uuid().optional(),
     routes: z.array(RouteSchema).max(256),
     canceled: z
       .array(z.object({ key: z.string().max(500), expiresAt: z.int().positive() }).strict())
       .max(256),
-    manual: z
-      .array(
-        z
-          .object({
-            tabId: z.int().nonnegative(),
-            clientTaskId: z.uuid(),
-            documentNonce: z.uuid(),
-            input: z.string().max(24_000),
-            result: z.string().max(48_000).optional(),
-          })
-          .strict(),
-      )
-      .max(256),
+    manual: z.array(ManualRecord).max(256),
   })
   .strict();
 export type TaskSession = z.infer<typeof SessionSchema>;

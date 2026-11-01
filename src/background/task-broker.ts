@@ -3,6 +3,7 @@ import type { Execution, ExecutionView } from '../runtime/executor-protocol';
 import type { StartPayload, TaskMessage, TaskRoute, TaskSession } from '../runtime/task-protocol';
 import type { ExecutorHost } from './executor-host';
 import type { TaskStorage } from './task-storage';
+import type { ManualSavePayload } from '../runtime/manual-draft';
 import { matchesHostOrigin } from './permission-revocation';
 
 const DEDUP_MS = 300_000;
@@ -51,6 +52,7 @@ export class TaskBroker {
 
   private async initialize() {
     this.state = await this.storage.read();
+    this.state.manualGeneration ??= crypto.randomUUID();
     for (const route of this.state.routes) route.recovered = true;
     this.prune();
     await this.reconcileRoutes();
@@ -163,6 +165,14 @@ export class TaskBroker {
       active.length >= 4
     )
       throw new Error('TASK_BUSY');
+    const priorManual = this.state.manual.find((draft) => draft.tabId === owner.tabId);
+    if (
+      payload.mode === 'manual' &&
+      payload.manualRevision !== undefined &&
+      (payload.manualRevision !== (priorManual?.revision ?? 0) ||
+        payload.manualGeneration !== this.state.manualGeneration)
+    )
+      throw new Error('CONFLICT');
     const provider = await this.repository.completionConfig(payload.providerId);
     if (
       expectedProviderRevision !== undefined &&
@@ -213,6 +223,9 @@ export class TaskBroker {
             clientTaskId: payload.clientTaskId,
             documentNonce: owner.documentNonce,
             input: payload.source.text,
+            targetLanguage: payload.targetLanguage,
+            ...(payload.providerId ? { providerId: payload.providerId } : {}),
+            revision: (priorManual?.revision ?? 0) + 1,
           });
         }
         await this.persist();
@@ -282,6 +295,7 @@ export class TaskBroker {
         return;
       }
       draft.result = outcome.result.text;
+      draft.revision = (draft.revision ?? 0) + 1;
     } else if (
       !(await this.platform.deliver(
         route,
@@ -358,7 +372,13 @@ export class TaskBroker {
       for (const route of this.state.routes) {
         await this.cancelRoute(route).catch(() => undefined);
       }
-      this.state = { version: 1, routes: [], canceled: [], manual: [] };
+      this.state = {
+        version: 1,
+        routes: [],
+        canceled: [],
+        manual: [],
+        manualGeneration: crypto.randomUUID(),
+      };
       // A failed final write must surface as a failure, never a successful clear.
       try {
         await this.persist();
@@ -369,22 +389,86 @@ export class TaskBroker {
     });
   }
 
-  readManual(tabId: number) {
+  manualGeneration() {
+    return this.serial(async () => this.state.manualGeneration!);
+  }
+
+  saveManual(value: ManualSavePayload) {
     return this.serial(async () => {
-      const draft = this.state.manual.find((value) => value.tabId === tabId);
-      const route =
-        draft &&
-        this.state.routes.find(
-          (value) => value.clientTaskId === draft.clientTaskId && value.tabId === tabId,
-        );
-      if (route && ACTIVE.has(route.state)) {
-        await this.refresh(route);
+      if (value.generation !== this.state.manualGeneration) throw new Error('CONFLICT');
+      const current = this.state.manual.find((draft) => draft.tabId === value.tabId);
+      if (
+        this.state.routes.some(
+          (route) =>
+            route.tabId === value.tabId && route.mode === 'manual' && ACTIVE.has(route.state),
+        )
+      )
+        throw new Error('TASK_BUSY');
+      const sameLease =
+        current?.editSession === value.editSession &&
+        current.editBaseRevision === value.expectedRevision;
+      if (!sameLease && (current?.revision ?? 0) !== value.expectedRevision)
+        throw new Error('CONFLICT');
+      if (sameLease && value.sequence <= (current?.editSequence ?? -1))
+        return { revision: current!.revision ?? 0 };
+      if (!current && this.state.manual.length >= 256) throw new Error('TASK_BUSY');
+      const next = {
+        tabId: value.tabId,
+        clientTaskId: current?.clientTaskId ?? crypto.randomUUID(),
+        documentNonce: current?.documentNonce ?? crypto.randomUUID(),
+        input: value.input,
+        result: value.result,
+        targetLanguage: value.targetLanguage,
+        ...(value.providerId ? { providerId: value.providerId } : {}),
+        revision: (current?.revision ?? 0) + 1,
+        editSession: value.editSession,
+        editSequence: value.sequence,
+        editBaseRevision: value.expectedRevision,
+      };
+      const before = this.state.manual;
+      this.state.manual = [...before.filter((draft) => draft.tabId !== value.tabId), next];
+      try {
         await this.persist();
-        await this.closeIdle();
+      } catch (error) {
+        this.state.manual = before;
+        throw error;
       }
-      return draft
-        ? { ...structuredClone(draft), ...(route ? { task: this.view(route) } : {}) }
-        : null;
+      return { revision: next.revision };
     });
+  }
+
+  readPopup(tabId: number) {
+    return this.serial(async () => ({
+      data: await this.repository.snapshot(),
+      generation: this.state.manualGeneration!,
+      draft: await this.manualView(tabId),
+    }));
+  }
+
+  readManual(tabId: number) {
+    return this.serial(() => this.manualView(tabId));
+  }
+  private async manualView(tabId: number) {
+    const draft = this.state.manual.find((value) => value.tabId === tabId);
+    const route =
+      draft &&
+      this.state.routes.find(
+        (value) => value.clientTaskId === draft.clientTaskId && value.tabId === tabId,
+      );
+    if (route && ACTIVE.has(route.state)) {
+      await this.refresh(route);
+      await this.persist();
+      await this.closeIdle();
+    }
+    if (!draft) return null;
+    const view = structuredClone(draft);
+    delete view.editSession;
+    delete view.editSequence;
+    delete view.editBaseRevision;
+    return {
+      ...view,
+      revision: draft.revision ?? 0,
+      ...(route ? { task: this.view(route) } : {}),
+    };
   }
 }

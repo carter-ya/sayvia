@@ -1,3 +1,4 @@
+import { ManualSave } from '../runtime/manual-draft';
 import { browser } from 'wxt/browser';
 import { TaskMessageSchema, type TaskMessage } from '../runtime/task-protocol';
 import type { TaskBroker, TaskOwner } from './task-broker';
@@ -50,6 +51,33 @@ export async function handleTaskMessage(
   sender: MessageSender,
   broker: TaskBroker,
 ) {
+  if (
+    typeof message === 'object' &&
+    message !== null &&
+    'type' in message &&
+    message.type === 'translation.manual.save'
+  ) {
+    const parsed = ManualSave.safeParse(message);
+    if (!parsed.success) return { ok: false, error: 'INVALID_REQUEST' };
+    if (
+      sender.id !== browser.runtime.id ||
+      sender.origin !== new URL(browser.runtime.getURL('/')).origin ||
+      sender.url?.split(/[?#]/)[0] !== browser.runtime.getURL('/popup.html')
+    )
+      return { ok: false, error: 'FORBIDDEN' };
+    try {
+      await browser.tabs.get(parsed.data.payload.tabId);
+      return { ok: true, data: await broker.saveManual(parsed.data.payload) };
+    } catch (error) {
+      return {
+        ok: false,
+        error:
+          error instanceof Error && ['CONFLICT', 'TASK_BUSY'].includes(error.message)
+            ? error.message
+            : 'RUNTIME_UNAVAILABLE',
+      };
+    }
+  }
   const parsed = TaskMessageSchema.safeParse(message);
   if (!parsed.success) return { ok: false, error: 'INVALID_REQUEST' };
   const request: TaskMessage = parsed.data;
