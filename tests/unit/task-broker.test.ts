@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { TaskBroker, type TaskOwner } from '../../src/background/task-broker';
 import type { ExecutionView } from '../../src/runtime/executor-protocol';
-import type { StartPayload, TaskMessage, TaskSession } from '../../src/runtime/task-protocol';
+import {
+  SessionSchema,
+  type StartPayload,
+  type TaskMessage,
+  type TaskSession,
+} from '../../src/runtime/task-protocol';
 import type { ConfigRepository } from '../../src/storage/repository';
 
 const providerId = crypto.randomUUID();
@@ -560,4 +565,43 @@ it('preserves the prior draft after a session write fails', async () => {
     f.broker.saveManual({ ...base, sequence: 2, input: 'failed change' }),
   ).rejects.toThrow();
   expect((await f.broker.readManual(1))?.input).toBe('kept draft');
+});
+
+it('persists an accepted long manual language without poisoning unrelated session writes', async () => {
+  const f = await setup();
+  const originalWrite = f.storage.write.getMockImplementation()!;
+  f.storage.write.mockImplementation(async (state) => {
+    SessionSchema.parse(state);
+    return originalWrite(state);
+  });
+  const manual = { ...owner(), kind: 'manual' as const };
+  const request = start(manual);
+  request.payload.targetLanguage = 'English for technical documentation';
+  expect(await f.broker.handle(request, manual)).toMatchObject({
+    ok: true,
+    data: { state: 'running' },
+  });
+  expect(f.saved().manual[0]!.targetLanguage).toBe(request.payload.targetLanguage);
+  const other = { ...owner(), tabId: 2 };
+  expect(await f.broker.handle(start(other), other)).toMatchObject({
+    ok: true,
+    data: { state: 'running' },
+  });
+  expect(f.dispatches()).toBe(2);
+});
+
+it('allows an incomplete blank language draft without weakening the eventual start schema', async () => {
+  const f = await setup();
+  await f.broker.saveManual({
+    generation: await f.broker.manualGeneration(),
+    tabId: 1,
+    input: 'kept input',
+    result: '',
+    targetLanguage: '',
+    editSession: crypto.randomUUID(),
+    sequence: 1,
+    expectedRevision: 0,
+  });
+  expect(SessionSchema.safeParse(f.saved()).success).toBe(true);
+  expect((await f.broker.readManual(1))?.targetLanguage).toBe('');
 });
