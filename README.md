@@ -60,11 +60,15 @@ pnpm build 生成 .output/chrome-mv3。在 Chrome 扩展管理页打开开发者
 - [S10 写作与快速替换](docs/validation/S10.md)
 - [S11 系统回归与验收映射](docs/validation/S11.md)
 - [S12 候选包与发布准备验证](docs/validation/S12.md)
+- [S10b GitHub 评论框旁入口](docs/validation/S10b.md)
+- [S10c 单次源语言](docs/validation/S10c.md)
+- [S12b 补齐后的最终候选验证](docs/validation/S12b.md)
+- [MVP 开发完成性审计](docs/validation/MVP_DEVELOPMENT_AUDIT.md)
 - [30 条真实模型发布评估](docs/validation/release-model-results/README.md)
 - [数据与隐私说明](PRIVACY.md)
 - [发布前检查单](docs/RELEASE_CHECKLIST.md)
 
-S00 至 S12 是实施层号。M1 自动技术与真实模型链路验证已完成；按 2026-10-31 用户授权继续完整 MVP 开发，真人语义审阅与 GitHub 手动验收保留至正式发布前必过。许可证、商店上架和收费策略尚未确定。
+S00 至 S12 及补充层 S10b、S10c、S12b 是实施层号。M1 自动技术与真实模型链路验证已完成；按 2026-10-31 用户授权继续完整 MVP 开发，真人语义审阅与 GitHub 手动验收保留至正式发布前必过。许可证、商店上架和收费策略尚未确定。
 
 阅读、写作与手动翻译默认自动识别源语言，面板可单次指定源语言；修改后需重新点击翻译。
 

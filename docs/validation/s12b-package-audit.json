@@ -1,0 +1,68 @@
+{
+  "sourceRevision": "2d859845f5b1cb8cbe8d4b8b3148e13a9a5f4f7e",
+  "archive": "sayvia-0.1.0-chrome.zip",
+  "archiveSha256": "171e26d29641d9416c9069c7304fac44d166cd08015bdd8e1168d0dd5da01df9",
+  "archiveBytes": 570470,
+  "files": [
+    "assets/bootstrap.worker-C1cT4cj8.js",
+    "assets/styles-CRF8xA_b.css",
+    "background.js",
+    "chunks/endpoint-yrCMQgsb.js",
+    "chunks/offscreen-cAfDY77Z.js",
+    "chunks/options-9E_G-80y.js",
+    "chunks/popup-CIACxaG9.js",
+    "chunks/styles-Dm81gf0G.js",
+    "content-scripts/translator.js",
+    "icons/icon-128.png",
+    "icons/icon-16.png",
+    "icons/icon-32.png",
+    "icons/icon-48.png",
+    "icons/sayvia.svg",
+    "manifest.json",
+    "offscreen.html",
+    "options.html",
+    "popup.html"
+  ],
+  "icons": {
+    "16": {
+      "path": "icons/icon-16.png",
+      "width": 16,
+      "height": 16
+    },
+    "32": {
+      "path": "icons/icon-32.png",
+      "width": 32,
+      "height": 32
+    },
+    "48": {
+      "path": "icons/icon-48.png",
+      "width": 48,
+      "height": 48
+    },
+    "128": {
+      "path": "icons/icon-128.png",
+      "width": 128,
+      "height": 128
+    }
+  },
+  "privateCredentialsAbsent": true,
+  "developmentArtifactsAbsent": true,
+  "htmlScriptsBundledLocally": true,
+  "manifestVersion": 3,
+  "permissions": [
+    "storage",
+    "offscreen",
+    "activeTab",
+    "scripting",
+    "clipboardWrite",
+    "contextMenus"
+  ],
+  "optionalHostPermissions": [
+    "https://*/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "requiredHostPermissions": [],
+  "releaseReady": false,
+  "manualAcceptancePending": true
+}
