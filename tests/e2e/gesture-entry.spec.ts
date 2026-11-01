@@ -76,3 +76,37 @@ test('a repeated background gesture asks to finish the active request instead of
     await f.close();
   }
 });
+test('a collapsed selection never auto-translates an earlier cached range from a shortcut', async () => {
+  const f = await workflowFixture();
+  try {
+    await f.page.evaluate(() => {
+      const p = document.createElement('p');
+      p.id = 'previous-selection';
+      p.textContent = 'Read this first.';
+      document.body.prepend(p);
+      const range = document.createRange();
+      range.selectNodeContents(p);
+      window.getSelection()!.removeAllRanges();
+      window.getSelection()!.addRange(range);
+    });
+    const preview = await f.open('read');
+    await expect(preview.getByLabel('原文', { exact: true })).toHaveValue('Read this first.');
+    await preview.getByRole('button', { name: '关闭翻译面板', exact: true }).click();
+    await f.page.evaluate(() => window.getSelection()!.removeAllRanges());
+    await f.worker.evaluate(async (url) => {
+      const api = (globalThis as unknown as ChromeGlobal).chrome;
+      const tab = (await api.tabs.query({})).find((item) => item.url === url)!;
+      await api.tabs.sendMessage(
+        tab.id!,
+        { protocolVersion: 1, type: 'page.show', mode: 'read', autoTranslate: true },
+        { frameId: 0 },
+      );
+    }, f.page.url());
+    await expect(
+      f.page.getByRole('dialog', { name: 'Sayvia 翻译' }).getByRole('status'),
+    ).toHaveText('选区已变化，请重新选择原文。');
+    expect(f.count()).toBe(0);
+  } finally {
+    await f.close();
+  }
+});
