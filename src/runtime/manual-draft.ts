@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import { LanguageSchema } from './executor-protocol';
+// A draft may be temporarily blank; every nonblank value follows the start protocol.
+const DraftLanguage = z
+  .string()
+  .trim()
+  .pipe(LanguageSchema.or(z.literal('')));
 export const ManualRecord = z
   .object({
     tabId: z.int().nonnegative(),
@@ -6,7 +12,7 @@ export const ManualRecord = z
     documentNonce: z.uuid(),
     input: z.string().max(24_000),
     result: z.string().max(48_000).optional(),
-    targetLanguage: z.string().max(20).optional(),
+    targetLanguage: DraftLanguage.optional(),
     providerId: z.uuid().optional(),
     revision: z.int().nonnegative().optional(),
     editSession: z.uuid().optional(),
@@ -28,7 +34,7 @@ export const ManualSave = z
           .max(24_000)
           .refine((value) => [...value].length <= 12_000),
         result: z.string().max(48_000),
-        targetLanguage: z.string().max(20),
+        targetLanguage: DraftLanguage,
         providerId: z.uuid().optional(),
         editSession: z.uuid(),
         sequence: z.int().nonnegative(),
