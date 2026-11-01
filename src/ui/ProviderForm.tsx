@@ -1,7 +1,5 @@
-import { useRef, useState, type FormEvent } from 'react';
-import { browser } from 'wxt/browser';
+import { useState, type FormEvent } from 'react';
 import { PROVIDER_PRESETS } from '../providers/presets';
-import { chatCompletionsEndpoint, normalizeBaseUrl } from '../providers/endpoint';
 import type { ConfigSnapshot } from '../storage/schema';
 import { useConnectionTest } from './use-connection-test';
 
@@ -22,42 +20,13 @@ export function ProviderForm({
   const [kind, setKind] = useState(provider?.kind ?? 'openai');
   const [baseUrl, setBaseUrl] = useState(provider?.baseUrl ?? PROVIDER_PRESETS.openai.baseUrl);
   const [model, setModel] = useState(provider?.model ?? '');
-  const [permissionStatus, setPermissionStatus] = useState('');
-  const permissionTicket = useRef(0);
   const connection = useConnectionTest(provider);
-  let endpoint = '';
-  try {
-    endpoint = chatCompletionsEndpoint(normalizeBaseUrl(baseUrl));
-  } catch {
-    /* Show a local hint until valid. */
-  }
   function changed() {
     onDirty();
     connection.invalidate();
   }
   function address(value: string) {
-    permissionTicket.current++;
-    setPermissionStatus('');
     setBaseUrl(value);
-  }
-  function authorize() {
-    const ticket = ++permissionTicket.current;
-    try {
-      const url = new URL(normalizeBaseUrl(baseUrl));
-      void browser.permissions.request({ origins: [`${url.protocol}//${url.hostname}/*`] }).then(
-        (granted) => {
-          if (ticket === permissionTicket.current)
-            setPermissionStatus(
-              granted ? `${url.hostname} 已获授权。` : '未获得授权，暂不能向此主机发起翻译。',
-            );
-        },
-        () => {
-          if (ticket === permissionTicket.current) setPermissionStatus('授权未完成，请重试。');
-        },
-      );
-    } catch {
-      setPermissionStatus('请先填写有效的 API Base URL。');
-    }
   }
   return (
     <form className="provider-form" onSubmit={onSubmit} onChange={changed}>
@@ -67,9 +36,8 @@ export function ProviderForm({
             配置名称
             <input
               name="name"
-              required
               maxLength={80}
-              placeholder="例如：日常翻译"
+              placeholder="可留空，使用模型名称"
               defaultValue={provider?.name ?? ''}
             />
           </label>
@@ -105,30 +73,6 @@ export function ProviderForm({
         <p className="field-help">
           填写服务基础地址，不包含 /chat/completions。内容只会发送至你保存的服务。
         </p>
-        <div className="endpoint-preview">
-          <span>实际请求地址</span>
-          <code>{endpoint || '填写有效地址后显示'}</code>
-        </div>
-        <div className="inline-actions">
-          <button
-            type="button"
-            className="secondary"
-            onClick={(event) => {
-              if (event.nativeEvent.isTrusted) authorize();
-            }}
-          >
-            授权此 API 主机
-          </button>
-          <span className="field-help">仅用于请求模型，不会自动开启网页翻译。</span>
-        </div>
-        {baseUrl.startsWith('http:') && (
-          <p className="notice">本地 HTTP 连接仅限 localhost 或 127.0.0.1，需单独授权。</p>
-        )}
-        {permissionStatus && (
-          <p role="note" className="notice">
-            {permissionStatus}
-          </p>
-        )}
         <label>
           模型名称
           <input
@@ -153,18 +97,7 @@ export function ProviderForm({
         </label>
         <p id="key-help" className="field-help">
           {provider?.hasApiKey ? '已保存 Key，留空保留原值。' : '随配置永久保存在当前设备。'}
-          不参与同步；卸载插件或清除数据会删除 Key。本机存储不等同于加密保险箱。
         </p>
-        {provider?.hasApiKey && (
-          <label className="checkbox">
-            <input name="clearKey" type="checkbox" />
-            清除已保存 Key
-          </label>
-        )}
-        <label className="checkbox">
-          <input name="makeDefault" type="checkbox" />
-          保存时设为默认模型
-        </label>
         <div className="form-footer">
           <button type="submit" disabled={busy}>
             保存配置
@@ -193,7 +126,12 @@ export function ProviderForm({
             </button>
           )}
         </div>
-        <p className="connection-status" data-testid="connection-status" aria-live="polite">
+        <p
+          className="connection-status"
+          data-testid="connection-status"
+          aria-live="polite"
+          hidden={connection.status === '尚未测试连接'}
+        >
           {connection.status}
         </p>
         <p className="field-help">

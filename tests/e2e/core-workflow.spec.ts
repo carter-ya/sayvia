@@ -100,6 +100,7 @@ test('full scope preserves the selected range and restoration conflicts keep the
       .locator('#editor')
       .evaluate((element) => (element as HTMLTextAreaElement).setSelectionRange(3, 5));
     const panel = await f.open('write');
+    await panel.getByText('更多选项', { exact: true }).click();
     await panel.getByRole('button', { name: '全文', exact: true }).click();
     await expect(panel.getByLabel('原文', { exact: true })).toHaveValue('前缀 中文 后缀');
     expect(
@@ -225,28 +226,12 @@ test('source edits before translation require an explicit refresh and do not spe
     await panel.getByRole('button', { name: '翻译', exact: true }).click();
     await expect(panel.getByRole('status')).toHaveText('原稿已修改，请重新读取原文后再翻译。');
     expect(f.count()).toBe(0);
+    await panel.getByText('更多选项', { exact: true }).click();
     await panel.getByRole('button', { name: '重新读取原文', exact: true }).click();
     await expect(panel.getByLabel('原文', { exact: true })).toHaveValue('你好');
     await panel.getByRole('button', { name: '翻译', exact: true }).click();
     await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('English');
     expect(f.count()).toBe(1);
-  } finally {
-    await f.close();
-  }
-});
-
-test('API authorization is tied to a user click and the displayed host', async () => {
-  const f = await workflowFixture();
-  try {
-    await f.settings
-      .getByRole('button', { name: '授权此 API 主机', exact: true })
-      .evaluate((button) => (button as HTMLButtonElement).click());
-    await expect(f.settings.getByRole('note')).toHaveCount(0);
-    await f.settings.getByRole('button', { name: '授权此 API 主机', exact: true }).click();
-    await expect(f.settings.getByRole('note')).toHaveText('127.0.0.1 已获授权。');
-    await f.settings.getByLabel('API Base URL').fill('https://different.example/v1');
-    await expect(f.settings.getByRole('note')).toHaveCount(0);
-    expect(f.count()).toBe(0);
   } finally {
     await f.close();
   }
@@ -284,6 +269,7 @@ for (const kind of ['rich-text', 'password', 'readonly'] as const) {
       );
       await expect(panel.getByLabel('原文', { exact: true })).toHaveValue('');
       await expect(panel.getByRole('button', { name: '翻译', exact: true })).toBeDisabled();
+      await panel.getByText('更多选项', { exact: true }).click();
       await panel.getByRole('button', { name: '全文', exact: true }).click();
       await expect(panel.getByLabel('原文', { exact: true })).toHaveValue('');
       expect(f.count()).toBe(0);

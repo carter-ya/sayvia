@@ -43,8 +43,7 @@ test('clearing configuration cancels a manual fetch and clears the open popup wi
     await popup.getByLabel('待翻译文本', { exact: true }).fill('private running draft');
     await popup.getByRole('button', { name: '翻译文本', exact: true }).click();
     await expect.poll(f.pending).toBe(1);
-    await f.settings.getByRole('button', { name: '权限与数据', exact: true }).click();
-    await f.settings.getByLabel('同时撤销已授权主机').uncheck();
+    await f.settings.getByRole('button', { name: '更多设置', exact: true }).click();
     f.settings.once('dialog', (dialog) => void dialog.accept());
     await f.settings.getByRole('button', { name: '清除全部本地数据', exact: true }).click();
     await expect.poll(f.pending).toBe(0);

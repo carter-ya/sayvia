@@ -5,7 +5,6 @@ const api = vi.hoisted(() => ({
     getRegisteredContentScripts: vi.fn(async (): Promise<object[]> => []),
     registerContentScripts: vi.fn(async () => undefined),
     updateContentScripts: vi.fn(async () => undefined),
-    unregisterContentScripts: vi.fn(async () => undefined),
     executeScript: vi.fn(async () => [{ documentId: 'exact-document' }]),
   },
   tabs: {
@@ -16,100 +15,40 @@ const api = vi.hoisted(() => ({
 vi.mock('wxt/browser', () => ({ browser: api }));
 import { SiteAccess } from '../../src/background/site-access';
 import { siteOrigin } from '../../src/runtime/site-access';
-import { ConfigRepository } from '../../src/storage/repository';
-import { emptyState, type StoredState } from '../../src/storage/schema';
-let raw: StoredState;
-let repository: ConfigRepository;
 let sites: SiteAccess;
 beforeEach(() => {
   vi.clearAllMocks();
   api.permissions.contains.mockResolvedValue(true);
-  raw = emptyState();
-  repository = new ConfigRepository({
-    restrictAccess: async () => undefined,
-    read: async () => raw,
-    write: async (state) => {
-      raw = structuredClone(state);
-    },
-  });
-  sites = new SiteAccess(repository);
+  sites = new SiteAccess();
 });
-const enable = (origin: string, expectedRevision = 0) => ({
-  type: 'settings.sites.set',
-  payload: { origin, enabled: true, expectedRevision },
-});
-it('normalizes host scope and rejects sensitive or unsupported URLs', () => {
+it('accepts ordinary web hosts while rejecting credentials and unsupported schemes', () => {
   expect(siteOrigin('https://Example.test:8443/a?q=hello')).toBe('https://example.test');
-  expect(siteOrigin('http://localhost:5173/')).toBe('http://localhost');
+  expect(siteOrigin('http://remote.test/page')).toBe('http://remote.test');
   for (const value of [
     'https://*.example.test',
-    'http://remote.test',
     'file:///tmp/a',
     'https://user:password@example.test',
   ])
     expect(() => siteOrigin(value)).toThrow();
 });
-it('API permission alone never registers automatic website capture', async () => {
+it('enables web entry without a separate saved website allowlist', async () => {
   await sites.reconcile();
-  expect(api.scripting.registerContentScripts).not.toHaveBeenCalled();
-  expect(await sites.permitted('https://api.openai.com')).toBe(false);
-});
-it('rejects missing permissions and stale mutations before enabling capture', async () => {
-  api.permissions.contains.mockResolvedValue(false);
-  expect(await sites.handle(enable('https://example.test'))).toEqual({
-    ok: false,
-    error: 'PERMISSION_REQUIRED',
-  });
-  expect(raw.allowedSites).toEqual([]);
-  api.permissions.contains.mockResolvedValue(true);
-  expect(await sites.handle(enable('https://example.test', 20))).toEqual({
-    ok: false,
-    error: 'CONFLICT',
-  });
-  expect(api.scripting.registerContentScripts).not.toHaveBeenCalled();
-});
-it('persists explicit intent and registers only the selected exact host', async () => {
-  const response = await sites.handle(enable('https://example.test:8443/a'));
-  expect(response).toMatchObject({
-    ok: true,
-    config: { revision: 1 },
-    data: { sites: [{ origin: 'https://example.test', active: false }] },
-  });
-  // The mock getRegisteredContentScripts remains empty; never claim readiness from intent alone.
-  expect(raw.allowedSites).toEqual(['https://example.test']);
   expect(api.scripting.registerContentScripts).toHaveBeenCalledWith([
-    expect.objectContaining({ matches: ['https://example.test/*'], allFrames: false }),
-  ]);
-  expect(
-    await new ConfigRepository({
-      restrictAccess: async () => undefined,
-      read: async () => raw,
-      write: async () => undefined,
-    }).siteOrigins(),
-  ).toEqual(raw.allowedSites);
-});
-it('forgets revoked intent even if the same host has already been granted again', async () => {
-  await repository.setSite('https://child.example.test', true, 0);
-  await sites.reconcile(['https://*.example.test/*']);
-  expect(raw.allowedSites).toEqual([]);
-  expect(await sites.permitted('https://child.example.test')).toBe(false);
-});
-it('does not overwrite concurrent model preferences during browser-driven removal', async () => {
-  await repository.setSite('https://example.test', true, 0);
-  await Promise.all([
-    repository.preferences({
-      expectedRevision: 1,
-      preferences: { ...raw.preferences, readTarget: 'ja' },
+    expect.objectContaining({
+      matches: ['https://*/*', 'http://*/*'],
+      allFrames: false,
+      persistAcrossSessions: true,
     }),
-    repository.removeSites(['https://example.test']),
   ]);
-  expect(raw.preferences.readTarget).toBe('ja');
-  expect(raw.allowedSites).toEqual([]);
-  expect(raw.revision).toBe(3);
+  expect(await sites.permitted('https://example.test')).toBe(true);
 });
-it('targets a verified existing document and reuses its controller', async () => {
+it('respects Chrome withholding access to a declared host', async () => {
+  api.permissions.contains.mockResolvedValue(false);
+  expect(await sites.permitted('https://example.test')).toBe(false);
+});
+it('reuses the verified existing document without duplicate injection', async () => {
   api.tabs.query.mockResolvedValueOnce([{ id: 8, url: 'https://example.test/path' }]);
-  await sites.handle(enable('https://example.test'));
+  await sites.reconcile();
   expect(api.tabs.sendMessage).toHaveBeenCalledWith(
     8,
     { protocolVersion: 1, type: 'page.automatic', enabled: true },
@@ -117,21 +56,24 @@ it('targets a verified existing document and reuses its controller', async () =>
   );
   expect(api.scripting.executeScript).toHaveBeenCalledTimes(1);
 });
-it('reports a failed script registration without clearing other configuration', async () => {
-  api.scripting.registerContentScripts.mockRejectedValueOnce(new Error('private native failure'));
-  expect(await sites.handle(enable('https://example.test'))).toEqual({
-    ok: false,
-    error: 'SITE_UNAVAILABLE',
-  });
-  expect(raw.allowedSites).toEqual(['https://example.test']);
-  expect(raw.providers).toEqual({});
+it('updates the previous narrow registration when upgrading', async () => {
+  api.scripting.getRegisteredContentScripts.mockResolvedValueOnce([
+    { id: 'sayvia-selection-v1', matches: ['https://github.com/*'] },
+  ]);
+  await sites.reconcile();
+  expect(api.scripting.updateContentScripts).toHaveBeenCalledWith([
+    expect.objectContaining({ matches: ['https://*/*', 'http://*/*'] }),
+  ]);
 });
-it('disables existing controllers even when permission removal hides their tab URL', async () => {
-  api.tabs.query.mockResolvedValueOnce([{ id: 12 }]);
-  await sites.reconcile(['https://example.test/*']);
-  expect(api.tabs.sendMessage).toHaveBeenCalledWith(
-    12,
-    { protocolVersion: 1, type: 'page.automatic', enabled: false },
-    { frameId: 0 },
-  );
+it('disables live controllers when Chrome withholds a host or its tab URL', async () => {
+  api.permissions.contains.mockResolvedValue(false);
+  api.tabs.query.mockResolvedValueOnce([{ id: 12 }, { id: 13, url: 'https://example.test' }]);
+  await sites.reconcile();
+  for (const id of [12, 13])
+    expect(api.tabs.sendMessage).toHaveBeenCalledWith(
+      id,
+      { protocolVersion: 1, type: 'page.automatic', enabled: false },
+      { frameId: 0 },
+    );
+  expect(api.scripting.executeScript).not.toHaveBeenCalled();
 });

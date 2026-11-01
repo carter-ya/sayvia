@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { workflowFixture } from '../fixtures/core-workflow-extension';
 async function quick(f: Awaited<ReturnType<typeof workflowFixture>>, enabled: boolean) {
-  await f.settings.getByRole('button', { name: '翻译偏好', exact: true }).click();
+  const more = f.settings.getByRole('button', { name: '更多设置', exact: true });
+  if ((await more.getAttribute('aria-expanded')) !== 'true') await more.click();
   await f.settings.getByLabel('开启写作快速替换', { exact: true }).setChecked(enabled);
   await f.settings.getByRole('button', { name: '保存偏好', exact: true }).click();
   await expect(f.settings.getByRole('status')).toHaveText('已保存偏好。');
@@ -12,7 +13,7 @@ test('opted-in quick replacement uses the controlled editor path and provides on
     await quick(f, true);
     await f.page.locator('#editor').focus();
     const panel = await f.open('write');
-    await expect(panel.getByText('本次范围：全文 · 快速替换已开启', { exact: true })).toBeVisible();
+    await expect(panel.getByText('自动替换', { exact: true })).toBeVisible();
     await panel.getByRole('button', { name: '翻译', exact: true }).click();
     await expect(panel.getByRole('status')).toHaveText('已替换，可恢复原文。');
     await expect(f.page.locator('#editor')).toHaveValue('前缀 English 后缀');
@@ -132,11 +133,7 @@ for (const enabled of [true, false]) {
       await expect(f.page.locator('#editor')).toHaveValue(
         enabled ? '前缀 English 后缀' : '前缀 中文 后缀',
       );
-      await expect(
-        panel.getByText(`本次范围：全文 · ${enabled ? '快速替换已开启' : '预览后手动替换'}`, {
-          exact: true,
-        }),
-      ).toBeVisible();
+      await expect(panel.getByText(enabled ? '自动替换' : '写作', { exact: true })).toBeVisible();
       expect(f.count()).toBe(1);
     } finally {
       await f.close();

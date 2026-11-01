@@ -20,7 +20,7 @@ import {
 export default defineBackground(() => {
   installGestureEntries();
   const repository = new ConfigRepository(chromeConfigStorage);
-  const sites = new SiteAccess(repository);
+  const sites = new SiteAccess();
   void sites.reconcile().catch(() => undefined);
   browser.permissions.onAdded.addListener(() => {
     void sites.reconcile().catch(() => undefined);
@@ -93,7 +93,7 @@ export default defineBackground(() => {
       void broker.cancelWhere((route) => route.tabId === tabId, tabId).catch(() => undefined);
   });
   browser.permissions.onRemoved.addListener((removed) => {
-    void sites.reconcile(removed.origins ?? []).catch(() => undefined);
+    void sites.reconcile().catch(() => undefined);
     void broker.cancelRevokedOrigins(removed.origins ?? []).catch(() => undefined);
   });
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -158,22 +158,6 @@ export default defineBackground(() => {
     if (sender.url?.split(/[?#]/)[0] !== browser.runtime.getURL('/options.html')) {
       sendResponse({ ok: false, error: 'FORBIDDEN' });
       return;
-    }
-    if (message.type.startsWith('settings.sites.')) {
-      void sites
-        .handle(message)
-        .then(async (result) => {
-          if (result.ok)
-            await broker.cancelWhere(
-              async (route) =>
-                route.entry === 'inline' &&
-                Boolean(route.siteOrigin) &&
-                !(await sites.permitted(route.siteOrigin!)),
-            );
-          return result;
-        })
-        .then(sendResponse, () => sendResponse({ ok: false, error: 'SITE_UNAVAILABLE' }));
-      return true;
     }
     if (message.type.startsWith('settings.test.')) {
       void handleConnectionTest(message, sender, repository, broker).then(sendResponse);

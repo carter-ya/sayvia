@@ -4,10 +4,6 @@ import { workflowFixture } from '../fixtures/core-workflow-extension';
 type ChromeGlobal = { chrome: typeof browser };
 async function enabled() {
   const f = await workflowFixture();
-  await f.settings.getByRole('button', { name: '权限与数据', exact: true }).click();
-  await f.settings.getByLabel('网站地址').fill(f.page.url());
-  await f.settings.getByRole('button', { name: '授权此网站', exact: true }).click();
-  await expect(f.settings.getByRole('note')).toContainText('已启用网站入口');
   await expect(f.page.locator('[data-sayvia-entry]')).toHaveCount(1);
   await f.page.evaluate(() => {
     const p = document.createElement('p');
@@ -43,7 +39,7 @@ test('selecting text shows an icon; its trusted click translates directly withou
     await expect(panel).toBeVisible();
     await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('阅读 timeout 优先。');
     await expect(panel.getByLabel('目标语言', { exact: true })).toHaveValue('zh-Hans');
-    await expect(panel.getByText('模型：fixture-model', { exact: true })).toBeVisible();
+    await expect(panel.getByText('模型：fixture-model', { exact: true })).toBeHidden();
     expect(f.requestBodies[0]).not.toContain('timeout');
     expect(f.count()).toBe(1);
     await expect(f.page.locator('#article')).toHaveText('Read timeout first.');
@@ -98,18 +94,18 @@ test('changing the captured DOM before icon activation cannot spend a model requ
     await f.close();
   }
 });
-test('stopping the website entry cancels its pending translation and blocks future selection requests', async () => {
+test('a simulated Chrome site-access restriction cancels pending work and blocks future inline requests', async () => {
   const f = await enabled();
   try {
     f.delay(30_000);
     const icon = await select(f);
     await icon.click();
     await expect.poll(f.pending).toBe(1);
-    await f.settings.getByRole('button', { name: '停用 http://127.0.0.1', exact: true }).click();
+    await f.blockSite('http://127.0.0.1');
     await expect.poll(f.pending).toBe(0);
     await expect(
       f.page.getByRole('dialog', { name: 'Sayvia 翻译' }).getByRole('status'),
-    ).toContainText('已停用');
+    ).toContainText('网站访问');
     await select(f);
     await expect(icon).toBeHidden();
     expect(f.count()).toBe(1);

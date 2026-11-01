@@ -65,8 +65,7 @@ test('manual drafts belong to the captured tab and are removed by clear-all in a
     const other = await popup(f, second);
     await expect(other.getByLabel('待翻译文本', { exact: true })).toHaveValue('');
     await other.getByLabel('待翻译文本', { exact: true }).fill('private draft two');
-    await f.settings.getByRole('button', { name: '权限与数据', exact: true }).click();
-    await f.settings.getByLabel('同时撤销已授权主机').uncheck();
+    await f.settings.getByRole('button', { name: '更多设置', exact: true }).click();
     f.settings.once('dialog', (dialog) => void dialog.accept());
     await f.settings.getByRole('button', { name: '清除全部本地数据', exact: true }).click();
     await expect(p.getByLabel('待翻译文本', { exact: true })).toHaveValue('');

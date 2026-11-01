@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
-import { LanguageField, languageName } from './LanguageField';
+import { LanguageField } from './LanguageField';
 import { useManualTranslation } from './use-manual-translation';
 
 export function PopupScreen() {
@@ -8,16 +8,13 @@ export function PopupScreen() {
   const [opening, setOpening] = useState(false);
   const [view, setView] = useState<'page' | 'manual'>('page');
   const initialized = useRef(false);
-  const { fields, config, ready, busy, saving, status, hostname, model } = manual;
+  const { fields, config, ready, busy, saving, status, hostname } = manual;
   useEffect(() => {
     if (ready && !initialized.current) {
       initialized.current = true;
       if (fields.input || fields.result || busy) setView('manual');
     }
   }, [ready, busy, fields.input, fields.result]);
-  const provider = config?.providers.find(
-    (item) => item.id === (fields.providerId || config.preferences.defaultProviderId),
-  );
   async function openPage(mode: 'read' | 'write') {
     if (opening || manual.tabId === undefined) return;
     setOpening(true);
@@ -35,15 +32,6 @@ export function PopupScreen() {
     } finally {
       setOpening(false);
     }
-  }
-  function grantApi() {
-    if (!provider) return;
-    const url = new URL(provider.baseUrl);
-    void browser.permissions.request({ origins: [`${url.protocol}//${url.hostname}/*`] }).then(
-      (granted) =>
-        manual.setStatus(granted ? '已授权模型 API，请点击翻译。' : '未获得模型 API 授权。'),
-      () => manual.setStatus('API 授权未完成，请在设置中检查。'),
-    );
   }
   return (
     <main className="popup">
@@ -97,13 +85,11 @@ export function PopupScreen() {
       </div>
       {view === 'page' && (
         <div role="tabpanel" id="popup-page-panel" aria-label="当前页面">
-          <h1>用自己的语言，参与世界的讨论。</h1>
-          <p className="popup-subtitle">自在阅读，从容表达。</p>
           <section className="popup-page" aria-label="当前页面">
             <span className="eyebrow">当前标签页</span>
             <strong>{hostname}</strong>
             <p className="field-help">
-              {manual.siteEnabled ? '选区图标已启用' : '选区图标未启用，可在设置中按网站开启。'}
+              {manual.siteEnabled ? '选中文字，点击图标即可翻译。' : '此页面请使用手动翻译。'}
             </p>
             <div className="popup-actions">
               <button
@@ -127,12 +113,7 @@ export function PopupScreen() {
                 翻译当前输入
               </button>
             </div>
-            <p className="field-help">已启用网站可直接选中文字，点击页面内图标翻译。</p>
           </section>
-          <p className="popup-overview">
-            阅读目标：{languageName(config?.preferences.readTarget ?? '—')} · 写作目标：
-            {languageName(config?.preferences.writeTarget ?? '—')}
-          </p>
           <p className="popup-overview">
             默认模型：
             {config?.providers.find((item) => item.id === config.preferences.defaultProviderId)
@@ -199,20 +180,8 @@ export function PopupScreen() {
           </label>
           <div className="popup-meta">
             <span>{[...fields.input].length.toLocaleString()} / 12,000 字符</span>
-            <span>{saving ? '保存草稿中…' : '仅保存在本次浏览器会话'}</span>
+            <span>{saving ? '保存中…' : ''}</span>
           </div>
-          {status.includes('授权当前 API 主机') && (
-            <button
-              type="button"
-              className="secondary"
-              disabled={!provider || busy}
-              onClick={(event) => {
-                if (event.nativeEvent.isTrusted) grantApi();
-              }}
-            >
-              授权模型 API
-            </button>
-          )}
           <label>
             手动译文
             <textarea
@@ -227,7 +196,6 @@ export function PopupScreen() {
               }}
             />
           </label>
-          {model && (fields.result || busy) && <p className="field-help">本次模型：{model}</p>}
           <div className="popup-actions">
             <button
               type="button"
@@ -277,7 +245,7 @@ export function PopupScreen() {
         </section>
       )}
       <p className="popup-status" role="status">
-        {status || (!ready ? '正在连接…' : `版本 ${browser.runtime.getManifest().version}`)}
+        {status || (!ready ? '正在连接…' : '')}
       </p>
     </main>
   );

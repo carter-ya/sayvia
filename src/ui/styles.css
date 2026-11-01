@@ -640,3 +640,104 @@ p {
 .popup-manual textarea {
   min-height: 64px;
 }
+
+/* Setup stays focused on the connection; infrequent choices are collapsed. */
+.settings-shell {
+  display: block;
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+.settings-main {
+  padding: 28px 24px;
+}
+.settings-heading {
+  margin-bottom: 18px;
+}
+.settings-heading h1 {
+  font-size: 21px;
+  margin: 14px 0 0;
+}
+.settings-heading .brand {
+  font-size: 19px;
+}
+.settings-heading .brand-mark {
+  width: 25px;
+  height: 27px;
+  font-size: 17px;
+}
+.settings-card {
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+.settings-card h2 {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+.settings-card form {
+  margin-top: 16px;
+  gap: 12px;
+}
+.provider-fields {
+  gap: 12px;
+}
+.settings-card input,
+.settings-card select {
+  padding: 9px 10px;
+}
+.settings-card .field-help {
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 2px 0;
+}
+.footer-note {
+  font-size: 11px;
+  margin: 10px 0;
+}
+.advanced-settings > button {
+  font-size: 12px;
+  padding: 6px 0;
+}
+.advanced-settings > section {
+  margin-top: 10px;
+}
+.popup-page {
+  margin-top: 14px;
+  padding: 12px;
+}
+.popup-page > strong {
+  font-size: 16px;
+}
+.popup-overview {
+  font-size: 11px;
+  margin-bottom: 0;
+}
+.popup-status:empty {
+  display: none;
+}
+@media (max-width: 600px) {
+  .settings-main {
+    padding: 18px 14px;
+  }
+  .settings-card {
+    padding: 16px;
+  }
+}
+
+.settings-shell {
+  padding: 0;
+}
+
+.settings-card .provider-picker {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.settings-card .form-footer {
+  padding-top: 10px;
+}
+.settings-card .delete-row {
+  margin-top: 12px;
+  padding-top: 10px;
+}

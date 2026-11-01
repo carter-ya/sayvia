@@ -8,7 +8,7 @@ type ChromeGlobal = { chrome: typeof browser };
 test('language and theme preferences persist while unsaved changes are discarded on explicit reload', async () => {
   const f = await workflowFixture();
   try {
-    await f.settings.getByRole('button', { name: '翻译偏好', exact: true }).click();
+    await f.settings.getByRole('button', { name: '更多设置', exact: true }).click();
     await f.settings.getByLabel('阅读目标语言', { exact: true }).selectOption('ja');
     await f.settings.getByLabel('写作目标语言', { exact: true }).selectOption('fr');
     await f.settings.getByLabel('界面主题').selectOption('dark');
@@ -18,7 +18,7 @@ test('language and theme preferences persist while unsaved changes are discarded
     await f.settings.getByRole('button', { name: '保存偏好' }).click();
     await expect(f.settings.getByRole('status')).toHaveText('已保存偏好。');
     await f.settings.reload();
-    await f.settings.getByRole('button', { name: '翻译偏好', exact: true }).click();
+    await f.settings.getByRole('button', { name: '更多设置', exact: true }).click();
     await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toHaveValue('ja');
     await expect(f.settings.getByLabel('写作目标语言', { exact: true })).toHaveValue('fr');
     await expect(f.settings.getByLabel('界面主题')).toHaveValue('dark');
@@ -51,8 +51,7 @@ test('clearing data removes keys, results and restore points while aborting an a
     await current.getByRole('button', { name: '翻译', exact: true }).click();
     await expect.poll(f.count).toBe(2);
     await expect.poll(f.pending).toBe(1);
-    await f.settings.getByRole('button', { name: '权限与数据', exact: true }).click();
-    await f.settings.getByLabel('同时撤销已授权主机').uncheck();
+    await f.settings.getByRole('button', { name: '更多设置', exact: true }).click();
     f.settings.once('dialog', (dialog) => void dialog.accept());
     await f.settings.getByRole('button', { name: '清除全部本地数据' }).click();
     await expect(f.settings.getByRole('status')).toHaveText('已清除本地配置、Key 和会话数据。');
@@ -80,37 +79,6 @@ test('clearing data removes keys, results and restore points while aborting an a
     await f.settings.reload();
     await expect(f.settings.getByLabel('配置名称')).toHaveValue('');
     await expect(f.settings.getByLabel('API Key', { exact: true })).toHaveValue('');
-  } finally {
-    await f.close();
-  }
-});
-test('site authorization requires an explicit click and handles a declined prompt without model calls', async () => {
-  const f = await workflowFixture();
-  try {
-    await f.settings.getByRole('button', { name: '权限与数据', exact: true }).click();
-    // Test-only refusal response: the real native Allow/Revoke flow is recorded separately.
-    await f.settings.evaluate(() => {
-      const api = (globalThis as unknown as ChromeGlobal).chrome;
-      const state = globalThis as typeof globalThis & { requestedHosts?: string[][] };
-      state.requestedHosts = [];
-      api.permissions.request = async (request) => {
-        state.requestedHosts!.push(request.origins ?? []);
-        return false;
-      };
-    });
-    await f.settings.getByLabel('网站地址').fill('https://docs.example.test/guide');
-    const requests = () =>
-      f.settings.evaluate(
-        () => (globalThis as typeof globalThis & { requestedHosts?: string[][] }).requestedHosts,
-      );
-    await f.settings
-      .getByRole('button', { name: '授权此网站', exact: true })
-      .evaluate((button) => (button as HTMLButtonElement).click());
-    expect(await requests()).toEqual([]);
-    await f.settings.getByRole('button', { name: '授权此网站', exact: true }).click();
-    await expect(f.settings.getByRole('note')).toHaveText('未获得授权，该网站的自动入口暂不可用。');
-    expect(await requests()).toEqual([['https://docs.example.test/*']]);
-    expect(f.count()).toBe(0);
   } finally {
     await f.close();
   }

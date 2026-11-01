@@ -50,6 +50,7 @@ test('clipboard paste contains edited translation and conflict recovery copy kee
     await expect(panel.getByRole('status')).toHaveText('已替换，可恢复原文。');
     await f.page.locator('#editor').fill('new user draft');
     await expect(panel.getByRole('button', { name: '恢复原文', exact: true })).toBeDisabled();
+    await panel.getByText('更多选项', { exact: true }).click();
     await panel.getByRole('button', { name: '复制替换前原文', exact: true }).click();
     await expect(panel.getByRole('status')).toHaveText('已复制。');
     await f.page.locator('#paste-target').fill('');

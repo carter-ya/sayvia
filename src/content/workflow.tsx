@@ -481,7 +481,10 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
           return;
         }
         selection.read(document);
-        entry.show(selected.getRangeAt(0));
+        entry.show(
+          selected.getRangeAt(0),
+          event instanceof MouseEvent ? { x: event.clientX, y: event.clientY } : undefined,
+        );
       } catch {
         entry.hide();
       }

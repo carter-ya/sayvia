@@ -21,9 +21,7 @@ try {
     }),
   );
   await f.page.goto(url);
-  await f.settings.getByRole('button', { name: '权限与数据', exact: true }).click();
-  await f.settings.getByLabel('网站地址').fill(url);
-  await f.settings.getByRole('button', { name: '授权此网站', exact: true }).click();
+
   await f.page.bringToFront();
   await f.page
     .getByRole('button', { name: '使用 Sayvia 翻译这份评论', exact: true })

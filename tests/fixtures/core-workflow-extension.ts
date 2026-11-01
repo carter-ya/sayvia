@@ -1,7 +1,7 @@
 import { browserLaunchOptions } from './browser-options';
 import { chromium, expect, type BrowserContext, type Page } from '@playwright/test';
 import { createServer } from 'vite';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { browser } from 'wxt/browser';
@@ -110,15 +110,6 @@ export async function workflowFixture() {
   const baseUrl = `http://127.0.0.1:${address.port}`;
   const extension = join(temporary, 'extension');
   await cp(resolve('.output/chrome-mv3'), extension, { recursive: true });
-  const manifestFile = join(extension, 'manifest.json');
-  const manifest = JSON.parse(await readFile(manifestFile, 'utf8'));
-  manifest.host_permissions = [
-    'http://127.0.0.1/*',
-    'https://github.com/*',
-    'https://api.openai.com/*',
-    'https://api.deepseek.com/*',
-  ];
-  await writeFile(manifestFile, JSON.stringify(manifest));
   const context: BrowserContext = await chromium.launchPersistentContext(
     join(temporary, 'profile'),
     {
@@ -166,6 +157,25 @@ export async function workflowFixture() {
     return target.getByRole('dialog', { name: 'Sayvia 翻译' });
   };
   return {
+    async blockSite(origin: string) {
+      // Simulate Chrome's site-access decision and its background notification,
+      // without pretending required manifest permissions can be removed by the extension.
+      await worker.evaluate(async (origin) => {
+        const api = (globalThis as unknown as ChromeGlobal).chrome;
+        const contains = api.permissions.contains.bind(api.permissions);
+        api.permissions.contains = async (request) =>
+          request.origins?.includes(`${origin}/*`) ? false : contains(request);
+        for (const tab of await api.tabs.query({})) {
+          if (tab.id !== undefined && tab.url?.startsWith(origin)) {
+            await api.tabs.sendMessage(
+              tab.id,
+              { protocolVersion: 1, type: 'page.automatic', enabled: false },
+              { frameId: 0 },
+            );
+          }
+        }
+      }, origin);
+    },
     page,
     worker,
     popup,

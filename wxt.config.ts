@@ -36,7 +36,7 @@ export default defineConfig({
       'clipboardWrite',
       'contextMenus',
     ],
-    optional_host_permissions: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
+    host_permissions: ['https://*/*', 'http://*/*'],
     commands: {
       'translate-selection': {
         suggested_key: { default: 'Ctrl+Shift+Y', mac: 'Command+Shift+Y' },
