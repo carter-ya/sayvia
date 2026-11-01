@@ -9,6 +9,7 @@ header, .panel-heading { justify-content: space-between; } strong { display: fle
 header button { background: transparent; border: 0; color: var(--muted); font-size: 24px; line-height: 1; padding: 4px 6px; }
 h2 { font-size: 17px; font-weight: 550; margin: 18px 0 8px; letter-spacing: -.3px; }
 .mode-badge { color: var(--accent); background: var(--field); font-size: 11px; padding: 2px 8px; border-radius: 20px; margin-top: 10px; }
+.language-pair { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
 label { display: block; margin: 12px 0; font-size: 12px; color: var(--muted); }
 input, select, textarea { display: block; font-family: inherit; font-size: 14px; font-weight: 400; line-height: 1.6; color: var(--ink); background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; margin-top: 5px; }
 textarea { resize: vertical; min-height: 72px; } textarea[aria-label='译文'] { min-height: 126px; background: transparent; font-size: 15px; line-height: 1.8; }

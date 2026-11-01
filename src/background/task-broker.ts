@@ -224,6 +224,7 @@ export class TaskBroker {
             documentNonce: owner.documentNonce,
             input: payload.source.text,
             targetLanguage: payload.targetLanguage,
+            sourceLanguage: payload.sourceLanguage,
             ...(payload.providerId ? { providerId: payload.providerId } : {}),
             revision: (priorManual?.revision ?? 0) + 1,
           });
@@ -419,6 +420,7 @@ export class TaskBroker {
         input: value.input,
         result: value.result,
         targetLanguage: value.targetLanguage,
+        sourceLanguage: value.sourceLanguage ?? 'auto',
         ...(value.providerId ? { providerId: value.providerId } : {}),
         revision: (current?.revision ?? 0) + 1,
         editSession: value.editSession,

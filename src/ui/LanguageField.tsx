@@ -14,13 +14,15 @@ export function LanguageField({
   value,
   onChange,
   disabled = false,
+  allowAuto = false,
 }: {
   label: string;
   value: string;
   onChange(value: string): void;
   disabled?: boolean;
+  allowAuto?: boolean;
 }) {
-  const known = LANGUAGES.some(([code]) => code === value);
+  const known = (allowAuto && value === 'auto') || LANGUAGES.some(([code]) => code === value);
   return (
     <div className="language-field">
       <label>
@@ -31,6 +33,7 @@ export function LanguageField({
           disabled={disabled}
           onChange={(event) => onChange(event.target.value === 'custom' ? '' : event.target.value)}
         >
+          {allowAuto && <option value="auto">自动识别</option>}
           {LANGUAGES.map(([code, name]) => (
             <option value={code} key={code}>
               {name}

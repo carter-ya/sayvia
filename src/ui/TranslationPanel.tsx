@@ -7,6 +7,7 @@ export interface PanelState {
   source: string;
   candidate: string;
   target: string;
+  sourceLanguage: string;
   scope: 'selection' | 'full';
   replaceScope: 'selection' | 'full';
   model: string;
@@ -28,6 +29,7 @@ export interface PanelActions {
   close(): void;
   edit(value: string): void;
   target(value: string): void;
+  sourceLanguage(value: string): void;
   scope(value: 'selection' | 'full'): void;
 }
 const trusted = (action: () => void) => (event: MouseEvent<HTMLButtonElement>) => {
@@ -70,12 +72,21 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
         </p>
       )}
       {state.model && <p className="model-note">模型：{state.model}</p>}
-      <LanguageField
-        label="目标语言"
-        value={state.target}
-        disabled={!state.ready || state.busy}
-        onChange={actions.target}
-      />
+      <div className="language-pair">
+        <LanguageField
+          label="源语言"
+          value={state.sourceLanguage}
+          allowAuto
+          disabled={!state.ready || state.busy}
+          onChange={actions.sourceLanguage}
+        />
+        <LanguageField
+          label="目标语言"
+          value={state.target}
+          disabled={!state.ready || state.busy}
+          onChange={actions.target}
+        />
+      </div>
       {state.mode === 'write' && (
         <div className="actions" role="group" aria-label="翻译范围">
           <span>翻译范围</span>
@@ -120,7 +131,13 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
         </button>
         <button
           type="button"
-          disabled={!state.ready || state.busy || !state.source.trim() || !state.target.trim()}
+          disabled={
+            !state.ready ||
+            state.busy ||
+            !state.source.trim() ||
+            !state.sourceLanguage.trim() ||
+            !state.target.trim()
+          }
           onClick={trusted(actions.translate)}
         >
           翻译

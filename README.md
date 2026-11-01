@@ -66,6 +66,8 @@ pnpm build 生成 .output/chrome-mv3。在 Chrome 扩展管理页打开开发者
 
 S00 至 S12 是实施层号。M1 自动技术与真实模型链路验证已完成；按 2026-10-31 用户授权继续完整 MVP 开发，真人语义审阅与 GitHub 手动验收保留至正式发布前必过。许可证、商店上架和收费策略尚未确定。
 
+阅读、写作与手动翻译默认自动识别源语言，面板可单次指定源语言；修改后需重新点击翻译。
+
 阅读入口：先在设置 → 权限与数据启用网站，再选中文字并点击页面内 Sayvia 图标。工具栏为备用入口。右键菜单或 Ctrl+Shift+Y（macOS：Command+Shift+Y）也可翻译正文选区；快捷键可在 `chrome://extensions/shortcuts` 修改。写作快捷键默认不绑定，避免抢占其他扩展组合键。
 
 发布样例评估可使用 `pnpm evaluate --provider openai --model gpt-6-luna --suite release --out NEW_FILE.jsonl`；Key 由本机 `SAYVIA_API_KEY` 环境变量提供，不写入命令参数或报告。每模型运行 30 条公开样例，报告中的人工语义与可用性保持待评。当前版本仍是预览，正式发布需完成检查单。

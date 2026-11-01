@@ -616,7 +616,11 @@ p {
 .popup-selectors {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  column-gap: 12px;
+  row-gap: 0;
+}
+.popup-model-select {
+  grid-column: 1 / -1;
 }
 .popup-selectors .language-field {
   gap: 0;
@@ -628,4 +632,11 @@ p {
 .popup-overview {
   font-size: 11px;
   color: var(--muted);
+}
+
+.popup-manual label {
+  margin-top: 8px;
+}
+.popup-manual textarea {
+  min-height: 64px;
 }

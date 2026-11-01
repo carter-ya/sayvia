@@ -93,6 +93,8 @@ test('popup keyboard tabs can reach manual input and activate translation and co
     await popup.keyboard.press('Tab');
     await expect(popup.getByLabel('翻译模型', { exact: true })).toBeFocused();
     await popup.keyboard.press('Tab');
+    await expect(popup.getByLabel('源语言', { exact: true })).toBeFocused();
+    await popup.keyboard.press('Tab');
     await expect(popup.getByLabel('目标语言', { exact: true })).toBeFocused();
     await popup.keyboard.press('Tab');
     await expect(popup.getByLabel('待翻译文本', { exact: true })).toBeFocused();
