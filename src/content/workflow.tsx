@@ -503,8 +503,11 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     state.quickReplace = false;
     state.hasOriginal = false;
     state.canRestore = false;
-    if (mode === 'read' && !inline) captureSelection();
-    else if (mode === 'write') bind(document.activeElement);
+    if (mode === 'read' && !inline) {
+      const live = window.getSelection();
+      if (autoTranslate && (!live || live.isCollapsed || live.rangeCount !== 1)) selection.clear();
+      captureSelection();
+    } else if (mode === 'write') bind(document.activeElement);
     try {
       capture();
       state.status = '确认原文和目标语言后，点击翻译。';
