@@ -4,6 +4,7 @@ import { z } from 'zod';
 export function siteOrigin(value: string) {
   const url = new URL(value);
   if (
+    url.hostname.includes('*') ||
     url.username ||
     url.password ||
     (url.protocol !== 'https:' &&

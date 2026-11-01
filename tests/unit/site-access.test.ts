@@ -41,7 +41,12 @@ const enable = (origin: string, expectedRevision = 0) => ({
 it('normalizes host scope and rejects sensitive or unsupported URLs', () => {
   expect(siteOrigin('https://Example.test:8443/a?q=hello')).toBe('https://example.test');
   expect(siteOrigin('http://localhost:5173/')).toBe('http://localhost');
-  for (const value of ['http://remote.test', 'file:///tmp/a', 'https://user:password@example.test'])
+  for (const value of [
+    'https://*.example.test',
+    'http://remote.test',
+    'file:///tmp/a',
+    'https://user:password@example.test',
+  ])
     expect(() => siteOrigin(value)).toThrow();
 });
 it('API permission alone never registers automatic website capture', async () => {
