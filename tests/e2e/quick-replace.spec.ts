@@ -90,3 +90,30 @@ test('ordinary text inputs replace only the recorded selection and keep one-step
     await f.close();
   }
 });
+
+for (const enabled of [true, false]) {
+  test(`quick replacement uses the preference saved after opening the panel (${enabled})`, async () => {
+    const f = await workflowFixture();
+    try {
+      await quick(f, !enabled);
+      await f.page.locator('#editor').focus();
+      const panel = await f.open('write');
+      await expect(panel.getByRole('button', { name: '翻译', exact: true })).toBeEnabled();
+      await quick(f, enabled);
+      await panel.getByRole('button', { name: '翻译', exact: true }).click();
+      await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('前缀 English 后缀');
+      if (enabled) await expect(panel.getByRole('status')).toHaveText('已替换，可恢复原文。');
+      await expect(f.page.locator('#editor')).toHaveValue(
+        enabled ? '前缀 English 后缀' : '前缀 中文 后缀',
+      );
+      await expect(
+        panel.getByText(`本次范围：全文 · ${enabled ? '快速替换已开启' : '预览后手动替换'}`, {
+          exact: true,
+        }),
+      ).toBeVisible();
+      expect(f.count()).toBe(1);
+    } finally {
+      await f.close();
+    }
+  });
+}

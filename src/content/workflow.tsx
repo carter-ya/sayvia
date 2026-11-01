@@ -168,9 +168,10 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   };
   const begin = async () => {
     if (!state.ready || writing || state.busy || !discard()) return;
+    const draft = current;
+    let clientTaskId: string | undefined;
     try {
       if (entryMode === 'inline' && !automatic) throw new Error('SITE_DISABLED');
-      const draft = current;
       if (!draft) throw new Error('EMPTY_SOURCE');
       if (draft.editor && draft.snapshot && !draft.editor.validate(draft.snapshot).ok)
         throw new Error('SOURCE_CHANGED');
@@ -179,14 +180,30 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         JSON.stringify(selection.read(document)) !== JSON.stringify(draft.source)
       )
         throw new Error('SELECTION_LOST');
-      const clientTaskId = crypto.randomUUID();
+      clientTaskId = crypto.randomUUID();
       draft.clientTaskId = clientTaskId;
-      draft.quickReplace = state.mode === 'write' && state.quickReplace;
+      draft.quickReplace = false;
       state.candidate = '';
       state.busy = true;
       state.canReplace = false;
       state.status = '正在翻译…';
       render();
+      if (state.mode === 'write') {
+        const preferences = (await browser.runtime.sendMessage({
+          protocolVersion: 1,
+          type: 'page.preferences',
+          requestId: crypto.randomUUID(),
+        })) as { ok?: boolean; data?: { quickReplace?: boolean } };
+        if (disposed || current !== draft || draft.clientTaskId !== clientTaskId || !state.busy)
+          return;
+        if (!preferences?.ok || typeof preferences.data?.quickReplace !== 'boolean')
+          throw new Error('CONTEXT_LOST');
+        state.quickReplace = preferences.data.quickReplace;
+        draft.quickReplace = state.quickReplace;
+        if (draft.editor && draft.snapshot && !draft.editor.validate(draft.snapshot).ok)
+          throw new Error('SOURCE_CHANGED');
+        render();
+      }
       const response = (await browser.runtime.sendMessage({
         protocolVersion: 1,
         requestId: crypto.randomUUID(),
@@ -220,6 +237,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         render();
       }
     } catch (error) {
+      if (clientTaskId && (disposed || current !== draft || draft?.clientTaskId !== clientTaskId))
+        return;
       state.busy = false;
       state.canReplace = false;
       state.status =
