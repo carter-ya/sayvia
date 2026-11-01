@@ -11,6 +11,8 @@ export async function workflowFixture() {
   const temporary = await mkdtemp(join(tmpdir(), 'sayvia-workflow-'));
   let count = 0;
   let delay = 0;
+  let held = false;
+  const heldResponses = new Set<() => void>();
   const pending = new Set<object>();
   const requestBodies: string[] = [];
   const server = await createServer({
@@ -61,7 +63,10 @@ export async function workflowFixture() {
                   }),
                 );
               };
-              if (delay) {
+              if (held) {
+                heldResponses.add(finish);
+                response.on('close', () => heldResponses.delete(finish));
+              } else if (delay) {
                 const timer = setTimeout(finish, delay);
                 response.on('close', () => clearTimeout(timer));
               } else finish();
@@ -142,6 +147,14 @@ export async function workflowFixture() {
     count: () => count,
     requestBodies,
     pending: () => pending.size,
+    hold: () => {
+      held = true;
+      return () => {
+        held = false;
+        for (const finish of heldResponses) finish();
+        heldResponses.clear();
+      };
+    },
     delay: (milliseconds = 500) => {
       delay = milliseconds;
     },

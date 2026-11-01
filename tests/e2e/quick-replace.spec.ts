@@ -28,13 +28,14 @@ test('quick mode cannot overwrite a changed draft, even after an edit is undone'
   const f = await workflowFixture();
   try {
     await quick(f, true);
-    f.delay(800);
+    const release = f.hold();
     await f.page.locator('#editor').focus();
     const panel = await f.open('write');
     await panel.getByRole('button', { name: '翻译', exact: true }).click();
     await expect.poll(f.count).toBe(1);
     await f.page.locator('#editor').fill('changed');
     await f.page.locator('#editor').fill('前缀 中文 后缀');
+    release();
     await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('前缀 English 后缀');
     await expect(panel.getByRole('button', { name: '替换全文', exact: true })).toBeDisabled();
     await expect(f.page.locator('#editor')).toHaveValue('前缀 中文 后缀');
@@ -47,12 +48,14 @@ test('turning quick replacement off while a request runs prevents its automatic 
   const f = await workflowFixture();
   try {
     await quick(f, true);
-    f.delay(1500);
+    const release = f.hold();
     await f.page.locator('#editor').focus();
     const panel = await f.open('write');
     await panel.getByRole('button', { name: '翻译', exact: true }).click();
     await expect.poll(f.count).toBe(1);
     await quick(f, false);
+    await expect(f.page.locator('#editor')).toHaveValue('前缀 中文 后缀');
+    release();
     await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('前缀 English 后缀');
     await expect(panel.getByRole('button', { name: '替换全文', exact: true })).toBeEnabled();
     await expect(f.page.locator('#editor')).toHaveValue('前缀 中文 后缀');
