@@ -1,0 +1,19 @@
+{
+  "sourceRevision": "2d859845f5b1cb8cbe8d4b8b3148e13a9a5f4f7e",
+  "unitTestsPassed": 334,
+  "browsers": [
+    {
+      "version": "156.0.8078.80",
+      "fullSuitePassed": 87
+    },
+    {
+      "version": "155.0.8059.84",
+      "fullSuitePassed": 87
+    }
+  ],
+  "headless": true,
+  "isolatedProfiles": true,
+  "realModelCallsInBrowserTests": false,
+  "releaseReady": false,
+  "manualAcceptancePending": true
+}
