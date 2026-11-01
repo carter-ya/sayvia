@@ -90,3 +90,26 @@ test('ordinary text inputs replace only the recorded selection and keep one-step
     await f.close();
   }
 });
+
+for (const [response, expected] of [
+  ['invalid', '译文格式校验未通过，请手动重试。'],
+  ['rate-limited', '服务暂时限流，请稍后手动重试。'],
+] as const) {
+  test(`quick mode preserves the original on ${response} without retry or server-detail exposure`, async () => {
+    const f = await workflowFixture();
+    try {
+      await quick(f, true);
+      f.response(response);
+      await f.page.locator('#editor').focus();
+      const panel = await f.open('write');
+      await panel.getByRole('button', { name: '翻译', exact: true }).click();
+      await expect(panel.getByRole('status')).toHaveText(expected);
+      await expect(f.page.locator('#editor')).toHaveValue('前缀 中文 后缀');
+      await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('');
+      await expect(f.page.getByTestId('submitted')).toHaveText('');
+      expect(f.count()).toBe(1);
+    } finally {
+      await f.close();
+    }
+  });
+}

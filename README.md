@@ -58,6 +58,7 @@ pnpm build 生成 .output/chrome-mv3。在 Chrome 扩展管理页打开开发者
 - [S08d1 手动草稿服务](docs/validation/S08d1.md)
 - [S08d2 手动翻译弹窗](docs/validation/S08d2.md)
 - [S10 写作与快速替换](docs/validation/S10.md)
+- [S11 系统回归与验收映射](docs/validation/S11.md)
 
 S00 至 S12 是实施层号。M1 自动技术与真实模型链路验证已完成；按 2026-10-31 用户授权继续完整 MVP 开发，真人语义审阅与 GitHub 手动验收保留至正式发布前必过。许可证、商店上架和收费策略尚未确定。
 

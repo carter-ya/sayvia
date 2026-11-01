@@ -11,6 +11,7 @@ export async function workflowFixture() {
   const temporary = await mkdtemp(join(tmpdir(), 'sayvia-workflow-'));
   let count = 0;
   let delay = 0;
+  let responseMode: 'normal' | 'invalid' | 'rate-limited' = 'normal';
   const pending = new Set<object>();
   const requestBodies: string[] = [];
   const server = await createServer({
@@ -42,6 +43,33 @@ export async function workflowFixture() {
               requestBodies.push(raw);
               const finish = () => {
                 if (response.destroyed) return;
+                if (responseMode === 'rate-limited') {
+                  response.writeHead(429, { 'Content-Type': 'application/json' });
+                  response.end(
+                    JSON.stringify({
+                      error: {
+                        code: 'rate_limit_exceeded',
+                        message: 'FIXTURE_PRIVATE_SERVER_DETAIL',
+                      },
+                    }),
+                  );
+                  return;
+                }
+                if (responseMode === 'invalid') {
+                  response.writeHead(200, { 'Content-Type': 'application/json' });
+                  response.end(
+                    JSON.stringify({
+                      choices: [
+                        {
+                          index: 0,
+                          finish_reason: 'stop',
+                          message: { role: 'assistant', content: JSON.stringify({ segments: [] }) },
+                        },
+                      ],
+                    }),
+                  );
+                  return;
+                }
                 const payload = JSON.parse(JSON.parse(raw).messages[1].content);
                 const content = JSON.stringify({
                   segments: payload.segments.map((segment: { id: string; text: string }) => ({
@@ -142,6 +170,9 @@ export async function workflowFixture() {
     count: () => count,
     requestBodies,
     pending: () => pending.size,
+    response: (mode: typeof responseMode) => {
+      responseMode = mode;
+    },
     delay: (milliseconds = 500) => {
       delay = milliseconds;
     },

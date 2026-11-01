@@ -1,0 +1,30 @@
+{
+  "verifiedAt": "2026-11-01T10:43:46.096028+00:00",
+  "platform": "mac-arm64",
+  "headless": true,
+  "sourceBase": "d600e29",
+  "productionSourceSha256": {
+    "src/content/workflow.tsx": "d2bceb88245713dd01ee44dfaaa8d63ccd50ada1d9454f7db6e6abc548013863"
+  },
+  "browsers": [
+    {
+      "label": "stable",
+      "version": "156.0.8078.80",
+      "url": "https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.80/mac-arm64/chrome-mac-arm64.zip",
+      "observed": "Google Chrome for Testing 156.0.8078.80",
+      "fullSuitePassed": 73,
+      "quickFailureSupplementPassed": 2,
+      "keyboardSupplementPassed": 1
+    },
+    {
+      "label": "previous",
+      "version": "155.0.8059.84",
+      "url": "https://storage.googleapis.com/chrome-for-testing-public/155.0.8059.84/mac-arm64/chrome-mac-arm64.zip",
+      "observed": "Google Chrome for Testing 155.0.8059.84",
+      "fullSuitePassed": 73,
+      "quickFailureSupplementPassed": 2,
+      "keyboardSupplementPassed": 1
+    }
+  ],
+  "nativeUiReviewPending": true
+}
