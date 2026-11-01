@@ -99,6 +99,7 @@ async function setup(initial?: TaskSession) {
     closeIfIdle: vi.fn(async () => {}),
   };
   const platform = {
+    sitePermitted: vi.fn<(origin: string) => Promise<boolean>>().mockResolvedValue(true),
     permitted: vi.fn<(baseUrl: string) => Promise<boolean>>().mockResolvedValue(true),
     deliver: vi.fn(async () => true),
   };
@@ -464,4 +465,27 @@ it('uses the dispatched API origin snapshot after configuration changes and reta
   f.platform.permitted.mockResolvedValue(false);
   await f.broker.cancelRevokedOrigins(['https://model.example/*']);
   expect(f.saved().routes[0]!.state).toBe('canceled');
+});
+
+it('checks explicit website opt-in before executor creation and again before dispatch', async () => {
+  const f = await setup();
+  const who = { ...owner(), siteOrigin: 'https://site.example' };
+  const request = start(who);
+  request.payload = {
+    clientTaskId: request.payload.clientTaskId,
+    documentNonce: who.documentNonce,
+    entry: 'inline',
+    mode: 'read',
+    scope: 'selection',
+    source: { kind: 'dom-selection', text: 'Hello', protectedRanges: [], marks: [] },
+    sourceLanguage: 'auto',
+    targetLanguage: 'zh-Hans',
+  };
+  f.platform.sitePermitted.mockResolvedValue(false);
+  expect(await f.broker.handle(request, who)).toEqual({ ok: false, error: 'SITE_DISABLED' });
+  expect(f.host.start).not.toHaveBeenCalled();
+  f.platform.sitePermitted.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+  expect(await f.broker.handle(request, who)).toEqual({ ok: false, error: 'SITE_DISABLED' });
+  expect(f.dispatches()).toBe(0);
+  expect(f.saved().routes).toEqual([]);
 });

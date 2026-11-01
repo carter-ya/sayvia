@@ -1,4 +1,5 @@
 const messages: Record<string, string> = {
+  SITE_DISABLED: '网站入口已停用，请重新授权后翻译；已有译文仍可复制。',
   CONFIG_REQUIRED: '请先在插件设置中保存模型和 API Key。',
   PERMISSION_DENIED: '请在插件设置中授权当前 API 主机。',
   AUTH_FAILED: 'API Key 验证未通过，请检查设置。',

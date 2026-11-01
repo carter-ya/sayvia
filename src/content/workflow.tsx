@@ -9,6 +9,7 @@ import { validateEditedTranslation } from '../core/translation-plan';
 import { TaskEventSchema } from '../runtime/public-events';
 import { userError } from '../runtime/user-errors';
 import { TranslationPanel, type PanelActions, type PanelState } from '../ui/TranslationPanel';
+import { SelectionEntry } from './selection-entry';
 import { panelStyle } from './panel-style';
 
 type Draft = {
@@ -31,6 +32,9 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   let writing = false;
   let automatic = false;
   let visible = false;
+  let automaticEpoch = 0;
+  let openSequence = 0;
+  let entryMode: 'toolbar' | 'inline' = 'toolbar';
   const host = document.createElement('div');
   host.dataset.sayviaUi = '';
   host.style.setProperty('display', 'none', 'important');
@@ -43,6 +47,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const root = createRoot(container);
   const state: PanelState = {
     mode: 'write',
+    openSequence: 0,
     source: '',
     candidate: '',
     target: 'en',
@@ -55,7 +60,10 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     hasOriginal: false,
     status: '',
   };
-  const owns = (event: Event) => event.composedPath().includes(host);
+  const entry = new SelectionEntry(() => {
+    if (automatic) open('read', true);
+  });
+  const owns = (event: Event) => event.composedPath().includes(host) || entry.owns(event);
   const render = () => {
     if (!disposed) root.render(<TranslationPanel state={{ ...state }} actions={actions} />);
   };
@@ -158,6 +166,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const begin = async () => {
     if (writing || state.busy || !discard()) return;
     try {
+      if (entryMode === 'inline' && !automatic) throw new Error('SITE_DISABLED');
       const draft = current;
       if (!draft) throw new Error('EMPTY_SOURCE');
       if (draft.editor && draft.snapshot && !draft.editor.validate(draft.snapshot).ok)
@@ -170,7 +179,6 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       const clientTaskId = crypto.randomUUID();
       draft.clientTaskId = clientTaskId;
       state.candidate = '';
-      state.model = '';
       state.busy = true;
       state.canReplace = false;
       state.status = '正在翻译…';
@@ -183,6 +191,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
           clientTaskId,
           documentNonce: registry.documentNonce,
           mode: state.mode,
+          ...(entryMode === 'inline' ? { entry: 'inline' } : {}),
           scope: draft.snapshot?.scope ?? 'selection',
           source: draft.source,
           sourceLanguage: 'auto',
@@ -194,10 +203,18 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
               }
             : {}),
         },
-      })) as { ok?: boolean; error?: string; data?: { state?: string; error?: string } };
+      })) as {
+        ok?: boolean;
+        error?: string;
+        data?: { state?: string; error?: string; provider?: { model?: string } };
+      };
       if (current !== draft || draft.clientTaskId !== clientTaskId || !state.busy) return;
       if (!response?.ok || (response.data?.state && response.data.state !== 'running'))
         throw new Error(response?.error ?? response?.data?.error ?? 'CONTEXT_LOST');
+      if (response.data?.provider?.model) {
+        state.model = response.data.provider.model;
+        render();
+      }
     } catch (error) {
       state.busy = false;
       state.canReplace = false;
@@ -330,6 +347,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       current = undefined;
       state.source = '';
       state.candidate = '';
+      openSequence += 1;
       visible = false;
       host.style.setProperty('display', 'none', 'important');
       if (focusTarget?.isConnected) focusTarget.focus();
@@ -402,7 +420,27 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       bind(event.target);
   };
   const selected = (event: Event) => {
-    if ((automatic || visible) && event.isTrusted && !owns(event)) captureSelection();
+    if (
+      !(automatic || visible) ||
+      !event.isTrusted ||
+      owns(event) ||
+      (event instanceof KeyboardEvent && event.key === 'Escape')
+    )
+      return;
+    captureSelection();
+    if (automatic && !state.busy && !writing) {
+      const selected = window.getSelection();
+      try {
+        if (!selected || selected.isCollapsed || selected.rangeCount !== 1) {
+          entry.hide();
+          return;
+        }
+        selection.read(document);
+        entry.show(selected.getRangeAt(0));
+      } catch {
+        entry.hide();
+      }
+    }
   };
   const changed = (event: Event) => {
     if (!owns(event)) {
@@ -413,7 +451,9 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     }
   };
   const escape = (event: KeyboardEvent) => {
-    if (event.isTrusted && event.key === 'Escape' && owns(event)) {
+    if (event.isTrusted && event.key === 'Escape') {
+      entry.hide();
+      if (!visible) return;
       event.preventDefault();
       actions.close();
     }
@@ -430,9 +470,13 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     if (!host.isConnected) dispose();
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
-  function open(mode: 'read' | 'write') {
+  function open(mode: 'read' | 'write', inline = false) {
     if (writing || !discard()) return;
     cancel();
+    entry.hide();
+    entryMode = inline ? 'inline' : 'toolbar';
+    const sequence = ++openSequence;
+    state.openSequence = sequence;
     state.mode = mode;
     state.scope = 'selection';
     state.target = mode === 'read' ? 'zh-Hans' : 'en';
@@ -441,8 +485,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     state.model = '';
     state.hasOriginal = false;
     state.canRestore = false;
-    if (mode === 'read') captureSelection();
-    else bind(document.activeElement);
+    if (mode === 'read' && !inline) captureSelection();
+    else if (mode === 'write') bind(document.activeElement);
     try {
       capture();
       state.status = '确认原文和目标语言后，点击翻译。';
@@ -451,28 +495,64 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       state.status = userError(error);
     }
     visible = true;
+    if (inline) entry.placePanel(host);
+    else {
+      host.style.removeProperty('left');
+      host.style.removeProperty('right');
+      host.style.removeProperty('top');
+      host.style.removeProperty('--panel-top');
+    }
     host.style.removeProperty('display');
     render();
     const target = state.target;
     void browser.runtime
       .sendMessage({ protocolVersion: 1, type: 'page.preferences', requestId: crypto.randomUUID() })
-      .then((response: { ok?: boolean; data?: { readTarget: string; writeTarget: string } }) => {
-        if (
-          response?.ok &&
-          response.data &&
-          state.mode === mode &&
-          state.target === target &&
-          !state.busy &&
-          !state.candidate
-        ) {
-          state.target = mode === 'read' ? response.data.readTarget : response.data.writeTarget;
+      .then(
+        (response: {
+          ok?: boolean;
+          data?: { readTarget: string; writeTarget: string; theme: string; model?: string };
+        }) => {
+          if (inline && sequence === openSequence && !response?.ok) {
+            state.status = userError('CONTEXT_LOST');
+            render();
+            return;
+          }
+          if (
+            response?.ok &&
+            response.data &&
+            openSequence === sequence &&
+            state.mode === mode &&
+            state.target === target &&
+            !state.busy &&
+            !state.candidate
+          ) {
+            state.target = mode === 'read' ? response.data.readTarget : response.data.writeTarget;
+            state.model = response.data.model ?? '';
+            host.style.colorScheme =
+              response.data.theme === 'system' ? 'light dark' : response.data.theme;
+            render();
+            if (inline && automatic && current) void begin();
+          }
+        },
+      )
+      .catch(() => {
+        if (inline && sequence === openSequence) {
+          state.status = userError('CONTEXT_LOST');
           render();
         }
-      })
-      .catch(() => undefined);
+      });
   }
   function setAutomatic(enabled: boolean) {
+    automaticEpoch += 1;
     automatic = enabled;
+    if (!enabled) {
+      entry.hide();
+      if (entryMode === 'inline' && state.busy) {
+        cancel();
+        state.status = userError('SITE_DISABLED');
+        render();
+      }
+    }
     if (!enabled && !visible) selection.clear();
   }
   function dispose() {
@@ -494,6 +574,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       /* Context already invalidated. */
     }
     window.removeEventListener('pagehide', dispose);
+    entry.dispose();
     registry.dispose();
     selection.clear();
     root.unmount();
@@ -501,6 +582,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     onDisposed();
   }
   window.addEventListener('pagehide', dispose, { once: true });
+  const initializationEpoch = automaticEpoch;
   void browser.runtime
     .sendMessage({
       protocolVersion: 1,
@@ -508,7 +590,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       requestId: crypto.randomUUID(),
     })
     .then((reply: { ok?: boolean; enabled?: boolean }) => {
-      if (!disposed && reply?.ok) setAutomatic(reply.enabled === true);
+      if (!disposed && automaticEpoch === initializationEpoch && reply?.ok)
+        setAutomatic(reply.enabled === true);
     })
     .catch(() => undefined);
   return { open, dispose, setAutomatic };

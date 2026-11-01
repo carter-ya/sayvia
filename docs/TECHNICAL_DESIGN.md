@@ -1,9 +1,9 @@
 # Sayvia 技术方案
 
-- 文档版本：v0.4
-- 对应需求：[产品 PRD v0.4](./PRD.md)
+- 文档版本：v0.5
+- 对应需求：[产品 PRD v0.5](./PRD.md)
 - 状态：方案设计，尚未实现或完成技术验证
-- 更新日期：2026-10-31
+- 更新日期：2026-11-01
 - 项目仓库：[carter-ya/sayvia](https://github.com/carter-ya/sayvia)
 
 采用 TypeScript、WXT、React 和 Chrome Manifest V3，首版以用户自带 API Key 的纯扩展方案实现。Key 在当前设备永久保存，GitHub 优先适配，Product Hunt 专项适配后置。本文定义模块边界、数据与通信、编辑器安全回写、模型协议、任务生命周期和测试计划。
@@ -15,7 +15,7 @@ PRD 中尚未确认的用户自带 Key、自定义接口首版上线、默认预
 | 编号 | 决策 | 原因与边界 |
 | --- | --- | --- |
 | D01 | 使用 WXT 管理 MV3 扩展构建，TypeScript strict 模式 | 统一后台、内容脚本、弹窗、设置页和构建产物 |
-| D02 | React 用于弹窗、设置页和按需加载的翻译面板 | 复用交互组件；未触发时不加载页面翻译 UI |
+| D02 | React 用于弹窗、设置页和翻译面板；显式启用网站后加载轻量选区入口 | 选中文字只显示图标，点击才打开面板并调用模型 |
 | D03 | 内容脚本运行于 ISOLATED world，面板使用 Shadow DOM | 隔离扩展脚本变量与网站样式；不把样式隔离当作安全隔离 |
 | D04 | Service Worker 负责权限、配置、凭证和任务调度 | 页面不能提交任意 URL 或获取 Key |
 | D05 | 按任务创建 Offscreen Document，实际创建 Dedicated Worker 执行文本解析与校验，网络请求由 Offscreen Document 执行 | 避免将长请求绑定到弹窗或 Service Worker 存活时间；最后一个执行任务释放后关闭 |
@@ -296,6 +296,7 @@ interface StartTranslation {
     editorSessionId?: string;
     sourceRevision?: number;
     mode: 'read' | 'write' | 'manual';
+    entry?: 'inline';
     source: SourceInput;
     sourceLanguage: 'auto' | string;
     targetLanguage: string;
@@ -403,6 +404,11 @@ MutationObserver 只用于编辑框发现、节点移除及容器变化，不能
 Markdown 的自然语言链接标签和图片替代文字可翻译；完整引用链接只翻译标签，快捷／折叠引用的标签同时承担目的地标识，MVP 原样保留，避免改变绑定关系；原始换行、列表前缀和转义序列保护。源文嵌入的 HTML 整段保留，不解析或执行。代码／URL 等保护规则在各输入模式适用，但不能把代码外的普通英文 timeout 一概认作代码。
 
 ### 9.2 网页选区捕获
+
+网站启用意图 allowedSites 与 Chrome 主机授权分开，只有两者同时满足才注册主框架动态内容脚本。API 授权不会自动启用网页捕获。动态注册覆盖后续导航，首次启用时向已验证 documentId 注入；同文档重复执行 bundle 复用控制器，不清除候选译文。撤销授权或停用入口会移除自动捕获能力；即使标签页 URL 因权限移除而不可见，也向已有控制器发送停用通知。
+
+在可信 pointerup／keyup 后捕获 DOM Range 和语义签名，显示选区附近图标。图标的可信点击冻结已捕获源，先读取阅读目标语言，再自动开始一次翻译；不重新采用被网页脚本换掉的原生 Selection。派发前重新验证原 Range 和 DOM 签名；原节点或文本变化后不请求模型。inline 请求携带 entry 标识，后台在创建执行器前、实际派发前均验证网站启用和实际权限，停用时取消 inline 任务。已完成候选仍可复制。工具栏备用入口继续受 activeTab 和精确文档校验约束。
+
 
 内容脚本在右键菜单弹出前的 contextmenu 事件或快捷键处理时捕获 Range 及文本快照，避免打开面板后焦点变化丢失选区。第一次按需注入而此前没有快照时，尝试读取仍有效的页面 Range；若只有 Chrome 菜单提供的 selectionText 而没有可验证结构，则提示重新选择，不悄悄按纯文本降低保护保证。
 

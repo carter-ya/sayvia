@@ -38,6 +38,10 @@ export async function handlePageMessage(
       return {
         ok: true,
         data: {
+          theme: snapshot.preferences.theme,
+          model: snapshot.providers.find(
+            (provider) => provider.id === snapshot.preferences.defaultProviderId,
+          )?.model,
           readTarget: snapshot.preferences.readTarget,
           writeTarget: snapshot.preferences.writeTarget,
         },

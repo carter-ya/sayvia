@@ -1,7 +1,9 @@
+import { LanguageField } from './LanguageField';
 import { useLayoutEffect, useRef, type MouseEvent } from 'react';
 
 export interface PanelState {
   mode: 'read' | 'write';
+  openSequence: number;
   source: string;
   candidate: string;
   target: string;
@@ -33,28 +35,39 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
   const panel = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     panel.current?.focus();
-  }, []);
+  }, [state.openSequence]);
   return (
-    <section ref={panel} tabIndex={-1} role="dialog" aria-label="Sayvia 翻译" aria-modal="false">
+    <section
+      aria-busy={state.busy}
+      data-mode={state.mode}
+      ref={panel}
+      tabIndex={-1}
+      role="dialog"
+      aria-label="Sayvia 翻译"
+      aria-modal="false"
+    >
       <header>
-        <strong>Sayvia</strong>
+        <strong>
+          <span className="brand-mark" aria-hidden="true">
+            S
+          </span>
+          Sayvia
+        </strong>
         <button type="button" aria-label="关闭翻译面板" onClick={trusted(actions.close)}>
-          关闭
+          ×
         </button>
       </header>
-      <h2>{state.mode === 'write' ? '写作翻译' : '阅读翻译'}</h2>
-      {state.model && <p>模型：{state.model}</p>}
-      <label>
-        目标语言
-        <input
-          value={state.target}
-          maxLength={40}
-          disabled={state.busy}
-          onChange={(event) => {
-            if (event.nativeEvent.isTrusted) actions.target(event.target.value);
-          }}
-        />
-      </label>
+      <div className="panel-heading">
+        <h2>{state.mode === 'write' ? '让表达更自然' : '跨过语言，读懂原意'}</h2>
+        <span className="mode-badge">{state.mode === 'write' ? '写作' : '阅读'}</span>
+      </div>
+      {state.model && <p className="model-note">模型：{state.model}</p>}
+      <LanguageField
+        label="目标语言"
+        value={state.target}
+        disabled={state.busy}
+        onChange={actions.target}
+      />
       {state.mode === 'write' && (
         <div className="actions" role="group" aria-label="翻译范围">
           <span>翻译范围</span>
@@ -76,10 +89,19 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
           </button>
         </div>
       )}
-      <label>
-        原文
-        <textarea aria-label="原文" readOnly value={state.source} rows={4} />
-      </label>
+      {state.mode === 'read' ? (
+        <details className="source-details">
+          <summary>
+            所选原文 <span>{state.source.length} 字符</span>
+          </summary>
+          <textarea aria-label="原文" readOnly value={state.source} rows={4} />
+        </details>
+      ) : (
+        <label>
+          原文
+          <textarea aria-label="原文" readOnly value={state.source} rows={4} />
+        </label>
+      )}
       <div className="actions">
         <button type="button" disabled={state.busy} onClick={trusted(actions.refresh)}>
           重新读取原文
@@ -102,7 +124,7 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
         <textarea
           aria-label="译文"
           value={state.candidate}
-          rows={6}
+          rows={state.mode === 'read' ? 3 : 6}
           maxLength={48_000}
           disabled={state.busy}
           onChange={(event) => {
@@ -113,6 +135,7 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
       <div className="actions">
         <button
           type="button"
+          className="primary-action"
           disabled={!state.candidate || state.busy}
           onClick={trusted(() => actions.copy())}
         >
@@ -142,7 +165,9 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
           </>
         )}
       </div>
-      <p role="status">{state.status}</p>
+      <p className="panel-status" role="status" aria-live="polite">
+        {state.status}
+      </p>
     </section>
   );
 }

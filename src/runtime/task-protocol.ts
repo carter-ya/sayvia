@@ -9,6 +9,7 @@ const Owner = z.object({
 });
 export const StartPayload = Owner.extend({
   providerId: z.uuid().optional(),
+  entry: z.literal('inline').optional(),
   mode: z.enum(['read', 'write', 'manual']),
   scope: z.enum(['selection', 'full']),
   source: SourceInputSchema,
@@ -20,6 +21,7 @@ export const StartPayload = Owner.extend({
   .strict()
   .superRefine((value, ctx) => {
     if (
+      (value.entry === 'inline' && value.mode !== 'read') ||
       (value.mode === 'read' && value.source.kind !== 'dom-selection') ||
       (value.mode === 'manual' && value.source.kind !== 'plain-text') ||
       (value.mode === 'write' &&
@@ -59,6 +61,7 @@ export const RouteSchema = z
     frameId: z.literal(0),
     documentId: z.string().min(1).max(160).optional(),
     mode: z.enum(['read', 'write', 'manual']),
+    entry: z.literal('inline').optional(),
     apiOrigin: z.url().max(2048),
     siteOrigin: z.url().max(2048).optional(),
     epoch: z.uuid(),
