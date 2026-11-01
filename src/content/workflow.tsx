@@ -513,6 +513,12 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     const sequence = ++openSequence;
     state.openSequence = sequence;
     state.mode = mode;
+    if (
+      mode === 'read' &&
+      document.activeElement instanceof HTMLElement &&
+      document.activeElement !== host
+    )
+      focusTarget = document.activeElement;
     state.scope = 'selection';
     state.target = mode === 'read' ? 'zh-Hans' : 'en';
     state.source = '';
