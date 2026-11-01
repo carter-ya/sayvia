@@ -54,3 +54,5 @@ pnpm build 生成 .output/chrome-mv3。在 Chrome 扩展管理页打开开发者
 - [S08c 偏好与权限验证](docs/validation/S08c.md)
 
 S00 至 S12 是实施层号。M1 自动技术与真实模型链路验证已完成；按 2026-10-31 用户授权继续完整 MVP 开发，真人语义审阅与 GitHub 手动验收保留至正式发布前必过。许可证、商店上架和收费策略尚未确定。
+
+阅读入口：先在设置 → 权限与数据启用网站，再选中文字并点击页面内 Sayvia 图标。工具栏为备用入口。右键菜单或 Ctrl+Shift+Y（macOS：Command+Shift+Y）也可翻译正文选区；快捷键可在 `chrome://extensions/shortcuts` 修改。写作快捷键默认不绑定，避免抢占其他扩展组合键。

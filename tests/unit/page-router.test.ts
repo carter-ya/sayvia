@@ -10,7 +10,7 @@ const api = vi.hoisted(() => ({
   },
 }));
 vi.mock('wxt/browser', () => ({ browser: api }));
-import { handlePageMessage } from '../../src/background/page-router';
+import { handlePageMessage, openPage } from '../../src/background/page-router';
 import type { ConfigRepository } from '../../src/storage/repository';
 import type { MessageSender } from '../../src/background/task-router';
 const popup: MessageSender = {
@@ -141,4 +141,13 @@ describe('explicit page translation entry', () => {
     });
     expect(api.scripting.executeScript).not.toHaveBeenCalled();
   });
+});
+
+it('trusted browser gesture entry opens the verified document with direct translation', async () => {
+  await openPage(8, 'read', true);
+  expect(api.tabs.sendMessage).toHaveBeenLastCalledWith(
+    8,
+    { protocolVersion: 1, type: 'page.show', mode: 'read', autoTranslate: true },
+    { documentId: 'verified-document', frameId: 0 },
+  );
 });

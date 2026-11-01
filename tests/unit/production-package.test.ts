@@ -24,6 +24,7 @@ describe('production extension package', () => {
       'activeTab',
       'scripting',
       'clipboardWrite',
+      'contextMenus',
     ]);
     expect(manifest.host_permissions ?? []).toEqual([]);
     expect(manifest.optional_host_permissions).toEqual([
