@@ -1,3 +1,5 @@
+import { createHash, createPublicKey } from 'node:crypto';
+import { EXTENSION_PUBLIC_KEY, DEVELOPMENT_EXTENSION_ID } from '../../config/extension-identity';
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -5,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 const output = resolve('.output/chrome-mv3');
 const manifest = JSON.parse(readFileSync(join(output, 'manifest.json'), 'utf8')) as {
   manifest_version: number;
+  key?: string;
   permissions?: string[];
   host_permissions?: string[];
   optional_host_permissions?: string[];
@@ -16,6 +19,18 @@ const manifest = JSON.parse(readFileSync(join(output, 'manifest.json'), 'utf8'))
 };
 
 describe('production extension package', () => {
+  it('ships the fixed public identity rather than deriving the ID from its install path', () => {
+    expect(manifest.key).toBe(EXTENSION_PUBLIC_KEY);
+    const der = Buffer.from(manifest.key!, 'base64');
+    const key = createPublicKey({ key: der, format: 'der', type: 'spki' });
+    expect(key.asymmetricKeyType).toBe('rsa');
+    expect(key.asymmetricKeyDetails?.modulusLength).toBe(2048);
+    const id = [...createHash('sha256').update(der).digest('hex').slice(0, 32)]
+      .map((digit) => String.fromCharCode(97 + parseInt(digit, 16)))
+      .join('');
+    expect(id).toBe(DEVELOPMENT_EXTENSION_ID);
+  });
+
   it('declares web and model access once without per-host setup', () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.permissions ?? []).toEqual([

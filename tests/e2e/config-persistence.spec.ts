@@ -1,3 +1,4 @@
+import { DEVELOPMENT_EXTENSION_ID } from '../../config/extension-identity';
 import { browserLaunchOptions } from '../fixtures/browser-options';
 import { chromium, expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { createServer } from 'node:http';
@@ -26,12 +27,12 @@ async function assertNoSecretResponse(page: Page) {
   expect(JSON.stringify(response)).not.toContain('secretRef');
 }
 
-test('keys survive browser restarts and same-id updates while page scripts cannot read them', async () => {
+test('fixed identity keeps keys across browser restarts, relocated updates and independent installs', async () => {
   const temporary = await mkdtemp(join(tmpdir(), 'sayvia-persistence-'));
-  const extension = join(temporary, 'extension');
+  let extension = join(temporary, 'extension');
   const profile = join(temporary, 'profile');
   await cp(resolve('.output/chrome-mv3'), extension, { recursive: true });
-  const manifestFile = join(extension, 'manifest.json');
+  let manifestFile = join(extension, 'manifest.json');
   const manifest = JSON.parse(await readFile(manifestFile, 'utf8'));
   manifest.host_permissions = ['http://127.0.0.1/*'];
   manifest.content_scripts = [{ matches: ['http://127.0.0.1/*'], js: ['storage-probe.js'] }];
@@ -64,6 +65,7 @@ test('keys survive browser restarts and same-id updates while page scripts canno
   try {
     context = await launch();
     const first = await openSettings(context);
+    expect(first.id).toBe(DEVELOPMENT_EXTENSION_ID);
     await first.page.getByLabel('配置名称').fill('持久配置');
     await first.page.getByLabel('模型名称').fill('fixture-model');
     await first.page.getByLabel('API Key', { exact: true }).fill(KEY);
@@ -88,6 +90,10 @@ test('keys survive browser restarts and same-id updates while page scripts canno
     await context.close();
     context = undefined;
 
+    const relocated = join(temporary, 'another-install-directory');
+    await cp(extension, relocated, { recursive: true });
+    extension = relocated;
+    manifestFile = join(extension, 'manifest.json');
     manifest.version = '0.1.1';
     await writeFile(manifestFile, JSON.stringify(manifest));
     context = await launch();
@@ -113,6 +119,22 @@ test('keys survive browser restarts and same-id updates while page scripts canno
       return Object.keys(state['sayvia.config']?.secrets ?? {}).length;
     });
     expect(afterDelete).toBe(0);
+    await context.close();
+    context = undefined;
+
+    // A second browser profile and directory must still identify the same build.
+    // Its data is intentionally independent from the previous browser profile.
+    const independent = join(temporary, 'independent-extension');
+    await cp(resolve('.output/chrome-mv3'), independent, { recursive: true });
+    context = await chromium.launchPersistentContext(join(temporary, 'independent-profile'), {
+      ...browserLaunchOptions(),
+      channel: 'chromium',
+      headless: true,
+      args: [`--disable-extensions-except=${independent}`, `--load-extension=${independent}`],
+    });
+    const separatelyLoaded = await openSettings(context);
+    expect(separatelyLoaded.id).toBe(first.id);
+    expect(separatelyLoaded.id).toBe(DEVELOPMENT_EXTENSION_ID);
   } finally {
     await context?.close();
     await new Promise<void>((resolve, reject) =>

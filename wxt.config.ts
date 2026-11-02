@@ -1,4 +1,5 @@
 import { defineConfig } from 'wxt';
+import { EXTENSION_PUBLIC_KEY } from './config/extension-identity';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -16,6 +17,7 @@ export default defineConfig({
   }),
   manifest: {
     name: 'Sayvia',
+    key: EXTENSION_PUBLIC_KEY,
     icons: {
       16: 'icons/icon-16.png',
       32: 'icons/icon-32.png',

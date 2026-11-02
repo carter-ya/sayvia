@@ -241,6 +241,8 @@ interface LocalStateV1 {
 
 onInstalled 中只在缺少数据时写入默认值；更新不得执行 storage.clear。迁移读取旧结构、在内存转换、校验完整性，再一次写入新根对象；失败保留旧数据并阻止危险操作。启动按 schemaVersion 判断是否需要补做迁移，不能仅依赖更新事件。
 
+开发构建通过 config/extension-identity.ts 中固定的 RSA SPKI 公钥生成 manifest.key，扩展 ID 为 cjahocldgaicopmfhphamjnhbfaookam。构建不得重新生成公钥；该公开身份与模型 API Key 无关，仓库不保存 CRX 签名私钥。首次从按目录派生 ID 的旧包切换会成为一个新扩展，不自动跨 ID 读取或迁移配置。正式商店身份以开发者信息中心的公钥为准，上架前单独核对。[Manifest key 文档](https://developer.chrome.com/docs/extensions/reference/manifest/key)
+
 开发与升级测试使用相同扩展 ID 和浏览器配置文件；换 ID 的重新加载不属于可保留旧数据的正常更新。删除配置会取消其活动任务并移除对应 Key，清除全部数据同时清理执行器、session 与页面会话。
 
 ## 7 类型化消息与任务所有权
