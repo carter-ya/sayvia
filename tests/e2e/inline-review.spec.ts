@@ -111,7 +111,14 @@ test('a script-changed range or draft cannot reuse the earlier trusted editor se
     expect(f.count()).toBe(0);
     await f.page.locator('#unrelated').focus();
     await f.page.locator('#unrelated').press('ControlOrMeta+A');
-    await expect(button).toBeHidden();
+    await expect(button).toBeVisible();
+    expect(f.count()).toBe(0);
+    await button.click();
+    const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' });
+    await expect(panel.getByLabel('原文', { exact: true })).toHaveValue('不要修改');
+    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('不要修改');
+    expect(f.requestBodies[0]).not.toContain('changed draft');
+    await expect(field).toHaveValue('changed draft');
   } finally {
     await f.close();
   }

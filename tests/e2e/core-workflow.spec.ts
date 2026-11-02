@@ -241,7 +241,7 @@ test('source edits before translation require an explicit refresh and do not spe
 });
 
 for (const kind of ['rich-text', 'password', 'readonly'] as const) {
-  test(`an unsupported ${kind} target cannot reuse the previous editor`, async () => {
+  test(`a ${kind} target cannot reuse the previous editor`, async () => {
     const f = await workflowFixture();
     try {
       await f.page.locator('#editor').focus();
@@ -267,6 +267,17 @@ for (const kind of ['rich-text', 'password', 'readonly'] as const) {
         element.focus();
       }, kind);
       const panel = await f.open('write');
+      if (kind === 'rich-text') {
+        await expect(panel.getByLabel('原文', { exact: true })).toHaveValue('rich editor source');
+        await expect(panel.getByRole('status')).toContainText('预览与复制');
+        await expect(panel.getByRole('button', { name: /替换/ })).toHaveCount(0);
+        await panel.getByRole('button', { name: '翻译', exact: true }).click();
+        await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('rich editor source');
+        expect(f.requestBodies[0]).not.toContain('前缀');
+        await expect(f.page.locator('#editor')).toHaveValue('前缀 中文 后缀');
+        await expect(f.page.locator('#unsupported-editor')).toHaveText('rich editor source');
+        return;
+      }
       await expect(panel.getByRole('status')).toHaveText(
         '当前编辑框无法安全替换，请通过工具栏手动粘贴翻译。',
       );
