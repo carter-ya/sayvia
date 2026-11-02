@@ -93,9 +93,7 @@ test('closing-fence README prose renders as paragraphs and has a visible editing
     await expect(preview).toContainText('阅读');
     await expect(preview.locator('pre')).toHaveCount(0);
     await expect(preview.locator('code')).toHaveText('NullDecimal');
-    expect(
-      await preview.locator('.reading-preview').evaluate((el) => getComputedStyle(el).whiteSpace),
-    ).toBe('normal');
+    expect(await preview.innerText()).not.toContain('\n阅读');
     await panel.getByRole('button', { name: '编辑译文', exact: true }).click();
     const field = panel.getByLabel('译文', { exact: true });
     for (const scheme of ['light', 'dark'] as const) {

@@ -48,7 +48,12 @@ export function ReadingPreview({ text }: { text: string }) {
           case 'root':
             return children;
           case 'text':
-            return node.value;
+            return node.value
+              .replace(
+                /(?<=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}])\n(?=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}])/gu,
+                '',
+              )
+              .replace(/\r?\n/g, ' ');
           case 'paragraph':
             return <p key={index}>{children}</p>;
           case 'inlineCode':
