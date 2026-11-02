@@ -135,7 +135,7 @@ test('returning to model settings preserves advanced drafts until discard is con
     });
     await f.settings.getByRole('button', { name: '返回模型设置', exact: true }).click();
     await expect.poll(() => prompts).toBe(1);
-    await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toHaveValue('日本語');
+    await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toHaveValue('日语');
     await expect(f.settings.getByRole('button', { name: '保存配置', exact: true })).toHaveCount(0);
     f.settings.once('dialog', (d) => {
       prompts++;

@@ -21,9 +21,10 @@ header, .actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap
 header { justify-content: space-between; margin-bottom: 10px; } header strong { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; letter-spacing: -.2px; }
 header button { background: transparent; border: 0; color: var(--muted); font-size: 20px; line-height: 1; padding: 0 3px; }
 .mode-badge { color: var(--muted); font-size: 10px; font-weight: 400; }
-.language-pair { display: grid; grid-template-columns: minmax(0,1fr) 12px minmax(0,1fr); align-items: start; gap: 6px; }
+.language-pair { display: grid; grid-template-columns: minmax(0,1fr) 12px minmax(0,1fr); align-items: center; gap: 6px; }
 .language-pair .language-field > label:first-child { font-size: 0; margin: 0; }
-.language-arrow { color: var(--muted); line-height: 30px; }
+.language-pair .language-field .language-control { margin-top: 0; }
+.language-arrow { color: var(--muted); line-height: 1; align-self: center; }
 label { display: block; margin: 8px 0; font-size: 11px; color: var(--muted); }
 input, select, textarea { display: block; font-family: inherit; font-size: 13px; font-weight: 400; line-height: 1.5; color: var(--ink); background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; width: 100%; margin-top: 3px; }
 .language-pair select { margin: 0; font-size: 12px; height: 30px; padding: 4px 6px; }

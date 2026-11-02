@@ -1,3 +1,4 @@
+import { TranslationLoading } from './TranslationLoading';
 import { TranslationMetrics } from './TranslationMetrics';
 import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
@@ -185,17 +186,20 @@ export function PopupScreen() {
           </div>
           <label>
             手动译文
-            <textarea
-              aria-label="手动译文"
-              rows={2}
-              maxLength={48_000}
-              value={busy ? (manual.progress?.text ?? '') : fields.result}
-              disabled={!ready || busy}
-              placeholder="译文将显示在这里，可继续修改。"
-              onChange={(event) => {
-                if (event.nativeEvent.isTrusted) manual.update({ result: event.target.value });
-              }}
-            />
+            <div className="manual-result-shell">
+              <textarea
+                aria-label="手动译文"
+                rows={2}
+                maxLength={48_000}
+                value={busy ? (manual.progress?.text ?? '') : fields.result}
+                disabled={!ready || busy}
+                placeholder={busy ? '' : '译文将显示在这里，可继续修改。'}
+                onChange={(event) => {
+                  if (event.nativeEvent.isTrusted) manual.update({ result: event.target.value });
+                }}
+              />
+              {busy && !manual.progress?.text && <TranslationLoading />}
+            </div>
           </label>
           <TranslationMetrics
             busy={busy}
