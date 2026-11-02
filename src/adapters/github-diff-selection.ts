@@ -77,7 +77,10 @@ export function captureGithubMarkdownDiff(
     const line = Number(cell.getAttribute('data-line-number'));
     if (!Number.isSafeInteger(line) || line < 1) throw new SourceError('UNSUPPORTED_SELECTION');
     if (previous && line !== previous + 1) {
-      if (started) throw new SourceError('UNSUPPORTED_SELECTION');
+      if (started) {
+        if (selectedEnd !== undefined) break;
+        throw new SourceError('UNSUPPORTED_SELECTION');
+      }
       context = '';
       contextLines = 0;
     }
@@ -97,7 +100,6 @@ export function captureGithubMarkdownDiff(
       const prefix = full.cloneRange();
       prefix.setEnd(range.endContainer, range.endOffset);
       selectedEnd = context.length - raw.length + text(prefix).length;
-      break;
     }
   }
   if (selectedStart === undefined || selectedEnd === undefined || selectedEnd <= selectedStart) {
@@ -105,15 +107,25 @@ export function captureGithubMarkdownDiff(
   }
   let cursor = selectedStart;
   let output = '';
-  for (const opaque of markdownTextIntervals(context).opaque) {
+  const markdown = markdownTextIntervals(context);
+  const protectedContext: { start: number; end: number }[] = [];
+  let eligibleEnd = 0;
+  for (const eligible of markdown.eligible) {
+    if (eligible.start > eligibleEnd)
+      protectedContext.push({ start: eligibleEnd, end: eligible.start });
+    eligibleEnd = Math.max(eligibleEnd, eligible.end);
+  }
+  if (eligibleEnd < context.length)
+    protectedContext.push({ start: eligibleEnd, end: context.length });
+  for (const opaque of protectedContext) {
     const from = Math.max(selectedStart, opaque.start);
     const to = Math.min(selectedEnd, opaque.end);
     if (from >= to || (opaque.start >= selectedStart && opaque.end <= selectedEnd)) continue;
     output += context.slice(cursor, from);
     const piece = context.slice(from, to);
-    // A selection may start inside a code span or a fence opened before it.
+    // A selection may start inside code, HTML or a Markdown link destination.
     // Re-establish its code identity without copying any unselected characters.
-    output += readingMarkdown(
+    const protectedPiece = readingMarkdown(
       {
         kind: 'dom-selection',
         text: piece,
@@ -122,6 +134,7 @@ export function captureGithubMarkdownDiff(
       },
       [],
     ).text;
+    output += /[\r\n]/.test(piece) ? `\n\n${protectedPiece}\n\n` : protectedPiece;
     cursor = to;
   }
   output += context.slice(cursor, selectedEnd);

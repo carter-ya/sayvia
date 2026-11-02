@@ -73,6 +73,31 @@ describe('GitHub Markdown source diff reading', () => {
     expect(needsTranslation(plan)).toBe(false);
     expect(source.text).not.toMatch(/Outside|after|timeout/);
   });
+  it('keeps a partially selected Markdown link destination local', () => {
+    fixture(['Read [guide](https://example.test/PRIVATE_DESTINATION) first.']);
+    const raw = document.getElementById('line-0')!.textContent!;
+    const begin = raw.indexOf('PRIVATE_DESTINATION');
+    const { source, plan } = capture(0, 0, begin, begin + 7);
+    expect(source.text).toBe('`PRIVATE`');
+    expect(needsTranslation(plan)).toBe(false);
+  });
+  it('preserves leading selected blank lines', () => {
+    fixture(['', '', 'Read first.']);
+    expect(capture(0, 2).source.text).toBe('\n\nRead first.');
+  });
+  it('reads trailing context to protect a code span closed on a later rendered line', () => {
+    fixture(['Read `PRIVATE_CODE', 'continued` first.']);
+    const { source, plan } = capture(0, 0, 6, 18);
+    expect(source.text).toBe('`PRIVATE_CODE`');
+    expect(needsTranslation(plan)).toBe(false);
+    expect(source.text).not.toContain('continued');
+  });
+  it('protects partial relative link targets', () => {
+    fixture(['Read [guide](PRIVATE_TARGET/path).']);
+    const raw = document.getElementById('line-0')!.textContent!;
+    const begin = raw.indexOf('PRIVATE_TARGET');
+    expect(needsTranslation(capture(0, 0, begin, begin + 7).plan)).toBe(false);
+  });
   it('does not translate a fenced code body when its opening fence is outside the selection', () => {
     fixture(['```text', 'PRIVATE_CODE_BODY', '```', 'Read first.']);
     const { source, plan } = capture(1, 3);
