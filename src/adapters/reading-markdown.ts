@@ -1,6 +1,6 @@
 import { parseMarkdown } from '../core/markdown';
 import { safeWebLink } from '../core/safe-link';
-import { parseSourceInput, type DomSource } from '../core/source-input';
+import { parseSourceInput, SourceError, type DomSource } from '../core/source-input';
 
 export interface ReadingLink {
   start: number;
@@ -15,9 +15,11 @@ function literal(text: string, lineStart: boolean) {
     .replace(/(^|\n)([ \t]*)([#=+-])(?=\s)/g, '$1$2\\$3')
     .replace(/(^|\n)([ \t]*\d+)([.)])(?=\s)/g, '$1$2\\$3');
   return lineStart
-    ? escaped.replace(/^[ \t]+/, (indentation) =>
-        [...indentation].map((character) => (character === '\t' ? '&#9;' : '&#32;')).join(''),
-      )
+    ? escaped
+        .replace(/^([ \t]*)([-=])(?=[-=]|$)/, '$1\\$2')
+        .replace(/^[ \t]+/, (indentation) =>
+          [...indentation].map((character) => (character === '\t' ? '&#9;' : '&#32;')).join(''),
+        )
     : escaped;
 }
 function prose(text: string, lineStart: boolean, allowUrls: boolean) {
@@ -55,7 +57,7 @@ function code(text: string, block: boolean) {
   const fence = '`'.repeat(
     Math.max(block ? 3 : 1, ...[...text.matchAll(/`+/g)].map((match) => match[0].length + 1)),
   );
-  if (block) return `\n\n${fence}\n${text}${text.endsWith('\n') ? '' : '\n'}${fence}\n\n`;
+  if (block) return `\n\n${fence}\n${text}\n${fence}\n\n`;
   const pad = /^[ `]|[ `]$/.test(text) && !/^ +$/.test(text) ? ' ' : '';
   return `${fence}${pad}${text}${pad}${fence}`;
 }
@@ -66,9 +68,22 @@ export function readingMarkdown(source: DomSource, links: readonly ReadingLink[]
   const paragraphEnds = new Set(
     source.marks.filter((mark) => mark.kind === 'paragraph').map((mark) => mark.end),
   );
-  const codes = source.protectedRanges.filter(
+  const rawCodes = source.protectedRanges.filter(
     (span) => span.kind === 'inline-code' || span.kind === 'code-block',
   );
+  const linkBoundaries = [...new Set(links.flatMap((link) => [link.start, link.end]))].sort(
+    (a, b) => a - b,
+  );
+  const codes = rawCodes.flatMap((span) => {
+    if (span.kind === 'code-block' || /[\r\n]/.test(source.text.slice(span.start, span.end)))
+      return [span];
+    const cuts = [
+      span.start,
+      ...linkBoundaries.filter((offset) => span.start < offset && offset < span.end),
+      span.end,
+    ];
+    return cuts.slice(0, -1).map((start, index) => ({ ...span, start, end: cuts[index + 1]! }));
+  });
   const codeAt = new Map(codes.map((span) => [span.start, span]));
   // Markdown links cannot contain block code or cross paragraph boundaries.
   // Keep code opaque and preserve the target on the remaining inline pieces.
@@ -113,6 +128,7 @@ export function readingMarkdown(source: DomSource, links: readonly ReadingLink[]
         continue;
       }
       if (protectedCode) {
+        if (protectedCode.end > end) throw new SourceError('UNSUPPORTED_SELECTION');
         output += code(
           source.text.slice(cursor, protectedCode.end),
           protectedCode.kind === 'code-block',

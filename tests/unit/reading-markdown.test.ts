@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { captureDomRange } from '../../src/adapters/dom-selection';
 import { ReadingSelectionCache } from '../../src/adapters/selection-cache';
 import {
   createTranslationPlan,
@@ -192,6 +193,76 @@ describe('formatted reading selections', () => {
     const tree = parseMarkdown(source.text);
     expect(JSON.stringify(tree).match(/"type":"link"/g)).toHaveLength(2);
     expect(JSON.stringify(tree).match(/https:\/\/example.test\/guide/g)).toHaveLength(2);
+  });
+  it.each(['CODE_LINE\n', 'CODE_LINE\n\n'])('preserves trailing code newlines: %j', (value) => {
+    const { source } = capture(`<pre><code>${value}</code></pre>`);
+    const node = parseMarkdown(source.text).children.find((node) => node.type === 'code');
+    expect(node && 'value' in node ? node.value : undefined).toBe(value);
+  });
+  it.each(['---', '==='])(
+    'keeps literal prose delimiters from becoming Markdown blocks: %s',
+    (delimiter) => {
+      const { source } = capture(`<pre>Title\n${delimiter}</pre>`);
+      expect(JSON.stringify(parseMarkdown(source.text))).not.toMatch(
+        /"type":"(?:heading|thematicBreak)"/,
+      );
+    },
+  );
+  it.each([
+    '<a href="https://example.test/">Read <code>BOUND_SECRET</code></a><code>BOUND_VALUE</code>',
+    '<code>BOUND_SECRET</code><a href="https://example.test/"><code>BOUND_VALUE</code> first</a>',
+  ])('partitions merged code at link-label boundaries: %s', (html) => {
+    const { source } = capture(`<p>${html}</p>`);
+    expect(source.text.match(/BOUND_SECRET/g)).toHaveLength(1);
+    expect(source.text.match(/BOUND_VALUE/g)).toHaveLength(1);
+    expect(source.text).toContain('](<https://example.test/>)');
+    expect(JSON.stringify(translationPayload(createTranslationPlan(source)))).not.toMatch(
+      /BOUND_SECRET|BOUND_VALUE/,
+    );
+  });
+  it('retains opaque code content across adjacent, nested and multiline link layouts', () => {
+    const bodies = [
+      'CODESECRET',
+      ' CODESECRET ',
+      'CODESECRET `CODETAIL`',
+      'CODESECRET\nCODETAIL',
+      'CODESECRET\n\nCODETAIL',
+      'CODESECRET\nCODETAIL\n',
+      '\tCODESECRET\t',
+    ];
+    const layouts = [
+      (body: string) => `<p>Read <code>${body}</code> first.</p>`,
+      (body: string) => `<p>Read https://example.test/<code>${body}</code>.</p>`,
+      (body: string) =>
+        `<p><a href="https://example.test/">Read <code>${body}</code></a><code>CODEVALUE</code></p>`,
+      (body: string) =>
+        `<p><code>CODEVALUE</code><a href="https://example.test/"><code>${body}</code> first</a></p>`,
+      (body: string) => `<code><a href="https://example.test/">${body}</a></code>`,
+      (body: string) =>
+        `<a href="https://example.test/"><code>${body}</code></a><a href="https://other.test/"><code>CODEVALUE</code></a>`,
+    ];
+    for (const body of bodies)
+      for (const layout of layouts) {
+        const { source } = capture(layout(body));
+        const range = document.createRange();
+        range.selectNodeContents(document.body);
+        const flat = captureDomRange(range);
+        const expected = flat.protectedRanges
+          .map((span) => flat.text.slice(span.start, span.end))
+          .join('');
+        const values: string[] = [];
+        const walk = (node: unknown) => {
+          const item = node as { type: string; value?: string; children?: unknown[] };
+          if (item.type === 'code' || item.type === 'inlineCode') values.push(item.value!);
+          for (const child of item.children ?? []) walk(child);
+        };
+        walk(parseMarkdown(source.text));
+        expect(values.join(''), layout(body)).toBe(expected);
+        expect(
+          JSON.stringify(translationPayload(createTranslationPlan(source))),
+          layout(body),
+        ).not.toMatch(/CODESECRET|CODETAIL|CODEVALUE/);
+      }
   });
   it('rejects formatted input mixed with contradictory flat semantic intervals', () => {
     expect(() =>
