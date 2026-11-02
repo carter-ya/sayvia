@@ -40,7 +40,9 @@ test('registered commands use the background direct-reading message without a ra
     await expect(f.page.getByRole('dialog', { name: 'Sayvia 翻译' })).toBeVisible({
       timeout: 5000,
     });
-    await expect(f.page.getByLabel('译文', { exact: true })).toHaveValue('阅读 timeout 优先。');
+    await expect(f.page.getByRole('region', { name: '译文预览' })).toHaveText(
+      '阅读 timeout 优先。',
+    );
     expect(f.count()).toBe(1);
     expect(f.requestBodies[0]).not.toContain('timeout');
   } finally {

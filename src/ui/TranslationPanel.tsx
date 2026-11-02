@@ -1,5 +1,7 @@
+import { ReadingPreview } from './ReadingPreview';
+import { AutoTextarea } from './AutoTextarea';
 import { LanguageField } from './LanguageField';
-import { useLayoutEffect, useRef, type MouseEvent } from 'react';
+import { useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 
 export interface PanelState {
   mode: 'read' | 'write';
@@ -37,6 +39,11 @@ const trusted = (action: () => void) => (event: MouseEvent<HTMLButtonElement>) =
 };
 export function TranslationPanel({ state, actions }: { state: PanelState; actions: PanelActions }) {
   const panel = useRef<HTMLElement>(null);
+  const [editSequence, setEditSequence] = useState<number | null>(null);
+  const editing = state.mode === 'write' || editSequence === state.openSequence;
+  useLayoutEffect(() => {
+    if (state.busy) setEditSequence(null);
+  }, [state.busy]);
   useLayoutEffect(() => {
     panel.current?.focus();
   }, [state.openSequence]);
@@ -88,23 +95,42 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
         <summary>
           原文 <span>{[...state.source].length} 字符</span>
         </summary>
-        <textarea aria-label="原文" readOnly value={state.source} rows={3} />
+        <AutoTextarea aria-label="原文" readOnly value={state.source} rows={3} />
       </details>
-      <label className="result-label">
-        <span className="sr-only">译文</span>
-        <textarea
-          aria-label="译文"
-          value={state.candidate}
-          rows={3}
-          maxLength={48_000}
-          placeholder={state.busy ? '正在翻译…' : '译文'}
-          disabled={!state.ready || state.busy}
-          onChange={(event) => {
-            if (event.nativeEvent.isTrusted) actions.edit(event.target.value);
-          }}
-        />
-      </label>
+      {state.mode === 'read' && !editing ? (
+        <div className="result-region" role="region" aria-label="译文预览" tabIndex={0}>
+          {state.candidate ? (
+            <ReadingPreview text={state.candidate} />
+          ) : (
+            <p className="result-placeholder">{state.busy ? '正在翻译…' : '译文将在这里显示'}</p>
+          )}
+        </div>
+      ) : (
+        <label className="result-label">
+          <span className="sr-only">译文</span>
+          <AutoTextarea
+            aria-label="译文"
+            value={state.candidate}
+            rows={3}
+            maxLength={48_000}
+            placeholder={state.busy ? '正在翻译…' : '译文'}
+            disabled={!state.ready || state.busy}
+            onChange={(event) => {
+              if (event.nativeEvent.isTrusted) actions.edit(event.target.value);
+            }}
+          />
+        </label>
+      )}
       <div className="actions main-actions">
+        {state.mode === 'read' && state.candidate && (
+          <button
+            type="button"
+            disabled={state.busy}
+            onClick={trusted(() => setEditSequence(editing ? null : state.openSequence))}
+          >
+            {editing ? '完成编辑' : '编辑译文'}
+          </button>
+        )}
         {state.busy ? (
           <button type="button" onClick={trusted(actions.cancel)}>
             取消翻译

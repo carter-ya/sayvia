@@ -55,14 +55,15 @@ export function createTranslationPlan(input: SourceInput): TranslationPlan {
 }
 
 function planForSource(source: SourceInput): TranslationPlan {
+  const markdownSource =
+    source.kind === 'markdown' || (source.kind === 'dom-selection' && source.format === 'markdown');
   let eligible: Interval[] = [{ start: 0, end: source.text.length }];
-  const protectedRanges: Interval[] =
-    source.kind === 'markdown' ? [] : protectedTokens(source.text, false);
+  const protectedRanges: Interval[] = markdownSource ? [] : protectedTokens(source.text, false);
   let markdownShape: string | undefined;
   let boundaries: FormatBoundary[] = [];
   let linePrefixes: Interval[] = [];
   let scopes: Interval[] = [{ start: 0, end: source.text.length }];
-  if (source.kind === 'markdown') {
+  if (markdownSource) {
     const markdown = markdownTextIntervals(source.text);
     eligible = markdown.eligible;
     // Scan only parser-bounded prose: a destination URL must not consume adjacent text.
@@ -132,7 +133,7 @@ function planForSource(source: SourceInput): TranslationPlan {
   if (parts.length > MAX_SOURCE_SPANS) throw new PlanError('PLAN_TOO_COMPLEX');
   const plan: TranslationPlan = Object.freeze({
     version: 2,
-    sourceKind: source.kind,
+    sourceKind: markdownSource ? 'markdown' : source.kind,
     sourceText: source.text,
     parts: Object.freeze(parts),
     segments: buildTranslationSegments(

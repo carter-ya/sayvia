@@ -1,13 +1,15 @@
-// A viewport portal positioned beside a live toolbar button, including nested scrolling.
+// Keep toolbar popovers anchored; reading can use the full viewport for long text.
 export class AnchoredPanel {
-  private anchor: (() => HTMLElement | null | undefined) | undefined;
+  private anchor: (() => HTMLElement | DOMRect | null | undefined) | undefined;
+  private allowOverlap = false;
   private frame: number | undefined;
   private lastRect: DOMRect | undefined;
   private readonly observer = new ResizeObserver(() => this.update());
   constructor(private readonly host: HTMLElement) {}
-  attach(anchor: () => HTMLElement | null | undefined) {
+  attach(anchor: () => HTMLElement | DOMRect | null | undefined, allowOverlap = false) {
     this.detach();
     this.anchor = anchor;
+    this.allowOverlap = allowOverlap;
     this.observer.observe(this.host);
     this.observer.observe(document.documentElement);
     if (document.body) this.observer.observe(document.body);
@@ -20,22 +22,34 @@ export class AnchoredPanel {
     this.frame = requestAnimationFrame(() => {
       this.frame = undefined;
       const anchor = this.anchor?.();
-      if (anchor?.isConnected) this.lastRect = anchor.getBoundingClientRect();
+      if (anchor instanceof DOMRect) this.lastRect = anchor;
+      else if (anchor?.isConnected) this.lastRect = anchor.getBoundingClientRect();
       const rect = this.lastRect;
       if (!rect) return;
       const width = this.host.getBoundingClientRect().width;
       const section = this.host.shadowRoot?.querySelector('section');
-      const height = (section?.scrollHeight ?? this.host.getBoundingClientRect().height) + 2;
+      const result = this.allowOverlap
+        ? section?.querySelector<HTMLElement>('.result-region')
+        : undefined;
+      const overflow = result ? Math.max(0, result.scrollHeight - result.clientHeight) : 0;
+      const height = Math.min(
+        680,
+        (section?.scrollHeight ?? this.host.getBoundingClientRect().height) + overflow + 2,
+      );
       const gap = 8;
       const below = Math.max(0, innerHeight - rect.bottom - gap * 2);
       const above = Math.max(0, rect.top - gap * 2);
       const down = below >= height || below >= above;
-      const available = Math.max(1, Math.min(down ? below : above, innerHeight - gap * 2));
+      const overlap = this.allowOverlap && height > Math.max(below, above);
+      const available = Math.max(
+        1,
+        overlap ? innerHeight - gap * 2 : Math.min(down ? below : above, innerHeight - gap * 2),
+      );
       const left = Math.max(gap, Math.min(rect.right - width, innerWidth - width - gap));
       const top = Math.max(
         gap,
         Math.min(
-          down ? rect.bottom + gap : rect.top - gap - Math.min(height, available),
+          overlap || down ? rect.bottom + gap : rect.top - gap - Math.min(height, available),
           innerHeight - Math.min(height, available) - gap,
         ),
       );

@@ -37,12 +37,13 @@ test('selecting text shows an icon; its trusted click translates directly withou
     await icon.click();
     const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' });
     await expect(panel).toBeVisible();
-    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('阅读 timeout 优先。');
+    await expect(panel.getByRole('region', { name: '译文预览' })).toHaveText('阅读 timeout 优先。');
     await expect(panel.getByLabel('目标语言', { exact: true })).toHaveValue('zh-Hans');
     await expect(panel.getByText('模型：fixture-model', { exact: true })).toBeHidden();
     expect(f.requestBodies[0]).not.toContain('timeout');
     expect(f.count()).toBe(1);
     await expect(f.page.locator('#article')).toHaveText('Read timeout first.');
+    await panel.getByRole('button', { name: '编辑译文', exact: true }).click();
     await panel.getByLabel('译文', { exact: true }).fill('我编辑的译文');
     await panel.getByRole('button', { name: '复制译文' }).click();
     await expect(panel.getByRole('status')).toHaveText('已复制。');
@@ -70,7 +71,9 @@ test('the icon freezes the captured source instead of silently translating a scr
       window.getSelection()!.addRange(range);
     });
     await icon.click();
-    await expect(f.page.getByLabel('译文', { exact: true })).toHaveValue('阅读 timeout 优先。');
+    await expect(f.page.getByRole('region', { name: '译文预览' })).toHaveText(
+      '阅读 timeout 优先。',
+    );
     expect(f.requestBodies[0]).not.toContain('PRIVATE OTHER TEXT');
     expect(f.count()).toBe(1);
   } finally {
@@ -150,7 +153,7 @@ test('code-only selections and editing fields cannot leak to a model through the
     const icon = await select(f);
     await icon.click();
     const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' });
-    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('secret-code-only');
+    await expect(panel.getByRole('region', { name: '译文预览' })).toHaveText('secret-code-only');
     expect(f.count()).toBe(0);
     await panel.getByRole('button', { name: '关闭翻译面板' }).click();
     await f.page.locator('#editor').focus();

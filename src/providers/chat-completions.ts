@@ -4,7 +4,7 @@ import { PlanError } from '../core/translation-plan';
 import { localProcessor, type TranslationProcessor } from '../core/translation-processor';
 import { chatCompletionsEndpoint, EndpointError } from './endpoint';
 
-export const ALGORITHM_VERSION = 'segments-v2.2';
+export const ALGORITHM_VERSION = 'segments-v2.3';
 export const MAX_RESPONSE_BYTES = 1024 * 1024;
 export const EXECUTION_BUDGET_MS = 60_000;
 export type ProviderErrorCode =
