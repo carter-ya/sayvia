@@ -22,7 +22,7 @@ function toolbarFor(element: HTMLTextAreaElement): HTMLElement | undefined {
     if (linked.length > 1) return;
   }
   const boundary = element.closest(
-    'form, [role="form"], tab-container, markdown-editor, .js-previewable-comment-form, [data-testid="markdown-editor"]',
+    'fieldset, form, [role="form"], tab-container, markdown-editor, .js-previewable-comment-form, [data-testid="markdown-editor"]',
   );
   if (!boundary) return;
   for (
@@ -102,6 +102,7 @@ export class EditorEntries {
         'role',
         'aria-controls',
         'data-testid',
+        'data-component',
       ],
     });
     window.addEventListener('popstate', this.schedule);

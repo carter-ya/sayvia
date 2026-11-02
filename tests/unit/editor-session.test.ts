@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { detectAdapter } from '../../src/adapters/detect';
 import { EditorRegistry } from '../../src/adapters/registry';
 import { TextEditorSession } from '../../src/adapters/text-session';
+import { reviewComposer } from '../fixtures/github-review-composer';
 
 let sessions: TextEditorSession[];
 function editor(text = '中文草稿', parent: HTMLElement = document.body) {
@@ -290,6 +291,39 @@ describe('editor safety', () => {
     expect(
       detectAdapter(element, new URL('https://github.com/acme/repo/settings')),
     ).toBeUndefined();
+  });
+
+  it('identifies the observed nameless review textarea by its local Markdown association', () => {
+    document.body.innerHTML = reviewComposer('_r_nc_');
+    const field = document.querySelector('textarea')!;
+    const toolbar = document.querySelector('markdown-toolbar')!;
+    const url = new URL('https://github.com/acme/repo/pull/15/changes');
+    expect(detectAdapter(field, url)).toBe('github-markdown');
+    toolbar.setAttribute('for', 'another-draft');
+    expect(detectAdapter(field, url)).toBeUndefined();
+    toolbar.setAttribute('for', field.id);
+    const nested = document.createElement('fieldset');
+    field.closest('fieldset')!.append(nested);
+    nested.append(toolbar);
+    expect(detectAdapter(field, url)).toBeUndefined();
+  });
+
+  it('rejects ambiguous IDs, unrelated Textarea components and disabled review fieldsets', () => {
+    document.body.innerHTML = reviewComposer('_r_nc_');
+    const field = document.querySelector('textarea')!;
+    const url = new URL('https://github.com/acme/repo/pull/15/changes');
+    const duplicate = document.createElement('textarea');
+    duplicate.id = field.id;
+    document.body.prepend(duplicate);
+    expect(detectAdapter(field, url)).toBeUndefined();
+    duplicate.remove();
+    field.dataset.component = 'SomethingElse';
+    expect(detectAdapter(field, url)).toBeUndefined();
+    field.dataset.component = 'Textarea';
+    field.closest('fieldset')!.disabled = true;
+    expect(detectAdapter(field, url)).toBeUndefined();
+    field.closest('fieldset')!.disabled = false;
+    expect(detectAdapter(field, url)).toBe('github-markdown');
   });
 
   it('rejects an input that changes to a password field after capture', async () => {

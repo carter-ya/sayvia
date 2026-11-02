@@ -1,4 +1,4 @@
-import { GITHUB_COMMENT_SELECTOR } from './github-editor';
+import { isGitHubCommentEditor } from './github-editor';
 import type { AdapterKind, TextControl } from './types';
 
 export function isTextControl(element: Element): element is TextControl {
@@ -31,11 +31,7 @@ export function detectAdapter(
   if (!isTextControl(element) || !isEligible(element)) return undefined;
   if (url.hostname === 'github.com') {
     const route = /^\/[^/]+\/[^/]+\/(?:issues|pull)\/\d+(?:\/|$)/.test(url.pathname);
-    if (
-      route &&
-      element instanceof HTMLTextAreaElement &&
-      element.matches(GITHUB_COMMENT_SELECTOR)
-    ) {
+    if (route && element instanceof HTMLTextAreaElement && isGitHubCommentEditor(element)) {
       return 'github-markdown';
     }
     return undefined;
