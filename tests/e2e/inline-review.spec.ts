@@ -20,7 +20,8 @@ test('inline review toolbar translates its own selected draft and replaces/resto
     const button = form.getByRole('button', { name: '使用 Sayvia 翻译这份评论' });
     await expect(button).toBeVisible();
     await field.focus();
-    await field.press('Home');
+    await field.press('ControlOrMeta+A');
+    await field.press('ArrowLeft');
     await field.press('ArrowRight');
     await field.press('ArrowRight');
     await field.press('ArrowRight');
@@ -92,8 +93,7 @@ test('a script-changed range or draft cannot reuse the earlier trusted editor se
   try {
     const field = f.page.locator('#review-body');
     await field.focus();
-    await field.press('Home');
-    await field.press('Shift+End');
+    await field.press('ControlOrMeta+A');
     const button = f.page.getByRole('button', { name: '使用 Sayvia 翻译输入选区' });
     await expect(button).toBeVisible();
     await field.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(0, 1));
@@ -101,8 +101,7 @@ test('a script-changed range or draft cannot reuse the earlier trusted editor se
     expect(f.count()).toBe(0);
     await expect(f.page.getByRole('dialog', { name: 'Sayvia 翻译' })).toHaveCount(0);
     await field.focus();
-    await field.press('Home');
-    await field.press('Shift+End');
+    await field.press('ControlOrMeta+A');
     await expect(button).toBeVisible();
     await field.evaluate((el: HTMLTextAreaElement) => {
       el.value = 'changed draft';
@@ -111,8 +110,7 @@ test('a script-changed range or draft cannot reuse the earlier trusted editor se
     await expect(button).toBeHidden();
     expect(f.count()).toBe(0);
     await f.page.locator('#unrelated').focus();
-    await f.page.locator('#unrelated').press('Home');
-    await f.page.locator('#unrelated').press('Shift+End');
+    await f.page.locator('#unrelated').press('ControlOrMeta+A');
     await expect(button).toBeHidden();
   } finally {
     await f.close();
@@ -139,9 +137,16 @@ test('dynamically opened review editors gain entries and remove them when closed
       el.readOnly = false;
     });
     await expect(button).toBeVisible();
-    await form.locator('textarea').focus();
-    await form.locator('textarea').press('Home');
-    await form.locator('textarea').press('Shift+End');
+    // Settle native focus scrolling, then use the platform select-all shortcut;
+    // Home/End may scroll rather than move the caret on macOS.
+    await form.locator('textarea').click();
+    await f.page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    await form.locator('textarea').press('ControlOrMeta+A');
     await expect(f.page.getByRole('button', { name: '使用 Sayvia 翻译输入选区' })).toBeVisible();
     await form.evaluate((el) => el.remove());
     await expect(f.page.getByRole('button', { name: '使用 Sayvia 翻译输入选区' })).toBeHidden();
