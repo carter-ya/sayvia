@@ -1,3 +1,4 @@
+import { captureGithubMarkdownDiff } from './github-diff-selection';
 import { readingMarkdown, type ReadingLink } from './reading-markdown';
 import { captureDomRange, captureDomSelection } from './dom-selection';
 import { SourceError, type SourceErrorCode, type DomSource } from '../core/source-input';
@@ -13,12 +14,14 @@ interface CapturedSelection {
 export class ReadingSelectionCache {
   constructor(private readonly formatted = false) {}
   private rangeSource(range: Range, document: Document) {
-    const links = this.formatted ? new Map<Element, ReadingLink>() : undefined;
-    const source = captureDomRange(range, document, links);
-    const formatted = links ? readingMarkdown(source, [...links.values()]) : source;
+    const diff = this.formatted ? captureGithubMarkdownDiff(range, document) : undefined;
+    const links = this.formatted && !diff ? new Map<Element, ReadingLink>() : undefined;
+    const flat = diff ? undefined : captureDomRange(range, document, links);
+    const source = diff?.source ?? (links ? readingMarkdown(flat!, [...links.values()]) : flat!);
     return {
-      source: formatted,
-      signature: JSON.stringify({ source: formatted, links: links ? [...links.values()] : [] }),
+      source,
+      plainText: diff?.plainText ?? flat!.text,
+      signature: JSON.stringify({ source, links: links ? [...links.values()] : [] }),
     };
   }
   private captured: CapturedSelection | undefined;
@@ -30,11 +33,14 @@ export class ReadingSelectionCache {
     let plainText: string;
     let signature: string;
     try {
-      const links = this.formatted ? new Map<Element, ReadingLink>() : undefined;
-      const flat = captureDomSelection(selection, document, links);
-      source = links ? readingMarkdown(flat, [...links.values()]) : flat;
-      plainText = flat.text;
-      signature = JSON.stringify({ source, links: links ? [...links.values()] : [] });
+      if (!selection || selection.rangeCount !== 1 || selection.isCollapsed) {
+        // Reuse the standard validation and its public error codes.
+        captureDomSelection(selection, document);
+      }
+      const captured = this.rangeSource(selection!.getRangeAt(0), document);
+      source = captured.source;
+      plainText = captured.plainText;
+      signature = captured.signature;
     } catch (error) {
       this.error = error instanceof SourceError ? error.code : 'SELECTION_LOST';
       throw new SourceError(this.error);
