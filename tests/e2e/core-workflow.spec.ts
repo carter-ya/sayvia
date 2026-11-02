@@ -82,7 +82,10 @@ test('reading keeps rendered code local, never rewrites the page and rejects dup
     await f.open('read');
     await expect(f.page.getByRole('dialog', { name: 'Sayvia 翻译' })).toHaveCount(1);
     await panel.getByRole('button', { name: '翻译', exact: true }).click();
-    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('阅读 timeout 优先。');
+    await expect(panel.getByRole('region', { name: '译文预览' })).toHaveText('阅读 timeout 优先。');
+    await expect(panel.getByRole('region', { name: '译文预览' }).locator('code')).toHaveText(
+      'timeout',
+    );
     expect(f.requestBodies[0]).not.toContain('timeout');
     expect(await f.page.locator('#reading-content').innerHTML()).toBe(before);
     await expect(panel.getByRole('button', { name: /替换/ })).toHaveCount(0);

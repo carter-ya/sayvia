@@ -49,12 +49,12 @@ test('reading can override source detection without losing rendered code protect
     const panel = await f.open('read');
     await panel.getByLabel('源语言', { exact: true }).selectOption('en');
     await panel.getByRole('button', { name: '翻译', exact: true }).click();
-    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('阅读 timeout 优先。');
+    await expect(panel.getByRole('region', { name: '译文预览' })).toHaveText('阅读 timeout 优先。');
     expect(sentLanguage(f.requestBodies[0]!)).toBe('en');
     expect(f.requestBodies[0]).not.toContain('timeout');
     await panel.getByLabel('源语言', { exact: true }).selectOption('auto');
     await panel.getByRole('button', { name: '翻译', exact: true }).click();
-    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('阅读 timeout 优先。');
+    await expect(panel.getByRole('region', { name: '译文预览' })).toHaveText('阅读 timeout 优先。');
     expect(sentLanguage(f.requestBodies[1]!)).toBe('auto');
   } finally {
     await f.close();

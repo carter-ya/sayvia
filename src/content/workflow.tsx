@@ -29,7 +29,7 @@ type Draft = {
 };
 export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const registry = new EditorRegistry();
-  const selection = new ReadingSelectionCache();
+  const selection = new ReadingSelectionCache(true);
   let lastEditor: TextEditorSession | undefined;
   let focusTarget: HTMLElement | undefined;
   let current: Draft | undefined;
@@ -78,7 +78,13 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const owns = (event: Event) =>
     event.composedPath().includes(host) || entry.owns(event) || editorEntries.owns(event);
   const render = () => {
-    if (!disposed) root.render(<TranslationPanel state={{ ...state }} actions={actions} />);
+    if (!disposed) {
+      host.style.setProperty(
+        '--panel-width',
+        state.mode === 'read' && state.source.length > 280 ? '480px' : '340px',
+      );
+      root.render(<TranslationPanel state={{ ...state }} actions={actions} />);
+    }
   };
   const dirty = () =>
     Boolean(current && state.candidate !== current.baseline && state.candidate && !current.applied);
@@ -131,7 +137,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       };
       state.replaceScope = snapshot.scope;
     }
-    state.source = current.source.text;
+    state.source = state.mode === 'read' ? selection.readText(document) : current.source.text;
     state.hasOriginal = current.editor?.previousOriginal() !== undefined;
     state.canRestore = current.editor?.canRestore() ?? false;
   };
@@ -571,8 +577,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       state.status = userError(error);
     }
     visible = true;
-    if (inline && mode === 'read') entry.placePanel(host);
-    else {
+    {
       host.style.removeProperty('left');
       host.style.removeProperty('right');
       host.style.removeProperty('top');
@@ -580,6 +585,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     }
     host.style.removeProperty('display');
     render();
+    if (inline && mode === 'read') anchoredPanel.attach(() => entry.panelAnchor(), true);
     if (inline && mode === 'write' && editorTarget)
       anchoredPanel.attach(() => editorEntries.anchorFor(editorTarget));
     const target = state.target;

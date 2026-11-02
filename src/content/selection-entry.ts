@@ -51,18 +51,10 @@ export class SelectionEntry {
     this.host.style.setProperty('left', `${left}px`, 'important');
     this.host.style.setProperty('top', `${top}px`, 'important');
   };
-  placePanel(host: HTMLElement) {
-    if (!this.anchor) return;
-    host.style.setProperty(
-      'left',
-      `max(8px, min(${this.anchor.x}px, calc(100vw - 352px)))`,
-      'important',
-    );
-    const top = `max(8px, min(${this.anchor.y + 32}px, calc(100dvh - 350px)))`;
-    host.style.setProperty('--panel-top', top);
-    host.style.setProperty('top', top, 'important');
-    host.style.setProperty('right', 'auto', 'important');
+  panelAnchor() {
+    return this.anchor ? new DOMRect(this.anchor.x, this.anchor.y, 0, 0) : undefined;
   }
+
   hide = () => {
     this.host.style.setProperty('display', 'none', 'important');
   };

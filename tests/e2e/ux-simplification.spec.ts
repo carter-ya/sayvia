@@ -57,9 +57,10 @@ test('multiline selection follows the mouse release and opens a compact translat
     });
     await icon.click();
     const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' });
-    await expect(panel.getByLabel('译文', { exact: true })).not.toHaveValue('');
+    await expect(panel.getByRole('region', { name: '译文预览' })).not.toBeEmpty();
     await expect(panel.getByText('跨过语言，读懂原意')).toHaveCount(0);
     expect((await panel.boundingBox())!.height).toBeLessThanOrEqual(350);
+    await panel.getByRole('button', { name: '编辑译文', exact: true }).click();
     await panel
       .getByLabel('译文', { exact: true })
       .fill('开始前请先阅读项目文档，并保留原始草稿。');
@@ -129,7 +130,7 @@ test('ordinary non-local HTTP pages support direct selection and toolbar writing
     await expect(icon).toBeVisible();
     await icon.click();
     const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' });
-    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('阅读 timeout 优先。');
+    await expect(panel.getByRole('region', { name: '译文预览' })).toHaveText('阅读 timeout 优先。');
     expect(f.requestBodies[0]).not.toContain('timeout');
     await panel.getByRole('button', { name: '复制译文', exact: true }).click();
     await expect(panel.getByRole('status')).toHaveText('已复制。');
@@ -138,7 +139,7 @@ test('ordinary non-local HTTP pages support direct selection and toolbar writing
     await verification.locator('#other').fill('');
     await verification.locator('#other').focus();
     await verification.keyboard.press('ControlOrMeta+V');
-    await expect(verification.locator('#other')).toHaveValue('阅读 timeout 优先。');
+    await expect(verification.locator('#other')).toHaveValue('阅读 `timeout` 优先。');
     await verification.close();
     await f.page.bringToFront();
 

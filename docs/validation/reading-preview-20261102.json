@@ -1,0 +1,429 @@
+{
+  "sourceCommit": "f54dd85039e4a3322d0f8e0016dfdebc271b3b10",
+  "algorithmVersion": "segments-v2.3",
+  "sourceReference": "https://github.com/exc-works/decimal/pull/8",
+  "sourceRepositoryVisibility": "public",
+  "realModelCalls": 4,
+  "humanReleaseAcceptancePending": true,
+  "agentSemanticNotes": "Formatting and code/link identity are verified. Terminology still needs human review; DeepSeek rendered technical tie as 平局. These checks are not a semantic-quality approval.",
+  "models": {
+    "openai": {
+      "model": "gpt-6-luna",
+      "sourceFingerprint": "173acc91574aae4cbc735596bc2020ba787a94754d67b645ff5dedc2371dd9e9",
+      "corpusSha256": "d529189205d570765e04e48b695f555f96c2778cb89a8fcf92388ecb067d002a",
+      "rawReportSha256": "3879854b3521b9f1b58c6823962f45389e470086530e071a5eb7c1a1e2796abb",
+      "samples": [
+        {
+          "id": "decimal-pr-8",
+          "source": {
+            "kind": "dom-selection",
+            "format": "markdown",
+            "text": "Fix general-format notation selection after rounding: `%.3g` of `999.9` now yields `1e+03`, and `0.00009999` yields `0.0001`. Bound trailing-zero normalization by coefficient size to prevent scale-driven work and midpoint overflow; derive scientific exponents without expanding fractional zeros.\n\nValidation: default tests, BSON race tests and vet passed; added carry/tie/extreme-scale regressions and standard fmt comparisons on exact binary rationals. Large-scale scientific formatting: \\~827 KB → 80 B/op; normalization: \\~317 µs → 117 ns/op (Go 1.26.6, M5 Max).\n\nStack: [#8](<https://github.com/exc-works/decimal/pull/8>) → [#9](<https://github.com/exc-works/decimal/pull/9>) → [#10](<https://github.com/exc-works/decimal/pull/10>) → [#11](<https://github.com/exc-works/decimal/pull/11>). Merge in this order. [#12](<https://github.com/exc-works/decimal/pull/12>) (validator cache) was withdrawn; validation retains direct parsing.\n\nLayer 1/4; base: `main`. This is the first layer.  \nNext: [#9](<https://github.com/exc-works/decimal/pull/9>).",
+            "protectedRanges": [],
+            "marks": []
+          },
+          "translatedText": "修复舍入后的通用格式记数法选择：`%.3g` 的 `999.9` 现在会得到 `1e+03`，而 `0.00009999` 会得到 `0.0001`。按系数大小限制尾随零规范化，以避免由尺度驱动的运算和中点溢出；计算科学计数法指数时不展开小数零。\n\n验证：默认测试、BSON 竞态测试和 vet 均已通过；新增了进位/中点/极端尺度回归测试，以及对精确二进制有理数的标准 fmt 比较。大尺度科学计数法格式化：\\~827 KB → 80 B/op；规范化：\\~317 µs → 117 ns/op（Go 1.26.6，M5 Max）。\n\n依赖栈： [#8](<https://github.com/exc-works/decimal/pull/8>) → [#9](<https://github.com/exc-works/decimal/pull/9>) → [#10](<https://github.com/exc-works/decimal/pull/10>) → [#11](<https://github.com/exc-works/decimal/pull/11>)。按此顺序合并。[#12](<https://github.com/exc-works/decimal/pull/12>)（验证器缓存）已撤回；验证仍采用直接解析。\n\n第 1/4 层；基础：`main`。这是第一层。  \n下一步：[#9](<https://github.com/exc-works/decimal/pull/9>)。",
+          "usage": {
+            "prompt_tokens": 1173,
+            "completion_tokens": 1374,
+            "total_tokens": 2547,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 1170,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 853,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          },
+          "expectedSemantics": [
+            {
+              "kind": "inlineCode",
+              "value": "%.3g"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "999.9"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "1e+03"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.00009999"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.0001"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/8"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/9"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/10"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/11"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/12"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "main"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/9"
+            }
+          ],
+          "actualSemantics": [
+            {
+              "kind": "inlineCode",
+              "value": "%.3g"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "999.9"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "1e+03"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.00009999"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.0001"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/8"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/9"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/10"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/11"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/12"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "main"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/9"
+            }
+          ],
+          "protectionPassed": true,
+          "fullLinkTargetsAbsentFromModel": true,
+          "durationMs": 15072
+        },
+        {
+          "id": "decimal-partial-selection",
+          "source": {
+            "kind": "dom-selection",
+            "format": "markdown",
+            "text": "`99.9` now yields `1e+03`, and `0.00009999` yields `0.0001`. Bound trailing-zero normalization by coefficient size to prevent scale-driven work and midpoint overflow; derive scientific exponents without expanding fractional zeros.\n\nValidation: default tests, BSON race tests and vet passed; added carry/tie/extreme-scale regressions and standard fmt comparisons on exact binary rationals. Large-scale scientific formatting: \\~827 KB → 80 B/op; normalization: \\~317 µs → 117 ns/op (Go 1.26.6, M5 Max).\n\nStack: [#8](<https://github.com/exc-works/decimal/pull/8>)",
+            "protectedRanges": [],
+            "marks": []
+          },
+          "translatedText": "`99.9` 现在产生 `1e+03`，而 `0.00009999` 产生 `0.0001`。按系数大小限制末尾零规范化，以防工作量受比例尺影响并避免中点溢出；无需展开小数末尾的零即可推导科学计数法指数。\n\n验证：默认测试、BSON 竞态测试和 vet 均已通过；新增了进位/平局/极端比例尺回归测试，以及对精确二进制有理数进行的标准 fmt 比较。大比例尺科学计数法格式化：\\~827 KB → 80 B/op；规范化：\\~317 µs → 117 ns/op（Go 1.26.6，M5 Max）。\n\n堆栈：[#8](<https://github.com/exc-works/decimal/pull/8>)",
+          "usage": {
+            "prompt_tokens": 665,
+            "completion_tokens": 1220,
+            "total_tokens": 1885,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 938,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          },
+          "expectedSemantics": [
+            {
+              "kind": "inlineCode",
+              "value": "99.9"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "1e+03"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.00009999"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.0001"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/8"
+            }
+          ],
+          "actualSemantics": [
+            {
+              "kind": "inlineCode",
+              "value": "99.9"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "1e+03"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.00009999"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.0001"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/8"
+            }
+          ],
+          "protectionPassed": true,
+          "fullLinkTargetsAbsentFromModel": true,
+          "durationMs": 13783
+        }
+      ]
+    },
+    "deepseek": {
+      "model": "deepseek-flash",
+      "sourceFingerprint": "173acc91574aae4cbc735596bc2020ba787a94754d67b645ff5dedc2371dd9e9",
+      "corpusSha256": "d529189205d570765e04e48b695f555f96c2778cb89a8fcf92388ecb067d002a",
+      "rawReportSha256": "1f1f5f8806e95574902f3df0f8fb7034c72637ff9a0c815741cdf59076f7aa51",
+      "samples": [
+        {
+          "id": "decimal-pr-8",
+          "source": {
+            "kind": "dom-selection",
+            "format": "markdown",
+            "text": "Fix general-format notation selection after rounding: `%.3g` of `999.9` now yields `1e+03`, and `0.00009999` yields `0.0001`. Bound trailing-zero normalization by coefficient size to prevent scale-driven work and midpoint overflow; derive scientific exponents without expanding fractional zeros.\n\nValidation: default tests, BSON race tests and vet passed; added carry/tie/extreme-scale regressions and standard fmt comparisons on exact binary rationals. Large-scale scientific formatting: \\~827 KB → 80 B/op; normalization: \\~317 µs → 117 ns/op (Go 1.26.6, M5 Max).\n\nStack: [#8](<https://github.com/exc-works/decimal/pull/8>) → [#9](<https://github.com/exc-works/decimal/pull/9>) → [#10](<https://github.com/exc-works/decimal/pull/10>) → [#11](<https://github.com/exc-works/decimal/pull/11>). Merge in this order. [#12](<https://github.com/exc-works/decimal/pull/12>) (validator cache) was withdrawn; validation retains direct parsing.\n\nLayer 1/4; base: `main`. This is the first layer.  \nNext: [#9](<https://github.com/exc-works/decimal/pull/9>).",
+            "protectedRanges": [],
+            "marks": []
+          },
+          "translatedText": "修复舍入后的通用格式记法选择：`%.3g` 在 `999.9` 中现在得到 `1e+03`，而 `0.00009999` 得到 `0.0001`。按系数大小限制尾随零归一化，以防止尺度驱动的工作量和中点溢出；无需展开小数零即可推导科学计数法指数。\n\n验证：默认测试、BSON 竞态测试和 vet 均通过；新增了进位/平局/极端尺度回归测试，以及在精确二进制有理数上的标准 fmt 比较。大规模科学计数法格式化：\\~827 KB → 80 B/op；归一化：\\~317 µs → 117 ns/op（Go 1.26.6，M5 Max）。\n\n堆栈：[#8](<https://github.com/exc-works/decimal/pull/8>) → [#9](<https://github.com/exc-works/decimal/pull/9>) → [#10](<https://github.com/exc-works/decimal/pull/10>) → [#11](<https://github.com/exc-works/decimal/pull/11>)。按此顺序合并。[#12](<https://github.com/exc-works/decimal/pull/12>)（验证器缓存）已撤回；验证仍保留直接解析。\n\n第 1/4 层；基础：`main`。这是第一层。  \n下一步：[#9](<https://github.com/exc-works/decimal/pull/9>)。",
+          "usage": {
+            "prompt_tokens": 1133,
+            "completion_tokens": 5471,
+            "total_tokens": 6604,
+            "prompt_tokens_details": {
+              "cached_tokens": 256
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 5041
+            },
+            "prompt_cache_hit_tokens": 256,
+            "prompt_cache_miss_tokens": 877
+          },
+          "expectedSemantics": [
+            {
+              "kind": "inlineCode",
+              "value": "%.3g"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "999.9"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "1e+03"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.00009999"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.0001"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/8"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/9"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/10"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/11"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/12"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "main"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/9"
+            }
+          ],
+          "actualSemantics": [
+            {
+              "kind": "inlineCode",
+              "value": "%.3g"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "999.9"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "1e+03"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.00009999"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.0001"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/8"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/9"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/10"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/11"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/12"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "main"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/9"
+            }
+          ],
+          "protectionPassed": true,
+          "fullLinkTargetsAbsentFromModel": true,
+          "durationMs": 27507
+        },
+        {
+          "id": "decimal-partial-selection",
+          "source": {
+            "kind": "dom-selection",
+            "format": "markdown",
+            "text": "`99.9` now yields `1e+03`, and `0.00009999` yields `0.0001`. Bound trailing-zero normalization by coefficient size to prevent scale-driven work and midpoint overflow; derive scientific exponents without expanding fractional zeros.\n\nValidation: default tests, BSON race tests and vet passed; added carry/tie/extreme-scale regressions and standard fmt comparisons on exact binary rationals. Large-scale scientific formatting: \\~827 KB → 80 B/op; normalization: \\~317 µs → 117 ns/op (Go 1.26.6, M5 Max).\n\nStack: [#8](<https://github.com/exc-works/decimal/pull/8>)",
+            "protectedRanges": [],
+            "marks": []
+          },
+          "translatedText": "`99.9` 现在得到 `1e+03`，而 `0.00009999` 得到 `0.0001`。通过系数大小限制尾随零归一化，以防止由量级驱动的工作量和中点溢出；在不展开小数零的情况下推导科学计数法指数。\n\n验证：默认测试、BSON 竞态测试和 vet 均通过；新增了进位/平局/极端规模回归测试，以及在精确二进制有理数上的标准 fmt 比较。大规模科学计数法格式化：\\~827 KB → 80 B/op；归一化：\\~317 µs → 117 ns/op（Go 1.26.6，M5 Max）。\n\n技术栈：[#8](<https://github.com/exc-works/decimal/pull/8>)",
+          "usage": {
+            "prompt_tokens": 669,
+            "completion_tokens": 3162,
+            "total_tokens": 3831,
+            "prompt_tokens_details": {
+              "cached_tokens": 256
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 2935
+            },
+            "prompt_cache_hit_tokens": 256,
+            "prompt_cache_miss_tokens": 413
+          },
+          "expectedSemantics": [
+            {
+              "kind": "inlineCode",
+              "value": "99.9"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "1e+03"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.00009999"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.0001"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/8"
+            }
+          ],
+          "actualSemantics": [
+            {
+              "kind": "inlineCode",
+              "value": "99.9"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "1e+03"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.00009999"
+            },
+            {
+              "kind": "inlineCode",
+              "value": "0.0001"
+            },
+            {
+              "kind": "link",
+              "url": "https://github.com/exc-works/decimal/pull/8"
+            }
+          ],
+          "protectionPassed": true,
+          "fullLinkTargetsAbsentFromModel": true,
+          "durationMs": 17706
+        }
+      ]
+    }
+  }
+}

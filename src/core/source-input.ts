@@ -54,6 +54,7 @@ export const SourceInputSchema = z
     z
       .object({
         kind: z.literal('dom-selection'),
+        format: z.literal('markdown').optional(),
         text: Text,
         protectedRanges: z.array(ProtectedRange).max(MAX_SOURCE_SPANS),
         marks: z.array(Mark).max(MAX_SOURCE_SPANS),
@@ -62,6 +63,9 @@ export const SourceInputSchema = z
   ])
   .superRefine((source, ctx) => {
     if (source.kind !== 'dom-selection') return;
+    if (source.format === 'markdown' && (source.protectedRanges.length || source.marks.length)) {
+      ctx.addIssue({ code: 'custom', message: 'Formatted DOM source cannot carry flat intervals' });
+    }
     for (const span of [...source.protectedRanges, ...source.marks]) {
       if (
         span.start >= span.end ||

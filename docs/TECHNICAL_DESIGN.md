@@ -277,6 +277,7 @@ type SourceInput =
   | {
       kind: 'dom-selection';
       text: string;
+      format?: 'markdown'; // 由可验证选区生成；此时两个区间数组必须为空
       protectedRanges: Array<TextSpan & {
         kind: 'inline-code' | 'code-block' | 'url' | 'mention' | 'reference';
       }>;
@@ -413,9 +414,13 @@ Markdown 的自然语言链接标签和图片替代文字可翻译；完整引�
 
 遍历 Range 实际覆盖的文本节点，裁剪首尾边界，只提取用户选中范围；同时检查原节点的 code 祖先及其是否位于 pre 内，保证选区完全落在一个代码节点内部或只选中其中一部分时，仍能标出代码身份。Range.cloneContents 可辅助处理跨节点边界，但不能单独替代原节点祖先检查。裸 pre 只表示保留空白，不能据此把整段内容标成代码：例如 MySQL Bug Tracker 的 pre.note 评论仍作为正文翻译；明确 code 标记才建立代码保护区间，位于 pre 内时标为代码块。Selection.toString 只提供文本，不能作为语义来源。[Selection 文档](https://developer.mozilla.org/en-US/docs/Web/API/Selection/toString)、[Range 文档](https://developer.mozilla.org/en-US/docs/Web/API/Range/cloneContents)
 
-同一次提取同步生成规范文本、换行和 UTF-16 区间映射；不先独立规范化字符串再套用旧偏移。重叠的代码范围按较外层语义合并为不冲突保护区间，链接标签标记可以与代码标记并存，此时代码保护优先。只标记链接可见标签，不读取或上传 href、事件、整页 HTML 或选区外正文；只在本地读取 display、visibility、opacity 与 white-space 等计算样式判断可见性和空白语义，不收集或序列化样式值，原网页链接完全不改动。普通折叠空白延后到实际输出内容时写入，丢弃块边界的 HTML 缩进；pre／code 及保留空白样式中的空白保持原样，空白保留与是否翻译正文分别判断。所有语义偏移随实际输出同步生成，不对完成的文本另外 trim。
+同一次提取同步生成规范文本、换行和 UTF-16 区间映射；不先独立规范化字符串再套用旧偏移。重叠的代码范围按较外层语义合并为不冲突保护区间，链接标签标记可以与代码标记并存，此时代码保护优先。基础 DOM 提取仍只标记链接可见标签。阅读适配器为保留超链接，仅在本地读取用户所选链接的 href，解析为不含认证信息的 HTTP／HTTPS 绝对地址，并与文本、Range 一起冻结；地址变化使快照失效。地址和代码通过本地 Markdown 计划保护，不发给模型；不读取事件，不上传整页 HTML 或选区外正文；只在本地读取 display、visibility、opacity 与 white-space 等计算样式判断可见性和空白语义，不收集或序列化样式值，原网页链接完全不改动。普通折叠空白延后到实际输出内容时写入，丢弃块边界的 HTML 缩进；pre／code 及保留空白样式中的空白保持原样，空白保留与是否翻译正文分别判断。所有语义偏移随实际输出同步生成，不对完成的文本另外 trim。
 
 提取忽略脚本、样式、模板和敏感表单内容，不把克隆节点插入文档或触发资源加载。提取出的元数据属于不可信输入，后台与 Worker 仍校验边界；选区或文档已失效时要求重新选择。
+
+阅读路径在可见性过滤和范围裁剪后，将选区段落、显式代码、超链接转换为安全 Markdown；裸 pre 正文保留换行而继续可译。该输入仍标为 dom-selection，并显式携带 format=markdown，空的 protectedRanges／marks 表示结构由生成的 Markdown 描述，禁止混入相互矛盾的平面区间。Worker 按 Markdown AST 保护和重建，响应仍为文本，不增加输出协议或模型修复请求。原文显示和字符数使用冻结的原始可见文本。
+
+默认阅读结果是排版预览：段落、代码和安全链接由受限 React 节点渲染，HTML 显示为文本、图片只显示说明，不执行页面或模型 HTML，不加载远端资源。链接只允许 HTTP／HTTPS，使用 noopener／noreferrer 且要求可信点击。编辑按钮切换到自动增高的 Markdown 编辑框，复制保留代码和链接标记。长选区按需加宽到 480px，并在视口内翻转、限高和滚动，操作按钮位于滚动区域之外；短选区保持 340px。写作编辑框同样自动增高，无需拖动改变尺寸。
 
 ### 9.3 单次请求与返回格式
 

@@ -1,3 +1,5 @@
+import { safeWebLink } from '../core/safe-link';
+import type { ReadingLink } from './reading-markdown';
 import {
   MAX_SOURCE_CHARACTERS,
   MAX_SOURCE_SPANS,
@@ -96,7 +98,11 @@ class SourceBuilder {
   }
 }
 
-export function captureDomRange(range: Range, expectedDocument: Document = document): DomSource {
+export function captureDomRange(
+  range: Range,
+  expectedDocument: Document = document,
+  links?: Map<Element, ReadingLink>,
+): DomSource {
   if (range.collapsed) throw new SourceError('EMPTY_SOURCE');
   if (
     range.startContainer.getRootNode() !== expectedDocument ||
@@ -197,6 +203,15 @@ export function captureDomRange(range: Range, expectedDocument: Document = docum
       );
       if (span && node.parentElement?.closest('a')) {
         builder.marks.push({ kind: 'link-label', ...span });
+        if (links) {
+          const anchor = node.parentElement.closest('a')!;
+          const existing = links.get(anchor);
+          if (existing) existing.end = span.end;
+          else {
+            const href = safeWebLink(anchor.getAttribute('href') ?? '', expectedDocument.baseURI);
+            if (href) links.set(anchor, { ...span, href });
+          }
+        }
       }
       return;
     }
@@ -238,8 +253,9 @@ export function captureDomRange(range: Range, expectedDocument: Document = docum
 export function captureDomSelection(
   selection: Selection | null,
   expectedDocument: Document = document,
+  links?: Map<Element, ReadingLink>,
 ) {
   if (!selection || selection.rangeCount === 0) throw new SourceError('EMPTY_SOURCE');
   if (selection.rangeCount !== 1) throw new SourceError('UNSUPPORTED_SELECTION');
-  return captureDomRange(selection.getRangeAt(0), expectedDocument);
+  return captureDomRange(selection.getRangeAt(0), expectedDocument, links);
 }
