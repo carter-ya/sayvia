@@ -61,6 +61,7 @@ export function captureGithubMarkdownDiff(
   };
   let context = '';
   let contextLines = 0;
+  let contextStartLine = 0;
   let selectedStart: number | undefined;
   let selectedEnd: number | undefined;
   let previous = 0;
@@ -88,6 +89,7 @@ export function captureGithubMarkdownDiff(
     previous = line;
     const full = fullRange(inner);
     const raw = text(full);
+    if (!contextLines) contextStartLine = line;
     if (contextLines++) context += '\n';
     if (inner === start) {
       started = true;
@@ -105,6 +107,24 @@ export function captureGithubMarkdownDiff(
   }
   if (selectedStart === undefined || selectedEnd === undefined || selectedEnd <= selectedStart) {
     throw new SourceError('EMPTY_SOURCE');
+  }
+  const selectedText = context.slice(selectedStart, selectedEnd);
+  // A bare first fence in a partial hunk can be a closing fence whose opener
+  // was omitted by GitHub. Do not guess its direction and expose code as prose.
+  const firstFence = /^(?:[ \t]*>[ \t]?)* {0,3}(`{3,}|~{3,})([^\r\n]*)$/m.exec(context);
+  if (contextStartLine > 1 && firstFence && !firstFence[2]!.trim()) {
+    return {
+      plainText: selectedText,
+      source: readingMarkdown(
+        {
+          kind: 'dom-selection',
+          text: selectedText,
+          protectedRanges: [{ start: 0, end: selectedText.length, kind: 'inline-code' }],
+          marks: [],
+        },
+        [],
+      ),
+    };
   }
   let cursor = selectedStart;
   let output = '';

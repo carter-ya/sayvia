@@ -10,8 +10,8 @@ import {
 } from '../../src/core/translation-plan';
 import { planResponse } from '../fixtures/plan-response';
 
-function fixture(lines: string[], name = 'README.md') {
-  document.body.innerHTML = `<table role="grid" data-diff-anchor="diff-fixture" aria-label="Diff for: ${name}"><tbody>${lines.map((line, i) => `<tr><td data-diff-side="left" data-line-number="${i + 164}">LEFT_OUTSIDE</td><td data-diff-side="left" data-line-number="${i + 164}"><code class="diff-text"><div class="diff-text-inner">LEFT_OUTSIDE</div></code></td><td data-diff-side="right" data-line-number="${i + 164}">${i + 164}</td><td data-diff-side="right" data-line-number="${i + 164}"><code class="diff-text syntax-highlighted-line addition"><span class="diff-text-marker">+</span><div class="diff-text-inner" id="line-${i}">${line || '<br>'}</div></code><button>CONTROL_OUTSIDE</button></td></tr>`).join('')}</tbody></table>`;
+function fixture(lines: string[], name = 'README.md', firstLine = 164) {
+  document.body.innerHTML = `<table role="grid" data-diff-anchor="diff-fixture" aria-label="Diff for: ${name}"><tbody>${lines.map((line, i) => `<tr><td data-diff-side="left" data-line-number="${i + firstLine}">LEFT_OUTSIDE</td><td data-diff-side="left" data-line-number="${i + firstLine}"><code class="diff-text"><div class="diff-text-inner">LEFT_OUTSIDE</div></code></td><td data-diff-side="right" data-line-number="${i + firstLine}">${i + firstLine}</td><td data-diff-side="right" data-line-number="${i + firstLine}"><code class="diff-text syntax-highlighted-line addition"><span class="diff-text-marker">+</span><div class="diff-text-inner" id="line-${i}">${line || '<br>'}</div></code><button>CONTROL_OUTSIDE</button></td></tr>`).join('')}</tbody></table>`;
 }
 function capture(start = 0, end = start, from?: number, to?: number) {
   const range = document.createRange();
@@ -122,6 +122,21 @@ describe('GitHub Markdown source diff reading', () => {
     const raw = document.getElementById('line-0')!.textContent!;
     const begin = raw.indexOf('PRIVATE_TARGET');
     expect(needsTranslation(capture(0, 0, begin, begin + 7).plan)).toBe(false);
+  });
+  it.each(['```', '~~~', '> ```'])(
+    'retains code protection for an ambiguous first closing fence %s',
+    (fence) => {
+      fixture(['PRIVATE_CODE', fence, 'Read first.']);
+      const { plan } = capture(0);
+      expect(needsTranslation(plan)).toBe(false);
+      expect(JSON.stringify(translationPayload(plan))).not.toContain('PRIVATE_CODE');
+      expect(needsTranslation(capture(2).plan)).toBe(false);
+    },
+  );
+  it('parses a bare opening fence when the rendered context starts at file line one', () => {
+    fixture(['Read first.', '```', 'PRIVATE_CODE', '```'], 'README.md', 1);
+    expect(needsTranslation(capture(0).plan)).toBe(true);
+    expect(needsTranslation(capture(2).plan)).toBe(false);
   });
   it('does not translate a fenced code body when its opening fence is outside the selection', () => {
     fixture(['```text', 'PRIVATE_CODE_BODY', '```', 'Read first.']);
