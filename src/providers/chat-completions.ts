@@ -12,6 +12,7 @@ import { chatCompletionsEndpoint, EndpointError } from './endpoint';
 
 export const ALGORITHM_VERSION = 'segments-v2.3';
 export const MAX_RESPONSE_BYTES = 1024 * 1024;
+export const MAX_STREAM_BYTES = 16 * 1024 * 1024;
 export const EXECUTION_BUDGET_MS = 60_000;
 export type ProviderErrorCode =
   | 'CONFIG_REQUIRED'
@@ -241,7 +242,12 @@ export async function translate(
       response.headers.get('content-type')?.toLowerCase().includes('text/event-stream') ?? false;
     let content: string;
     if (streamed) {
-      const result = await readCompletionStream(response, MAX_RESPONSE_BYTES, emit);
+      const result = await readCompletionStream(
+        response,
+        MAX_STREAM_BYTES,
+        emit,
+        MAX_RESPONSE_BYTES,
+      );
       content = result.content;
       usage = result.usage ?? usage;
     } else {

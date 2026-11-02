@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readCompletionStream, tokenUsage } from '../../src/providers/completion-stream';
-import { translate } from '../../src/providers/chat-completions';
+import { MAX_STREAM_BYTES, translate } from '../../src/providers/chat-completions';
 import type { TranslationProgress } from '../../src/runtime/translation-progress';
 const event = (delta: unknown = {}, finish_reason: unknown = null, usage?: unknown) => ({
   object: 'chat.completion.chunk',
@@ -61,6 +61,28 @@ describe('bounded completion SSE', () => {
       totalTokens: 30,
       reasoningTokens: 10,
     });
+  });
+  it('accepts long translations split into small chunks while bounding decoded data', async () => {
+    const values = Array.from({ length: 10000 }, () => ({
+      id: 'chatcmpl-fixture',
+      created: 1,
+      model: 'test',
+      ...event({ content: '中' }),
+    }));
+    const result = await readCompletionStream(
+      response([...values, event({}, 'stop'), '[DONE]']),
+      MAX_STREAM_BYTES,
+      async () => {},
+    );
+    expect(result.content).toBe('中'.repeat(10000));
+    await expect(
+      readCompletionStream(
+        response([event({ content: '中'.repeat(1000) }), event({}, 'stop'), '[DONE]']),
+        MAX_STREAM_BYTES,
+        async () => {},
+        2000,
+      ),
+    ).rejects.toThrow();
   });
   it('reads DeepSeek usage on its finishing choice', async () => {
     const result = await readCompletionStream(
