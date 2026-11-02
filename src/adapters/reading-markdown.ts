@@ -1,3 +1,5 @@
+import { parseMarkdown } from '../core/markdown';
+import { safeWebLink } from '../core/safe-link';
 import { parseSourceInput, type DomSource } from '../core/source-input';
 
 export interface ReadingLink {
@@ -18,6 +20,36 @@ function literal(text: string, lineStart: boolean) {
       )
     : escaped;
 }
+function prose(text: string, lineStart: boolean, allowUrls: boolean) {
+  if (!allowUrls) return literal(text, lineStart);
+  let output = '';
+  let cursor = 0;
+  for (const match of text.matchAll(/https?:\/\/[^\s<>，。；！？、（）【】《》「」]+/gi)) {
+    const candidate = match[0];
+    const paragraph = parseMarkdown(candidate).children[0];
+    const first = paragraph?.type === 'paragraph' ? paragraph.children[0] : undefined;
+    // GFM already distinguishes terminal punctuation and balanced parentheses.
+    let length =
+      first?.type === 'link' && first.position?.start.offset === 0
+        ? (first.position.end.offset ?? candidate.length)
+        : candidate.length;
+    // A visible URL is literal DOM text, so entity-looking query values are not HTML.
+    for (;;) {
+      const entity = /^&(?:#[xX][\da-fA-F]+|#\d+|[a-zA-Z][\da-zA-Z]*);/.exec(
+        candidate.slice(length),
+      );
+      if (!entity) break;
+      length += entity[0].length;
+    }
+    const url = candidate.slice(0, length);
+    if (!safeWebLink(url)) continue;
+    output += literal(text.slice(cursor, match.index), lineStart && cursor === 0);
+    output += `<${url}>`;
+    cursor = match.index + length;
+  }
+  return output + literal(text.slice(cursor), lineStart && cursor === 0);
+}
+
 function code(text: string, block: boolean) {
   const fence = '`'.repeat(
     Math.max(block ? 3 : 1, ...[...text.matchAll(/`+/g)].map((match) => match[0].length + 1)),
@@ -50,7 +82,7 @@ export function readingMarkdown(source: DomSource, links: readonly ReadingLink[]
         output +=
           label === link.href && !protectedCode
             ? `<${link.href}>`
-            : `[${render(cursor, link.end, true)}](<${link.href.replace(/&/g, '&amp;').replace(/</g, '%3C').replace(/>/g, '%3E')}>)`;
+            : `[${render(cursor, link.end, true)}](<${link.href.replace(/\\/g, '\\\\').replace(/&/g, '&amp;').replace(/</g, '%3C').replace(/>/g, '%3E')}>)`;
         cursor = link.end;
         continue;
       }
@@ -74,28 +106,18 @@ export function readingMarkdown(source: DomSource, links: readonly ReadingLink[]
         cursor = next;
         continue;
       }
-      // Preserve visible bare addresses without escaping them into model prose.
-      const address =
-        !inLink &&
-        /^(?:https?:\/\/)[^\s<>，。；！？、（）【】《》「」]+/.exec(source.text.slice(cursor, end));
-      if (address) {
-        output += `<${address[0]}>`;
-        cursor += address[0].length;
-        continue;
-      }
       let next = cursor + 1;
       while (
         next < end &&
         source.text[next] !== '\n' &&
         !codeAt.has(next) &&
-        (inLink || !linkAt.has(next)) &&
-        !source.text.startsWith('https://', next) &&
-        !source.text.startsWith('http://', next)
+        (inLink || !linkAt.has(next))
       )
         next++;
-      output += literal(
+      output += prose(
         source.text.slice(cursor, next),
         cursor === 0 || source.text[cursor - 1] === '\n',
+        !inLink,
       );
       cursor = next;
     }

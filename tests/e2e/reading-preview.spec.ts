@@ -158,3 +158,31 @@ test('indented preformatted prose translates and keeps entity-like link destinat
     await f.close();
   }
 });
+
+test('bare URLs stop at semantic boundaries and keep sentence punctuation outside targets', async () => {
+  const f = await workflowFixture();
+  try {
+    await f.page.evaluate(() => {
+      const root = document.createElement('div');
+      root.id = 'url-boundaries';
+      root.innerHTML =
+        '<p>See https://punct.test/guide.</p><p>Read https://example.test/<code>path with spaces</code> first. See https://another.test/<a href="https://actual.test/target">guide</a>.</p>';
+      document.body.prepend(root);
+    });
+    const panel = await select(f.page, 'url-boundaries');
+    const preview = panel.getByRole('region', { name: '译文预览' });
+    await expect(preview).toContainText('阅读');
+    await expect(preview.locator('code')).toHaveText('path with spaces');
+    await expect(
+      preview.getByRole('link', { name: 'https://punct.test/guide', exact: true }),
+    ).toHaveAttribute('href', 'https://punct.test/guide');
+    await expect(preview.getByRole('link', { name: 'guide', exact: true })).toHaveAttribute(
+      'href',
+      'https://actual.test/target',
+    );
+    expect(f.requestBodies[0]).not.toMatch(/path with spaces|punct.test|actual.test/);
+    expect(f.count()).toBe(1);
+  } finally {
+    await f.close();
+  }
+});

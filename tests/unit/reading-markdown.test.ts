@@ -142,6 +142,39 @@ describe('formatted reading selections', () => {
     const { source } = capture('<p>Keep &amp;copy; as written.</p>');
     expect(JSON.stringify(parseMarkdown(source.text))).toContain('Keep &copy; as written.');
   });
+  it('does not let a bare URL consume an adjacent code interval', () => {
+    const { source } = capture('<p>Read https://example.test/<code>path with spaces</code>.</p>');
+    expect(source.text).toContain('`path with spaces`');
+    expect(JSON.stringify(translationPayload(createTranslationPlan(source)))).not.toMatch(
+      /path|with spaces/,
+    );
+  });
+  it('does not let a bare URL discard an adjacent anchor target', () => {
+    const { source } = capture(
+      '<p>Read https://example.test/<a href="https://actual.test/target">guide</a>.</p>',
+    );
+    expect(source.text).toContain('[guide](<https://actual.test/target>)');
+  });
+  it.each([
+    ['See https://example.test/guide.', 'https://example.test/guide'],
+    ['See (https://example.test/wiki/Foo_(bar)).', 'https://example.test/wiki/Foo_(bar)'],
+    ['See https://example.test/guide!', 'https://example.test/guide'],
+  ])('separates prose punctuation from a bare URL: %s', (text, expected) => {
+    const { source } = capture(`<p>${text}</p>`);
+    const paragraph = parseMarkdown(source.text).children[0]!;
+    const link =
+      'children' in paragraph ? paragraph.children.find((node) => node.type === 'link') : undefined;
+    expect(link && 'url' in link ? link.url : undefined).toBe(expected);
+  });
+  it('escapes literal backslashes in selected Markdown link destinations', () => {
+    const { source } = capture(
+      '<p>Read <a href="https://example.test/?pattern=\\*">guide</a>.</p>',
+    );
+    const paragraph = parseMarkdown(source.text).children[0]!;
+    const link =
+      'children' in paragraph ? paragraph.children.find((node) => node.type === 'link') : undefined;
+    expect(link && 'url' in link ? link.url : undefined).toBe('https://example.test/?pattern=\\*');
+  });
   it('rejects formatted input mixed with contradictory flat semantic intervals', () => {
     expect(() =>
       parseSourceInput({
