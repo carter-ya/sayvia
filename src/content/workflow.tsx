@@ -165,6 +165,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     const id = current?.clientTaskId;
     if (current) delete current.clientTaskId;
     state.busy = false;
+    state.progress = undefined;
+    state.metrics = undefined;
     state.canReplace = false;
     if (current) current.backendAllows = false;
     if (id) {
@@ -201,6 +203,9 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       draft.quickReplace = false;
       state.candidate = '';
       state.busy = true;
+      state.startedAt = Date.now();
+      state.progress = undefined;
+      state.metrics = undefined;
       state.canReplace = false;
       state.status = '正在翻译…';
       render();
@@ -256,6 +261,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       if (clientTaskId && (disposed || current !== draft || draft?.clientTaskId !== clientTaskId))
         return;
       state.busy = false;
+      state.progress = undefined;
       state.canReplace = false;
       state.status =
         error instanceof Error && error.message === 'SOURCE_CHANGED' && !state.candidate
@@ -445,8 +451,17 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     )
       return;
     const event = parsed.data;
+    if (event.type === 'translation.progress') {
+      if (state.busy && (!state.progress || event.progress.elapsedMs >= state.progress.elapsedMs)) {
+        state.progress = event.progress;
+        render();
+      }
+      return;
+    }
     state.busy = false;
+    state.progress = undefined;
     if (event.type === 'translation.result') {
+      state.metrics = event.result;
       current.baseline = event.result.text;
       current.backendAllows = event.canApply;
       state.candidate = event.result.text;

@@ -30,6 +30,7 @@ function fixture() {
     clientTaskId: identity.clientTaskId,
     documentNonce: identity.documentNonce,
     state: 'running' as const,
+    startedAt: Date.now(),
     canApply: false,
     provider: { id: identity.providerId, revision: 2, model: 'test-model' },
   };

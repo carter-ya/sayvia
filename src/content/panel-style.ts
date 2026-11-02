@@ -12,6 +12,8 @@ section > * { flex-shrink: 0; }
 .reading-preview ul, .reading-preview ol { padding-left: 22px; } .reading-preview li { margin: 4px 0; } .reading-preview li input { display: inline; width: auto; }
 .reading-preview blockquote { margin: 10px 0; padding-left: 10px; border-left: 3px solid var(--line); }
 .preview-table { overflow-x: auto; } .reading-preview table { border-collapse: collapse; } .reading-preview td { border: 1px solid var(--line); padding: 4px 7px; }
+.streaming-preview { white-space: pre-wrap; font-size: 14px; line-height: 1.75; overflow-wrap: anywhere; min-height: 60px; }
+.translation-metrics { font-size: 10px; color: var(--muted,#768178); margin: 0 0 8px; font-variant-numeric: tabular-nums; }
 .result-placeholder { color: var(--muted); min-height: 50px; }
 @media (max-height: 400px) { section { overflow: auto; } .result-region { min-height: 70px; } }
 section:focus { outline: none; } :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

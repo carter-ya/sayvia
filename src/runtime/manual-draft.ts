@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ResultMetricsSchema, type TranslationProgress } from './translation-progress';
 import { LanguageSchema } from './executor-protocol';
 // A draft may be temporarily blank; every nonblank value follows the start protocol.
 const DraftLanguage = z
@@ -12,6 +13,7 @@ export const ManualRecord = z
     documentNonce: z.uuid(),
     input: z.string().max(24_000),
     result: z.string().max(48_000).optional(),
+    metrics: ResultMetricsSchema.optional(),
     targetLanguage: DraftLanguage.optional(),
     sourceLanguage: DraftLanguage.optional(),
     providerId: z.uuid().optional(),
@@ -53,12 +55,19 @@ export type ManualDraftView = Pick<
   | 'documentNonce'
   | 'input'
   | 'result'
+  | 'metrics'
   | 'targetLanguage'
   | 'sourceLanguage'
   | 'providerId'
   | 'revision'
 > & {
-  task?: { state: string; error?: string; provider?: { model: string } };
+  task?: {
+    state: string;
+    startedAt?: number;
+    progress?: TranslationProgress;
+    error?: string;
+    provider?: { model: string };
+  };
 };
 
 export const PopupContext = z

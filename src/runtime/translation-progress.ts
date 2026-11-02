@@ -31,4 +31,9 @@ export const TranslationResultSchema = z
     estimates: EstimatesSchema.optional(),
   })
   .strict();
+export const ResultMetricsSchema = TranslationResultSchema.omit({
+  text: true,
+  algorithmVersion: true,
+});
+export type ResultMetrics = z.infer<typeof ResultMetricsSchema>;
 export type TranslationResult = z.infer<typeof TranslationResultSchema>;

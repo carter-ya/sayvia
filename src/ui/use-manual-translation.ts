@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { SnapshotSchema, type ConfigSnapshot } from '../storage/schema';
 import type { ManualDraftView } from '../runtime/manual-draft';
+import type { TranslationProgress, ResultMetrics } from '../runtime/translation-progress';
 import { userError } from '../runtime/user-errors';
 
 type Fields = {
@@ -51,6 +52,9 @@ export function useManualTranslation() {
   const [config, setConfig] = useState<ConfigSnapshot>();
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<TranslationProgress>();
+  const [metrics, setMetrics] = useState<ResultMetrics>();
+  const [startedAt, setStartedAt] = useState<number>();
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
   const [hostname, setHostname] = useState('当前标签页');
@@ -72,6 +76,9 @@ export function useManualTranslation() {
     const active = ['running', 'ready'].includes(next?.task?.state ?? '');
     running.current = active;
     setBusy(active);
+    setProgress(active ? next?.task?.progress : undefined);
+    setMetrics(next?.metrics);
+    setStartedAt(next?.task?.startedAt);
     if (next && context.current) {
       context.current.revision = next.revision ?? 0;
       if (resetLease) {
@@ -170,6 +177,9 @@ export function useManualTranslation() {
       startingTask.current = null;
       dispatching.current = false;
       setModel('');
+      setProgress(undefined);
+      setMetrics(undefined);
+      setStartedAt(undefined);
       running.current = false;
       setBusy(false);
       void load();
@@ -225,6 +235,8 @@ export function useManualTranslation() {
       next.result = '';
     values.current = next;
     setFields(next);
+    setProgress(undefined);
+    setMetrics(undefined);
     if (patch.result === undefined) setModel('');
     setStatus('草稿仅保存在本次浏览器会话，可继续翻译或复制。');
     if ([...next.input].length > 12_000) {
@@ -281,6 +293,9 @@ export function useManualTranslation() {
     running.current = true;
     dispatching.current = true;
     setBusy(true);
+    setStartedAt(Date.now());
+    setProgress(undefined);
+    setMetrics(undefined);
     setStatus('正在翻译…');
     const currentEpoch = epoch.current;
     let accepted = false;
@@ -359,6 +374,9 @@ export function useManualTranslation() {
     ready,
     busy,
     saving,
+    progress,
+    metrics,
+    startedAt,
     status,
     hostname,
     model,
