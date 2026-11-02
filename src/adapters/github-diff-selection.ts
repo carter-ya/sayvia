@@ -126,8 +126,7 @@ export function captureGithubMarkdownDiff(
       ),
     };
   }
-  let cursor = selectedStart;
-  let output = '';
+  const edits: { start: number; end: number; text: string }[] = [];
   const markdown = markdownTextIntervals(context);
   const protectedContext: { start: number; end: number }[] = [];
   let eligibleEnd = 0;
@@ -175,7 +174,6 @@ export function captureGithubMarkdownDiff(
     // A clipped closing delimiter can otherwise look like a new opener and
     // swallow genuine prose below it, even when standalone parsing has no text.
     if (!context.slice(from, to).trim()) continue;
-    output += context.slice(cursor, from);
     const piece = context.slice(from, to);
     // A selection may start inside code, HTML or a Markdown link destination.
     // Re-establish its code identity without copying any unselected characters.
@@ -188,8 +186,63 @@ export function captureGithubMarkdownDiff(
       },
       [],
     ).text;
-    output += /[\r\n]/.test(piece) ? `\n\n${protectedPiece}\n\n` : protectedPiece;
-    cursor = to;
+    edits.push({
+      start: from,
+      end: to,
+      text: /[\r\n]/.test(piece) ? `\n\n${protectedPiece}\n\n` : protectedPiece,
+    });
+  }
+  // Leading list-continuation indentation is prose in the full context, but
+  // can create an indented code block when its list marker is outside the Range.
+  for (const match of selectedText.matchAll(/^[ \t]+/gm)) {
+    const start = selectedStart + match.index;
+    const end = start + match[0].length;
+    const lineEnd = context.indexOf('\n', end);
+    const limit = Math.min(selectedEnd, lineEnd < 0 ? context.length : lineEnd);
+    const lostProse = markdown.eligible.some((eligible) => {
+      let cursor = Math.max(end, eligible.start);
+      const stop = Math.min(limit, eligible.end);
+      if (cursor >= stop) return false;
+      for (const protectedSpan of merged) {
+        if (protectedSpan.end <= cursor) continue;
+        if (protectedSpan.start >= stop) break;
+        if (
+          protectedSpan.start > cursor &&
+          context.slice(cursor, Math.min(stop, protectedSpan.start)).trim() &&
+          !selectedParts.some(
+            (part) =>
+              part.kind === 'text' &&
+              part.start + selectedStart < Math.min(stop, protectedSpan.start) &&
+              part.end + selectedStart > cursor,
+          )
+        )
+          return true;
+        cursor = Math.min(stop, Math.max(cursor, protectedSpan.end));
+      }
+      return (
+        cursor < stop &&
+        Boolean(context.slice(cursor, stop).trim()) &&
+        !selectedParts.some(
+          (part) =>
+            part.kind === 'text' &&
+            part.start + selectedStart < stop &&
+            part.end + selectedStart > cursor,
+        )
+      );
+    });
+    if (lostProse && !edits.some((edit) => edit.start < end && edit.end > start)) {
+      edits.push({
+        start,
+        end,
+        text: [...match[0]].map((c) => (c === '\t' ? '&#9;' : '&#32;')).join(''),
+      });
+    }
+  }
+  let cursor = selectedStart;
+  let output = '';
+  for (const edit of edits.sort((a, b) => a.start - b.start)) {
+    output += context.slice(cursor, edit.start) + edit.text;
+    cursor = edit.end;
   }
   output += context.slice(cursor, selectedEnd);
   return {

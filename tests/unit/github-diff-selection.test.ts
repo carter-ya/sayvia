@@ -153,6 +153,26 @@ describe('GitHub Markdown source diff reading', () => {
     expect(JSON.stringify(translationPayload(plan))).toContain('first.');
     expect(JSON.stringify(translationPayload(plan))).not.toContain('PRIVATE_CODE');
   });
+  it.each(['    ', '\t'])(
+    'translates list-continuation prose selected with indentation %j',
+    (indentation) => {
+      fixture(['- First.', '', `${indentation}Read first.`]);
+      const { plan } = capture(2);
+      expect(needsTranslation(plan)).toBe(true);
+      expect(JSON.stringify(translationPayload(plan))).toContain('Read first.');
+    },
+  );
+  it('retains code and links when selected list indentation is normalized', () => {
+    fixture(['- First.', '', '    Read `PRIVATE_CODE` and [guide](PRIVATE_TARGET).']);
+    const { source, plan } = capture(2);
+    expect(needsTranslation(plan)).toBe(true);
+    expect(source.text).toContain('[guide](PRIVATE_TARGET)');
+    expect(JSON.stringify(translationPayload(plan))).not.toMatch(/PRIVATE_CODE|PRIVATE_TARGET/);
+  });
+  it('retains actual indented-code semantics outside a list', () => {
+    fixture(['Context.', '', '    PRIVATE_CODE']);
+    expect(needsTranslation(capture(2).plan)).toBe(false);
+  });
   it('does not translate a fenced code body when its opening fence is outside the selection', () => {
     fixture(['```text', 'PRIVATE_CODE_BODY', '```', 'Read first.']);
     const { source, plan } = capture(1, 3);
