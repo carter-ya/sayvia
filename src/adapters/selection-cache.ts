@@ -15,7 +15,11 @@ export class ReadingSelectionCache {
   private rangeSource(range: Range, document: Document) {
     const links = this.formatted ? new Map<Element, ReadingLink>() : undefined;
     const source = captureDomRange(range, document, links);
-    return links ? readingMarkdown(source, [...links.values()]) : source;
+    const formatted = links ? readingMarkdown(source, [...links.values()]) : source;
+    return {
+      source: formatted,
+      signature: JSON.stringify({ source: formatted, links: links ? [...links.values()] : [] }),
+    };
   }
   private captured: CapturedSelection | undefined;
   private error: SourceErrorCode | undefined;
@@ -24,11 +28,13 @@ export class ReadingSelectionCache {
     this.clear();
     let source: DomSource;
     let plainText: string;
+    let signature: string;
     try {
       const links = this.formatted ? new Map<Element, ReadingLink>() : undefined;
       const flat = captureDomSelection(selection, document, links);
       source = links ? readingMarkdown(flat, [...links.values()]) : flat;
       plainText = flat.text;
+      signature = JSON.stringify({ source, links: links ? [...links.values()] : [] });
     } catch (error) {
       this.error = error instanceof SourceError ? error.code : 'SELECTION_LOST';
       throw new SourceError(this.error);
@@ -38,7 +44,7 @@ export class ReadingSelectionCache {
       range,
       source,
       plainText,
-      signature: JSON.stringify(source),
+      signature,
       url: document.URL,
     };
     return structuredClone(source);
@@ -52,7 +58,7 @@ export class ReadingSelectionCache {
       throw new SourceError('SELECTION_LOST');
     }
     try {
-      if (JSON.stringify(this.rangeSource(captured.range, document)) !== captured.signature) {
+      if (this.rangeSource(captured.range, document).signature !== captured.signature) {
         throw new SourceError('SELECTION_LOST');
       }
       return structuredClone(captured.source);

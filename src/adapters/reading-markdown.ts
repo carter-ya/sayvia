@@ -51,6 +51,7 @@ function prose(text: string, lineStart: boolean, allowUrls: boolean) {
 }
 
 function code(text: string, block: boolean) {
+  block ||= /[\r\n]/.test(text);
   const fence = '`'.repeat(
     Math.max(block ? 3 : 1, ...[...text.matchAll(/`+/g)].map((match) => match[0].length + 1)),
   );
@@ -69,7 +70,32 @@ export function readingMarkdown(source: DomSource, links: readonly ReadingLink[]
     (span) => span.kind === 'inline-code' || span.kind === 'code-block',
   );
   const codeAt = new Map(codes.map((span) => [span.start, span]));
-  const linkAt = new Map(links.map((span) => [span.start, span]));
+  // Markdown links cannot contain block code or cross paragraph boundaries.
+  // Keep code opaque and preserve the target on the remaining inline pieces.
+  const inlineLinks: ReadingLink[] = [];
+  const addLines = (start: number, end: number, href: string) => {
+    while (start < end) {
+      const newline = source.text.indexOf('\n', start);
+      const stop = newline < 0 ? end : Math.min(newline, end);
+      if (source.text.slice(start, stop).trim()) inlineLinks.push({ start, end: stop, href });
+      start = stop + 1;
+    }
+  };
+  for (const link of links) {
+    let cursor = link.start;
+    for (const span of codes) {
+      if (
+        span.end <= cursor ||
+        span.start >= link.end ||
+        (span.kind !== 'code-block' && !/[\r\n]/.test(source.text.slice(span.start, span.end)))
+      )
+        continue;
+      addLines(cursor, Math.min(span.start, link.end), link.href);
+      cursor = Math.max(cursor, span.end);
+    }
+    addLines(cursor, link.end, link.href);
+  }
+  const linkAt = new Map(inlineLinks.map((span) => [span.start, span]));
   const render = (start: number, end: number, inLink = false): string => {
     let output = '';
     let cursor = start;
@@ -116,7 +142,7 @@ export function readingMarkdown(source: DomSource, links: readonly ReadingLink[]
         next++;
       output += prose(
         source.text.slice(cursor, next),
-        cursor === 0 || source.text[cursor - 1] === '\n',
+        output === '' ? cursor === 0 || source.text[cursor - 1] === '\n' : output.endsWith('\n'),
         !inLink,
       );
       cursor = next;

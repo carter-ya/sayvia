@@ -175,6 +175,24 @@ describe('formatted reading selections', () => {
       'children' in paragraph ? paragraph.children.find((node) => node.type === 'link') : undefined;
     expect(link && 'url' in link ? link.url : undefined).toBe('https://example.test/?pattern=\\*');
   });
+  it.each([
+    '<p>Read <code>CODE_FIRST\n\nCODE_SECOND</code> first.</p>',
+    '<p>Read <a href="https://example.test/code"><code>CODE_FIRST\n\nCODE_SECOND</code></a> first.</p>',
+  ])('keeps multiline code out of model payloads without a pre ancestor: %s', (html) => {
+    const { source } = capture(html);
+    expect(JSON.stringify(translationPayload(createTranslationPlan(source)))).not.toMatch(
+      /CODE_FIRST|CODE_SECOND/,
+    );
+    expect(JSON.stringify(parseMarkdown(source.text))).toContain('"type":"code"');
+  });
+  it('preserves link targets on each visible line of a multi-paragraph anchor', () => {
+    const { source } = capture(
+      '<a href="https://example.test/guide"><p>Read guide</p><p>Next step</p></a>',
+    );
+    const tree = parseMarkdown(source.text);
+    expect(JSON.stringify(tree).match(/"type":"link"/g)).toHaveLength(2);
+    expect(JSON.stringify(tree).match(/https:\/\/example.test\/guide/g)).toHaveLength(2);
+  });
   it('rejects formatted input mixed with contradictory flat semantic intervals', () => {
     expect(() =>
       parseSourceInput({
