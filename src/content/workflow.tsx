@@ -81,7 +81,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     if (!disposed) {
       host.style.setProperty(
         '--panel-width',
-        state.mode === 'read' && state.source.length > 280 ? '480px' : '340px',
+        state.mode === 'read' && state.source.length > 280 ? '520px' : '340px',
       );
       root.render(<TranslationPanel state={{ ...state }} actions={actions} />);
     }
@@ -452,8 +452,9 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       state.candidate = event.result.text;
       state.model = event.provider.model;
       refreshEligibility();
-      state.status =
-        state.mode === 'write' && !state.canReplace
+      state.status = !event.result.requested
+        ? '所选内容按代码或格式保护，未调用模型。'
+        : state.mode === 'write' && !state.canReplace
           ? '原稿已变化或翻译已恢复，仅可复制译文。'
           : '译文已就绪，请预览后操作。';
     } else {

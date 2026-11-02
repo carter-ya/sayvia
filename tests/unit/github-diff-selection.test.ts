@@ -173,6 +173,65 @@ describe('GitHub Markdown source diff reading', () => {
     fixture(['Context.', '', '    PRIVATE_CODE']);
     expect(needsTranslation(capture(2).plan)).toBe(false);
   });
+  it('recognizes visible Markdown prose following the closing fence in public PR #15', () => {
+    fixture(
+      [
+        '```',
+        '',
+        '<span class="pl-s">`</span><span class="pl-c1">NullDecimal</span><span class="pl-s">`</span> implements <span class="pl-s">`</span><span class="pl-c1">sql.Scanner</span><span class="pl-s">`</span>.',
+        'Read [decoding table](docs/numeric-contract.md).',
+      ],
+      'README.md',
+      450,
+    );
+    const { source, plan } = capture(2, 3);
+    expect(needsTranslation(plan)).toBe(true);
+    expect(source.text).toBe(
+      '`NullDecimal` implements `sql.Scanner`.\nRead [decoding table](docs/numeric-contract.md).',
+    );
+    expect(JSON.stringify(translationPayload(plan))).not.toMatch(
+      /NullDecimal|sql.Scanner|numeric-contract/,
+    );
+    expect(
+      reconstructTranslation(
+        plan,
+        planResponse(plan, (text) => text.replace('implements', '实现')),
+      ),
+    ).toContain('实现');
+  });
+  it('keeps the unknown prefix before a confirmed closing fence opaque', () => {
+    fixture([
+      'PRIVATE_CODE',
+      '```',
+      '<span class="pl-s">`</span><span class="pl-c1">x</span><span class="pl-s">`</span> implements this.',
+    ]);
+    const { plan } = capture(0, 2);
+    expect(needsTranslation(plan)).toBe(true);
+    expect(JSON.stringify(translationPayload(plan))).not.toMatch(/PRIVATE_CODE/);
+  });
+  it('does not use hidden, raw-code or later-hunk tokens to disambiguate a fence', () => {
+    const hint =
+      '<span class="pl-s">`</span><span class="pl-c1">x</span><span class="pl-s">`</span>';
+    for (const text of [
+      `PRIVATE_CODE<span hidden>${hint}</span>`,
+      `<span class="pl-c1">${hint}</span>`,
+      `PRIVATE_CODE`,
+    ]) {
+      fixture(['```', text]);
+      expect(needsTranslation(capture(1).plan)).toBe(false);
+    }
+    fixture(['```', 'PRIVATE_CODE', '```', hint]);
+    expect(needsTranslation(capture(1).plan)).toBe(false);
+  });
+  it('invalidates a capture when the visible Markdown context evidence changes', () => {
+    fixture([
+      '```',
+      '<span class="pl-s">`</span><span class="pl-c1">x</span><span class="pl-s">`</span> implements this.',
+    ]);
+    const { cache } = capture(1);
+    document.querySelector('#line-1 .pl-s')!.className = 'plain';
+    expect(() => cache.read(document)).toThrow('SELECTION_LOST');
+  });
   it('does not translate a fenced code body when its opening fence is outside the selection', () => {
     fixture(['```text', 'PRIVATE_CODE_BODY', '```', 'Read first.']);
     const { source, plan } = capture(1, 3);

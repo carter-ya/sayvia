@@ -4,7 +4,7 @@ export const panelStyle = `
 section { --surface: light-dark(#fff,#1d2822); --field: light-dark(#f5f7f4,#26362c); --ink: light-dark(#273b32,#e6eee8); --muted: light-dark(#768178,#9faea4); --line: light-dark(#e1e7df,#3b4b41); --accent: light-dark(#286947,#a4d5b9); font: 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 32px #142b2526; padding: 12px; max-height: min(680px, var(--panel-max-height, calc(100dvh - var(--panel-top, 12px) - 8px))); overflow: auto; display: flex; flex-direction: column; }
 section > * { flex-shrink: 0; }
 .result-region { min-height: 0; overflow: auto; overscroll-behavior: contain; flex: 1 1 auto; margin: 12px 0; scrollbar-gutter: stable; }
-.reading-preview { white-space: pre-wrap; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; user-select: text; }
+.reading-preview { white-space: normal; font-size: 14px; line-height: 1.75; overflow-wrap: anywhere; user-select: text; }
 .reading-preview p { margin: 0 0 12px; } .reading-preview > :last-child { margin-bottom: 0; }
 .reading-preview code { font: .9em/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 2px 4px; background: var(--field); border-radius: 4px; white-space: pre-wrap; }
 .reading-preview pre { margin: 10px 0; padding: 10px; background: var(--field); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; } .reading-preview pre code { padding: 0; background: transparent; }
@@ -25,7 +25,8 @@ header button { background: transparent; border: 0; color: var(--muted); font-si
 label { display: block; margin: 8px 0; font-size: 11px; color: var(--muted); }
 input, select, textarea { display: block; font-family: inherit; font-size: 13px; font-weight: 400; line-height: 1.5; color: var(--ink); background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; width: 100%; margin-top: 3px; }
 .language-pair select { margin: 0; font-size: 12px; height: 30px; padding: 4px 6px; }
-textarea { resize: none; min-height: 60px; max-height: 360px; } .result-label { margin: 6px 0 10px; min-height: 0; overflow: auto; flex: 1 1 auto; } textarea[aria-label='译文'] { min-height: 76px; border: 0; background: transparent; font-size: 14px; line-height: 1.6; padding: 2px; }
+textarea { resize: none; min-height: 60px; max-height: 360px; } .result-label { margin: 6px 0 10px; min-height: 0; overflow: auto; flex: 1 1 auto; } textarea[aria-label='译文'] { min-height: 112px; border: 1px solid light-dark(#b7c8bc,#667d6d); background: var(--field); font-size: 14px; line-height: 1.75; padding: 10px 12px; box-shadow: inset 0 1px 2px #142b2508; }
+textarea[aria-label='译文']:focus { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: 1px; }
 button { font: inherit; cursor: pointer; color: var(--accent); background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; font-size: 12px; }
 button:hover:not(:disabled) { filter: brightness(.96); } button:disabled { opacity: .4; cursor: default; } button[aria-pressed='true'] { border-color: var(--accent); }
 .primary-action { color: #fff; background: #286947; border-color: #286947; } .actions { margin-top: 6px; } .main-actions { margin-top: 0; }
