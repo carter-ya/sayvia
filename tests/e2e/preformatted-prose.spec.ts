@@ -30,7 +30,7 @@ test('a MySQL pre.note selection calls the model and displays a translation inst
     await page.keyboard.press('Shift');
     await page.getByRole('button', { name: '使用 Sayvia 翻译选中文字' }).click();
     const panel = page.getByRole('dialog', { name: 'Sayvia 翻译' });
-    await expect(panel.getByLabel('目标语言', { exact: true })).toHaveValue('zh-Hans');
+    await expect(panel.getByLabel('目标语言', { exact: true })).toHaveValue('简体中文');
     await expect(panel.getByRole('region', { name: '译文预览' })).toHaveText(
       translated.replace(/ \n/g, '\n'),
       { useInnerText: true },

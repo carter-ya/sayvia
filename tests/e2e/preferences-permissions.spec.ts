@@ -1,3 +1,4 @@
+import { chooseLanguage } from '../fixtures/choose-language';
 import { expect, test } from '@playwright/test';
 import type { browser } from 'wxt/browser';
 import { StateSchema } from '../../src/storage/schema';
@@ -9,8 +10,8 @@ test('language and theme preferences persist while unsaved changes are discarded
   const f = await workflowFixture();
   try {
     await f.settings.getByRole('button', { name: '更多设置', exact: true }).click();
-    await f.settings.getByLabel('阅读目标语言', { exact: true }).selectOption('ja');
-    await f.settings.getByLabel('写作目标语言', { exact: true }).selectOption('fr');
+    await chooseLanguage(f.settings.getByLabel('阅读目标语言', { exact: true }), 'ja');
+    await chooseLanguage(f.settings.getByLabel('写作目标语言', { exact: true }), 'fr');
     await f.settings.getByLabel('界面主题').selectOption('dark');
     expect(await f.settings.evaluate(() => document.documentElement.style.colorScheme)).toBe(
       'dark',
@@ -19,14 +20,14 @@ test('language and theme preferences persist while unsaved changes are discarded
     await expect(f.settings.getByRole('status')).toHaveText('已保存偏好。');
     await f.settings.reload();
     await f.settings.getByRole('button', { name: '更多设置', exact: true }).click();
-    await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toHaveValue('ja');
-    await expect(f.settings.getByLabel('写作目标语言', { exact: true })).toHaveValue('fr');
+    await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toHaveValue('日本語');
+    await expect(f.settings.getByLabel('写作目标语言', { exact: true })).toHaveValue('français');
     await expect(f.settings.getByLabel('界面主题')).toHaveValue('dark');
-    await f.settings.getByLabel('阅读目标语言', { exact: true }).selectOption('en');
+    await chooseLanguage(f.settings.getByLabel('阅读目标语言', { exact: true }), 'en');
     await f.settings.getByLabel('界面主题').selectOption('light');
     f.settings.once('dialog', (dialog) => void dialog.accept());
     await f.settings.getByRole('button', { name: '重新载入' }).click();
-    await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toHaveValue('ja');
+    await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toHaveValue('日本語');
     await expect(f.settings.getByLabel('界面主题')).toHaveValue('dark');
     expect(await f.settings.evaluate(() => document.documentElement.style.colorScheme)).toBe(
       'dark',
