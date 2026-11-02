@@ -24,10 +24,13 @@ export async function readCompletionStream(
   response: Response,
   maximum: number,
   progress: (content: string, reasoningCharacters: number, usage?: TokenUsage) => Promise<void>,
+  maximumDecoded = 1024 * 1024,
 ) {
   if (!response.body) throw new StreamError();
   const reader = response.body.getReader(),
     decoder = new TextDecoder('utf-8', { fatal: true });
+  let decodedSize = 0;
+  const encoder = new TextEncoder();
   let size = 0,
     buffer = '',
     data: string[] = [],
@@ -106,6 +109,12 @@ export async function readCompletionStream(
         throw new StreamError();
       const text = typeof delta.content === 'string' ? delta.content : '';
       if (finished && (text || delta.reasoning_content)) throw new StreamError();
+      decodedSize +=
+        encoder.encode(text).byteLength +
+        (typeof delta.reasoning_content === 'string'
+          ? encoder.encode(delta.reasoning_content).byteLength
+          : 0);
+      if (decodedSize > maximumDecoded) throw new StreamError();
       content += text;
       reasoningCharacters +=
         typeof delta.reasoning_content === 'string' ? [...delta.reasoning_content].length : 0;
