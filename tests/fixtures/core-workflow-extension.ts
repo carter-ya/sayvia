@@ -79,7 +79,15 @@ export async function workflowFixture() {
                     text: segment.text
                       .replace(/中文|你好/g, 'English')
                       .replace('Read ', '阅读 ')
-                      .replace(' first.', ' 优先。'),
+                      .replace(' first.', ' 优先。')
+                      .replace(
+                        'Probably I can use information_schema to find all columns than concat everything to single string for',
+                        '也许我可以使用 information_schema 查找所有列，然后把所有内容拼接成一个字符串，传给',
+                      )
+                      .replace(
+                        'JSON_OBJECT, and use prepare/execute inside trigger to get compiled result...',
+                        'JSON_OBJECT，再在触发器内使用 prepare/execute 来获得编译后的结果……',
+                      ),
                   })),
                 });
                 response.writeHead(200, { 'Content-Type': 'application/json' });

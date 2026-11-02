@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { captureDomRange, captureDomSelection } from '../../src/adapters/dom-selection';
 import { ReadingSelectionCache } from '../../src/adapters/selection-cache';
+import { createTranslationPlan, needsTranslation } from '../../src/core/translation-plan';
 
 function fixture(html: string) {
   const root = document.createElement('div');
@@ -78,6 +79,39 @@ describe('DOM selection semantics', () => {
     const code = source.protectedRanges[0]!;
     expect(code.kind).toBe('code-block');
     expect(source.text.slice(code.start, code.end)).toBe('const a = 1;\n  run(a);');
+  });
+
+  it('translates preformatted MySQL comment prose instead of treating the entire note as code', () => {
+    const text =
+      'Probably I can use information_schema to find all columns than concat everything to single string for \nJSON_OBJECT, and use prepare/execute inside trigger to get compiled result...';
+    const root = fixture('<div class="comment"><pre class="note"></pre></div>');
+    const pre = root.querySelector('pre')!;
+    pre.textContent = text;
+    const range = contents(pre.firstChild!);
+    const source = captureDomRange(range);
+    expect(source.text).toBe(text);
+    expect(source.protectedRanges).toEqual([]);
+    expect(needsTranslation(createTranslationPlan(source))).toBe(true);
+  });
+
+  it('keeps preformatted prose spacing while protecting only explicitly marked code', () => {
+    const root = fixture('<pre>Read  <code>timeout</code> first.\n  Next line.</pre>');
+    const source = captureDomRange(contents(root));
+    expect(source.text).toBe('Read  timeout first.\n  Next line.');
+    expect(source.protectedRanges).toEqual([{ kind: 'code-block', start: 6, end: 13 }]);
+    expect(needsTranslation(createTranslationPlan(source))).toBe(true);
+  });
+
+  it('still skips the model for a partial selection inside an explicit code block', () => {
+    const root = fixture('<pre><code>const limit = 1;\n  run(limit);</code></pre>');
+    const range = document.createRange();
+    const text = root.querySelector('code')!.firstChild!;
+    range.setStart(text, 6);
+    range.setEnd(text, 11);
+    const source = captureDomRange(range);
+    expect(source.text).toBe('limit');
+    expect(source.protectedRanges).toEqual([{ kind: 'code-block', start: 0, end: 5 }]);
+    expect(needsTranslation(createTranslationPlan(source))).toBe(false);
   });
 
   it('captures cross-link label fragments without reading the hidden destination', () => {
