@@ -168,11 +168,12 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       const source = selection.read(document);
       current = { source, baseline: '', eligible: false, backendAllows: false, applied: false };
     } else if (lastPreview && previewEditor(lastPreview)) {
-      if (state.scope === 'full' || !previewRange) {
-        previewRange = document.createRange();
-        previewRange.selectNodeContents(lastPreview);
+      let range = previewRange;
+      if (state.scope === 'full' || !range) {
+        range = document.createRange();
+        range.selectNodeContents(lastPreview);
       }
-      const source = selection.captureRange(previewRange, document);
+      const source = selection.captureRange(range, document);
       current = { source, baseline: '', eligible: false, backendAllows: false, applied: false };
     } else {
       if (!lastEditor) throw new Error('UNSUPPORTED');

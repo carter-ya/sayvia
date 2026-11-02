@@ -124,6 +124,43 @@ test('a rich editor selection uses writing language defaults and translates only
     await f.close();
   }
 });
+test('rich editor scope can return to the original selection after translating the full draft', async () => {
+  const f = await fixture(
+    undefined,
+    '<div id=rich contenteditable=true role=textbox><span>你好</span><p>UNSELECTED_DRAFT</p></div>',
+  );
+  try {
+    const rich = f.page.locator('#rich');
+    await rich.click();
+    await f.page.evaluate(() => {
+      const text = document.querySelector('#rich span')!.firstChild!;
+      const r = document.createRange();
+      r.setStart(text, 0);
+      r.setEnd(text, 2);
+      const s = window.getSelection()!;
+      s.removeAllRanges();
+      s.addRange(r);
+    });
+    await rich.press('Shift');
+    await f.page.getByRole('button', { name: '使用 Sayvia 翻译选中文字' }).click();
+    const panel = f.page.getByRole('dialog', panelName);
+    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('English');
+    await panel.getByText('更多选项', { exact: true }).click();
+    await panel.getByRole('button', { name: '全文', exact: true }).click();
+    await expect(panel.getByLabel('原文', { exact: true })).toHaveValue(/UNSELECTED_DRAFT/);
+    await panel.getByRole('button', { name: '翻译', exact: true }).click();
+    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue(/UNSELECTED_DRAFT/);
+    expect(f.requestBodies[1]).toContain('UNSELECTED_DRAFT');
+    await panel.getByRole('button', { name: '优先使用选区', exact: true }).click();
+    await expect(panel.getByLabel('原文', { exact: true })).toHaveValue('你好');
+    await panel.getByRole('button', { name: '翻译', exact: true }).click();
+    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('English');
+    expect(f.requestBodies[2]).not.toContain('UNSELECTED_DRAFT');
+    await expect(rich).toHaveText('你好UNSELECTED_DRAFT');
+  } finally {
+    await f.close();
+  }
+});
 test('the real commit composer contract has a toolbar and input-selection translation', async () => {
   const f = await fixture(commitUrl, commitDiff() + reviewComposer('_r_commit_'));
   try {
