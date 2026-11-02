@@ -1,3 +1,4 @@
+import { chooseLanguage } from '../fixtures/choose-language';
 import { expect, test } from '@playwright/test';
 import { workflowFixture } from '../fixtures/core-workflow-extension';
 
@@ -126,7 +127,7 @@ test('returning to model settings preserves advanced drafts until discard is con
   const f = await workflowFixture();
   try {
     await f.settings.getByRole('button', { name: '更多设置', exact: true }).click();
-    await f.settings.getByLabel('阅读目标语言', { exact: true }).selectOption('ja');
+    await chooseLanguage(f.settings.getByLabel('阅读目标语言', { exact: true }), 'ja');
     let prompts = 0;
     f.settings.once('dialog', (d) => {
       prompts++;
@@ -134,7 +135,7 @@ test('returning to model settings preserves advanced drafts until discard is con
     });
     await f.settings.getByRole('button', { name: '返回模型设置', exact: true }).click();
     await expect.poll(() => prompts).toBe(1);
-    await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toHaveValue('ja');
+    await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toHaveValue('日本語');
     await expect(f.settings.getByRole('button', { name: '保存配置', exact: true })).toHaveCount(0);
     f.settings.once('dialog', (d) => {
       prompts++;
@@ -144,7 +145,7 @@ test('returning to model settings preserves advanced drafts until discard is con
     await expect.poll(() => prompts).toBe(2);
     await expect(f.settings.getByLabel('模型名称')).toHaveValue('fixture-model');
     await f.settings.getByRole('button', { name: '更多设置', exact: true }).click();
-    await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toHaveValue('zh-Hans');
+    await expect(f.settings.getByLabel('阅读目标语言', { exact: true })).toHaveValue('简体中文');
     expect(f.count()).toBe(0);
   } finally {
     await f.close();

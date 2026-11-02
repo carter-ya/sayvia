@@ -38,7 +38,7 @@ test('selecting text shows an icon; its trusted click translates directly withou
     const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' });
     await expect(panel).toBeVisible();
     await expect(panel.getByRole('region', { name: '译文预览' })).toHaveText('阅读 timeout 优先。');
-    await expect(panel.getByLabel('目标语言', { exact: true })).toHaveValue('zh-Hans');
+    await expect(panel.getByLabel('目标语言', { exact: true })).toHaveValue('简体中文');
     await expect(panel.getByText('模型：fixture-model', { exact: true })).toBeHidden();
     expect(f.requestBodies[0]).not.toContain('timeout');
     expect(f.count()).toBe(1);
