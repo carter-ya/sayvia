@@ -202,6 +202,42 @@ test('refreshing after switching rich/native editors reads the newly focused dra
     await f.close();
   }
 });
+test('a rich selection entry freezes its original range when page scripts change the native selection', async () => {
+  const f = await fixture(
+    undefined,
+    '<div id=rich contenteditable=true role=textbox><span>你好</span><p>PRIVATE_OUTSIDE_SELECTION</p></div><p id=other>OTHER_DRAFT</p>',
+  );
+  try {
+    const rich = f.page.locator('#rich');
+    await rich.focus();
+    await f.page.evaluate(() => {
+      const text = document.querySelector('#rich span')!.firstChild!;
+      const r = document.createRange();
+      r.setStart(text, 0);
+      r.setEnd(text, 2);
+      const s = window.getSelection()!;
+      s.removeAllRanges();
+      s.addRange(r);
+    });
+    await rich.press('Shift');
+    const icon = f.page.getByRole('button', { name: '使用 Sayvia 翻译选中文字' });
+    await expect(icon).toBeVisible();
+    await f.page.evaluate(() => {
+      const r = document.createRange();
+      r.selectNodeContents(document.querySelector('#other')!);
+      const s = window.getSelection()!;
+      s.removeAllRanges();
+      s.addRange(r);
+    });
+    await icon.click();
+    const panel = f.page.getByRole('dialog', panelName);
+    await expect(panel.getByLabel('原文', { exact: true })).toHaveValue('你好');
+    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('English');
+    expect(f.requestBodies[0]).not.toMatch(/PRIVATE_OUTSIDE_SELECTION|OTHER_DRAFT/);
+  } finally {
+    await f.close();
+  }
+});
 test('the real commit composer contract has a toolbar and input-selection translation', async () => {
   const f = await fixture(commitUrl, commitDiff() + reviewComposer('_r_commit_'));
   try {

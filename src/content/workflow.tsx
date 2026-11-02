@@ -36,7 +36,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   let lastEditor: TextEditorSession | undefined;
   let lastPreview: HTMLElement | undefined;
   let previewRange: Range | undefined;
-  let selectedPreview: HTMLElement | undefined;
+  let selectedPreview: { element: HTMLElement; range: Range } | undefined;
   let selectedEditor:
     { element: TextControl; editor: TextEditorSession; snapshot: EditorSnapshot } | undefined;
   let focusTarget: HTMLElement | undefined;
@@ -80,7 +80,15 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     if (automatic) {
       const preview = selectedPreview;
       const anchor = entry.panelAnchor();
-      open(preview ? 'write' : 'read', true, true, preview);
+      if (preview) {
+        try {
+          selection.read(document);
+        } catch {
+          open('read', true);
+          return;
+        }
+      }
+      open(preview ? 'write' : 'read', true, true, preview?.element, preview?.range);
       if (preview && anchor) anchoredPanel.attach(() => anchor);
     }
   });
@@ -619,7 +627,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
           preview.contains(selected.anchorNode) &&
           preview.contains(selected.focusNode)
         ) {
-          selectedPreview = preview;
+          selectedPreview = { element: preview, range: selected.getRangeAt(0).cloneRange() };
           if (preview === lastPreview) previewRange = selected.getRangeAt(0).cloneRange();
         }
         entry.show(
@@ -676,6 +684,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     inline = false,
     autoTranslate = inline,
     editorTarget?: Element,
+    capturedPreviewRange?: Range,
   ) {
     if (writing || state.busy) {
       state.status = userError('TASK_BUSY');
@@ -717,7 +726,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     } else if (mode === 'write') {
       bind(editorTarget ?? document.activeElement);
       const live = window.getSelection();
-      if (
+      if (capturedPreviewRange) previewRange = capturedPreviewRange.cloneRange();
+      else if (
         lastPreview &&
         live &&
         !live.isCollapsed &&
