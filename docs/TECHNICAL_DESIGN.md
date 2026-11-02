@@ -36,7 +36,7 @@ D05 是需在 M1 验证的设计：Offscreen Document 以真实的 WORKERS 用�
 | 状态 | React reducer 和模块内任务状态机 | 配置通过消息读取；不把 Key 放入 React 全局状态 |
 | 运行时校验 | Zod | 校验消息、配置、模型响应和迁移后的存储结构 |
 | Markdown | unified、remark-parse、remark-gfm，必要时使用底层 token 位置信息 | 解析原始位置，不使用 stringify 重写整篇文本，不转成 HTML |
-| 请求 | 原生 fetch、AbortController | 非流式模型请求，统一超时、取消和响应大小限制 |
+| 请求 | 原生 fetch、AbortController | 流式模型请求，统一超时、取消和响应大小限制 |
 | 单元与组件测试 | Vitest、Testing Library | 优先验证格式保护、覆盖保护、协议和数据迁移 |
 | 扩展端到端测试 | Playwright 自带 Chromium、持久化浏览器配置 | 加载打包后的扩展，配合本地模拟 API 和编辑器页面 |
 | 静态检查 | TypeScript、ESLint、Prettier | 类型、格式与构建检查纳入后续 CI |
@@ -467,19 +467,25 @@ OpenAI 官方对新应用推荐 Responses，但本版为符合 PRD 的兼容接�
 
 ### 10.3 请求约束
 
-使用 POST，Authorization: Bearer，Content-Type: application/json，credentials: omit，cache: no-store，redirect: error，referrerPolicy: no-referrer，stream: false。拒绝所有 HTTP 重定向，避免凭证被带到未经配置的地址。
+使用 POST，Authorization: Bearer，Content-Type: application/json，credentials: omit，cache: no-store，redirect: error，referrerPolicy: no-referrer，stream: true，stream_options: { include_usage: true }。拒绝所有 HTTP 重定向，避免凭证被带到未经配置的地址。
 
-通用请求仅发送 model、messages、stream 等必需字段。temperature、输出 token 参数、推理开关等由经验证的 preset 决定；不跨模型强制传递不支持的参数，不因参数错误自动发第二次请求。用户自定义接口必须能返回标准文本 content 及可识别的完成状态。[DeepSeek 调用文档](https://api-docs.deepseek.com/en/)
+通用请求发送 model、messages、stream 和 stream_options.include_usage。temperature、输出 token 参数、推理开关等由经验证的 preset 决定；不跨模型强制传递不支持的参数，不因参数错误自动发第二次请求。用户自定义接口必须能返回标准文本 content 及可识别的完成状态。[DeepSeek 调用文档](https://api-docs.deepseek.com/en/)
 
 ### 10.4 响应限制与错误
 
-要求 HTTP 成功、JSON 可解析、choices[0].message.content 为非空文本且 finish_reason 为正常结束。length、content_filter、tool_calls、缺失完成状态或非文本内容均不授予替换资格；不把 reasoning_content 当译文。
+要求 HTTP 成功。SSE 使用增量 UTF-8 解码，兼容分块、CRLF、多行 data 和心跳；仅接收 index=0 的文本增量，要求 finish_reason=stop 和 [DONE]。兼容 OpenAI 独立 usage 事件及 DeepSeek 结束事件中的 usage。兼容接口若直接返回 JSON，则校验 choices[0].message.content 为非空文本且 finish_reason=stop，不重新发送请求。length、content_filter、tool_calls、缺失完成状态或非文本内容均不授予替换资格；不把 reasoning_content 当译文。
 
-响应体上限初定 1 MiB，通过读取字节流累计限制，超限立即取消；这是网络读取限制，不代表向用户流式展示。总执行预算 60 秒，从执行器接纳开始覆盖本地处理、请求、解析和校验；本机等待权限的时间不计入且不持有请求。
+普通 JSON 响应上限为 1 MiB；SSE 单独限制传输总量为 16 MiB，并限制解码后的内容及推理总量为 1 MiB，避免重复元数据提前耗尽正文预算。超限立即取消。总执行预算 60 秒，从执行器接纳开始覆盖本地处理、请求、解析和校验；本机等待权限的时间不计入且不持有请求。
 
 错误码包括 CONFIG_REQUIRED、PERMISSION_DENIED、AUTH_FAILED、RATE_LIMITED、QUOTA_EXCEEDED、MODEL_UNAVAILABLE、NETWORK_ERROR、TIMEOUT、UNSUPPORTED_RESPONSE、FORMAT_INVALID、SOURCE_CHANGED、CONTEXT_LOST、CANCELED。未知 HTTP 错误不输出完整原始响应；服务端返回文本可能包含源内容或凭证。
 
 “测试连接”使用固定公开短句，复用相同请求和格式校验路径，只在其配置 revision 未变时标为可用。测试和正式翻译都不自动重试，不自动切换服务商。
+
+### 10.5 流式预览和用量
+
+执行器保留临时进度，通过既有 taskId、clientTaskId、documentNonce 和指定文档路由传送；中间译文不写入 session 路由存储。预览由本机解析不完整的 segments JSON，仅恢复已知且有序的完整保护标记，隐藏未完成的转义和标记及可能的凭证前缀。生成中的内容按纯文本显示，不创建可交互链接；模型推理原文不离开执行器。最终严格重建校验是候选译文的唯一入口，取消或失败后不接受迟到进度。
+
+进度通知最短间隔 80ms，界面以 100ms 时钟更新耗时。生成中输入／输出 token 为明确标注的估算；结束后优先显示接口实际 usage，推理 token 属于输出 token 的组成部分。手动弹窗以 400ms 读取同一任务快照，关闭再打开不重发请求；仅最终结果和用量随现有会话草稿保存。
 
 ## 11 任务状态与生命周期
 
