@@ -45,6 +45,13 @@ export function canonicalLanguage(value: string): string | undefined {
     return undefined;
   }
 }
+function customDisplayName(code: string) {
+  try {
+    return english.of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
 export function searchLanguages(query: string, allowAuto = false) {
   const key = normalize(query.trim());
   const exact = key
@@ -74,7 +81,7 @@ export function searchLanguages(query: string, allowAuto = false) {
   )
     options.push({
       code: custom,
-      name: english.of(custom) ?? custom,
+      name: customDisplayName(custom),
       english: '自定义 BCP-47',
       aliases: [],
     });

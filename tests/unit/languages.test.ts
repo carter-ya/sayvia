@@ -36,6 +36,9 @@ describe('searchable language catalogue', () => {
   it('accepts canonical custom tags without inventing tags from search words', () => {
     expect(canonicalLanguage('de-CH-1996')).toBe('de-CH-1996');
     expect(searchLanguages('de-CH-1996').at(-1)!.code).toBe('de-CH-1996');
+    for (const tag of ['en-u-ca-gregory', 'en-x-abc']) {
+      expect(searchLanguages(tag).at(-1)).toMatchObject({ code: tag, name: tag });
+    }
     expect(canonicalLanguage('French')).toBeUndefined();
     expect(canonicalLanguage('not a language')).toBeUndefined();
     expect(languageName('LegacyLanguage')).toBe('LegacyLanguage');
