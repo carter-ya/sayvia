@@ -8,6 +8,7 @@ import { useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 
 export interface PanelState {
   mode: 'read' | 'write';
+  previewOnly?: boolean | undefined;
   openSequence: number;
   source: string;
   candidate: string;
@@ -172,13 +173,13 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
         )}
         <button
           type="button"
-          className={state.mode === 'read' ? 'primary-action' : ''}
+          className={state.mode === 'read' || state.previewOnly ? 'primary-action' : ''}
           disabled={!state.candidate || state.busy}
           onClick={trusted(() => actions.copy())}
         >
           复制译文
         </button>
-        {state.mode === 'write' && (
+        {state.mode === 'write' && !state.previewOnly && (
           <button
             type="button"
             className="primary-action"

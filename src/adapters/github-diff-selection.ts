@@ -4,7 +4,31 @@ import { markdownTextIntervals } from '../core/markdown';
 import { createTranslationPlan, protectedTokens } from '../core/translation-plan';
 import { parseSourceInput, SourceError, type DomSource } from '../core/source-input';
 
-const INNER = 'td[data-diff-side][data-line-number] > code.diff-text > .diff-text-inner';
+const INNER = 'td > code.diff-text > .diff-text-inner';
+
+// PR and commit diffs expose different metadata. Both identify a source side
+// and line; never infer it from the visual column or DOM order.
+function cellInfo(inner: Element, table: Element) {
+  const cell = inner.parentElement!.parentElement!;
+  if (cell.closest('table') !== table) return;
+  const side = cell.getAttribute('data-diff-side');
+  const line = cell.getAttribute('data-line-number');
+  const anchor = cell.getAttribute('data-line-anchor');
+  const prefix = table.getAttribute('data-diff-anchor')!;
+  const match = anchor?.startsWith(prefix)
+    ? /^([LR])([1-9]\d*)$/.exec(anchor.slice(prefix.length))
+    : undefined;
+  const anchored = match
+    ? { side: match[1] === 'L' ? 'left' : 'right', line: Number(match[2]) }
+    : undefined;
+  if (side !== null || line !== null) {
+    if (!side || !/^(left|right)$/.test(side) || !line || !/^[1-9]\d*$/.test(line)) return;
+    const result = { side, line: Number(line) };
+    if (anchor && (!anchored || anchored.side !== side || anchored.line !== result.line)) return;
+    return Number.isSafeInteger(result.line) ? result : undefined;
+  }
+  return anchored && Number.isSafeInteger(anchored.line) ? anchored : undefined;
+}
 const MAX_CONTEXT = 64_000;
 const MAX_ROWS = 4096;
 
@@ -47,11 +71,7 @@ export function captureGithubMarkdownDiff(
   document: Document,
 ): { source: DomSource; plainText: string } | undefined {
   const url = new URL(document.URL);
-  if (
-    url.hostname !== 'github.com' ||
-    !/^\/[^/]+\/[^/]+\/pull\/\d+\/(?:changes|files)(?:\/|$)/.test(url.pathname)
-  )
-    return;
+  if (url.hostname !== 'github.com') return;
   const start = parent(range.startContainer)?.closest(INNER);
   const end = parent(range.endContainer)?.closest(INNER);
   if (!start || !end) return;
@@ -59,11 +79,10 @@ export function captureGithubMarkdownDiff(
   if (!table || end.closest('table') !== table) return;
   const label = table.getAttribute('aria-label') ?? '';
   if (!/^Diff for: .+\.(?:md|markdown|mdown)$/i.test(label)) return;
-  const startCell = start.parentElement!.parentElement!;
-  const side = startCell.getAttribute('data-diff-side');
-  if (end.parentElement!.parentElement!.getAttribute('data-diff-side') !== side) {
-    throw new SourceError('UNSUPPORTED_SELECTION');
-  }
+  const first = cellInfo(start, table);
+  const last = cellInfo(end, table);
+  if (!first || !last || first.side !== last.side) throw new SourceError('UNSUPPORTED_SELECTION');
+  const side = first.side;
 
   const fullRange = (element: Element) => {
     const full = document.createRange();
@@ -101,11 +120,10 @@ export function captureGithubMarkdownDiff(
   for (const row of table.querySelectorAll('tbody > tr')) {
     if (++visited > MAX_ROWS) throw new SourceError('SELECTION_TOO_COMPLEX');
     const inner = [...row.querySelectorAll(INNER)].find(
-      (node) => node.parentElement!.parentElement!.getAttribute('data-diff-side') === side,
+      (node) => cellInfo(node, table)?.side === side,
     );
     if (!inner) continue;
-    const cell = inner.parentElement!.parentElement!;
-    const line = Number(cell.getAttribute('data-line-number'));
+    const line = cellInfo(inner, table)!.line;
     if (!Number.isSafeInteger(line) || line < 1) throw new SourceError('UNSUPPORTED_SELECTION');
     if (previous && line !== previous + 1) {
       if (started) {

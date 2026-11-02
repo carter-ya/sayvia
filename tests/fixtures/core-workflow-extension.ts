@@ -79,6 +79,7 @@ export async function workflowFixture() {
                     id: segment.id,
                     text: segment.text
                       .replace(/中文|你好/g, 'English')
+                      .replace('Accept ', '接受 ')
                       .replace('Read ', '阅读 ')
                       .replace(' first.', ' 优先。')
                       .replace(

@@ -29,12 +29,11 @@ export function detectAdapter(
   url = new URL(element.ownerDocument.URL),
 ): AdapterKind | undefined {
   if (!isTextControl(element) || !isEligible(element)) return undefined;
-  if (url.hostname === 'github.com') {
-    const route = /^\/[^/]+\/[^/]+\/(?:issues|pull)\/\d+(?:\/|$)/.test(url.pathname);
-    if (route && element instanceof HTMLTextAreaElement && isGitHubCommentEditor(element)) {
-      return 'github-markdown';
-    }
-    return undefined;
-  }
+  if (
+    url.hostname === 'github.com' &&
+    element instanceof HTMLTextAreaElement &&
+    isGitHubCommentEditor(element)
+  )
+    return 'github-markdown';
   return 'generic-text';
 }

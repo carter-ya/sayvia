@@ -153,7 +153,11 @@ test('code-only selections and editing fields cannot leak to a model through the
     const icon = await select(f);
     await icon.click();
     const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' });
-    await expect(panel.getByRole('region', { name: '译文预览' })).toHaveText('secret-code-only');
+    await expect(panel.getByRole('region', { name: '译文预览' })).not.toContainText(
+      'secret-code-only',
+    );
+    await expect(panel.getByRole('status')).toContainText('未执行翻译');
+    await expect(panel.getByRole('button', { name: '复制译文' })).toBeDisabled();
     expect(f.count()).toBe(0);
     await panel.getByRole('button', { name: '关闭翻译面板' }).click();
     await f.page.locator('#editor').focus();

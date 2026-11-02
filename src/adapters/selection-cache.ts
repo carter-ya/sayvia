@@ -45,7 +45,23 @@ export class ReadingSelectionCache {
       this.error = error instanceof SourceError ? error.code : 'SELECTION_LOST';
       throw new SourceError(this.error);
     }
-    const range = selection!.getRangeAt(0).cloneRange();
+    return this.remember(selection!.getRangeAt(0), document, source, plainText, signature);
+  }
+
+  captureRange(range: Range, document: Document) {
+    this.clear();
+    const { source, plainText, signature } = this.rangeSource(range, document);
+    return this.remember(range, document, source, plainText, signature);
+  }
+
+  private remember(
+    nativeRange: Range,
+    document: Document,
+    source: DomSource,
+    plainText: string,
+    signature: string,
+  ) {
+    const range = nativeRange.cloneRange();
     this.captured = {
       range,
       source,

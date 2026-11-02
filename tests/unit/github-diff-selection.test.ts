@@ -9,6 +9,7 @@ import {
   reconstructTranslation,
 } from '../../src/core/translation-plan';
 import { planResponse } from '../fixtures/plan-response';
+import { commitDiff, commitUrl, commitAnchor } from '../fixtures/github-commit-diff';
 
 function fixture(lines: string[], name = 'README.md', firstLine = 164) {
   document.body.innerHTML = `<table role="grid" data-diff-anchor="diff-fixture" aria-label="Diff for: ${name}"><tbody>${lines.map((line, i) => `<tr><td data-diff-side="left" data-line-number="${i + firstLine}">LEFT_OUTSIDE</td><td data-diff-side="left" data-line-number="${i + firstLine}"><code class="diff-text"><div class="diff-text-inner">LEFT_OUTSIDE</div></code></td><td data-diff-side="right" data-line-number="${i + firstLine}">${i + firstLine}</td><td data-diff-side="right" data-line-number="${i + firstLine}"><code class="diff-text syntax-highlighted-line addition"><span class="diff-text-marker">+</span><div class="diff-text-inner" id="line-${i}">${line || '<br>'}</div></code><button>CONTROL_OUTSIDE</button></td></tr>`).join('')}</tbody></table>`;
@@ -32,6 +33,71 @@ afterEach(() => {
 });
 
 describe('GitHub Markdown source diff reading', () => {
+  it.each([
+    commitUrl,
+    'https://github.com/acme/repo/compare/base...head',
+    'https://github.com/acme/repo/pull/12/files',
+  ])('reads the observed anchor-only Markdown diff on %s', (url) => {
+    const previous = location.href;
+    history.replaceState({}, '', new URL(url).pathname);
+    document.body.innerHTML = commitDiff();
+    const range = document.createRange();
+    const first = document.getElementById('commit-line-0')!;
+    const last = document.getElementById('commit-line-1')!;
+    range.setStart(first.childNodes[1]!, 1);
+    range.setEnd(last, last.childNodes.length);
+    const selected = window.getSelection()!;
+    selected.addRange(range);
+    try {
+      const source = new ReadingSelectionCache(true).capture(selected, document);
+      const plan = createTranslationPlan(source);
+      expect(needsTranslation(plan)).toBe(true);
+      expect(plan.segments).toHaveLength(2);
+      expect(JSON.stringify(translationPayload(plan))).not.toMatch(
+        /UNSELECTED_LEFT|\.mjs|new version --format mjs/,
+      );
+      expect(source.text).toContain('Accept `.mjs`');
+    } finally {
+      history.replaceState({}, '', previous);
+    }
+  });
+  it('rejects missing, foreign or contradictory side/line metadata rather than claiming all prose is code', () => {
+    for (const metadata of ['missing', 'foreign', 'contradictory', 'partial']) {
+      document.body.innerHTML = commitDiff();
+      const first = document.getElementById('commit-line-0')!;
+      const cell = first.closest('td')!;
+      if (metadata === 'missing') cell.removeAttribute('data-line-anchor');
+      if (metadata === 'foreign') cell.setAttribute('data-line-anchor', 'diff-otherR13');
+      if (metadata === 'contradictory') {
+        cell.setAttribute('data-diff-side', 'left');
+        cell.setAttribute('data-line-number', '13');
+      }
+      if (metadata === 'partial') cell.setAttribute('data-diff-side', 'left');
+      const range = document.createRange();
+      range.selectNodeContents(first);
+      const selected = window.getSelection()!;
+      selected.removeAllRanges();
+      selected.addRange(range);
+      expect(() => new ReadingSelectionCache(true).capture(selected, document)).toThrow(
+        'UNSUPPORTED_SELECTION',
+      );
+    }
+  });
+  it('rejects opposite sides using commit anchors', () => {
+    document.body.innerHTML = commitDiff();
+    const left = document.querySelector(
+      `td[data-line-anchor="${commitAnchor}L11"] .diff-text-inner`,
+    )!;
+    const right = document.getElementById('commit-line-1')!;
+    const range = document.createRange();
+    range.setStart(left, 0);
+    range.setEnd(right, right.childNodes.length);
+    const selected = window.getSelection()!;
+    selected.addRange(range);
+    expect(() => new ReadingSelectionCache(true).capture(selected, document)).toThrow(
+      'UNSUPPORTED_SELECTION',
+    );
+  });
   it('translates README prose inside the structural code wrapper', () => {
     fixture(['Nearly equal costs keep the original direction.']);
     const { source, plan } = capture();

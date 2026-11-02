@@ -113,13 +113,17 @@ test('dynamic editors deduplicate, re-check eligibility and remove entries and r
   }
 });
 
-test('same-document navigation removes GitHub entries outside the supported Issue and PR routes', async () => {
+test('same-document navigation keeps identified comment toolbars on Discussions and commit pages', async () => {
   const f = await githubFixture();
   try {
     const button = f.page.getByRole('button', { name: '使用 Sayvia 翻译这份评论', exact: true });
     await expect(button).toHaveCount(1);
     await f.page.evaluate(() => history.pushState({}, '', '/sayvia-fixture/repo/discussions/2'));
-    await expect(button).toHaveCount(0);
+    await expect(button).toHaveCount(1);
+    await f.page.evaluate(() =>
+      history.pushState({}, '', '/sayvia-fixture/repo/commit/0123456789'),
+    );
+    await expect(button).toHaveCount(1);
     await f.page.evaluate(() => history.pushState({}, '', '/sayvia-fixture/repo/pull/2'));
     await expect(button).toHaveCount(1);
     expect(f.count()).toBe(0);

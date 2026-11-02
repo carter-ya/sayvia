@@ -6,10 +6,11 @@ export class SelectionEntry {
   constructor(
     activate: () => void,
     label = '使用 Sayvia 翻译选中文字',
-    kind: 'reading' | 'writing' = 'reading',
+    kind: 'reading' | 'writing' | 'editor' = 'reading',
   ) {
     if (kind === 'reading') this.host.dataset.sayviaEntry = '';
-    else this.host.dataset.sayviaEditorSelectionEntry = '';
+    else if (kind === 'writing') this.host.dataset.sayviaEditorSelectionEntry = '';
+    else this.host.dataset.sayviaEditorFocusEntry = '';
     const shadow = this.host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent = `:host { all: initial; position: fixed; z-index: 2147483647; display: none; }

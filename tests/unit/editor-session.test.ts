@@ -255,7 +255,7 @@ describe('editor safety', () => {
     expect(element.value).toBe('中文草稿');
   });
 
-  it('uses GitHub Markdown only for identified Issue and PR comment boxes', () => {
+  it('uses Markdown for identified GitHub comments on any route and plain text as the fallback', () => {
     const { element } = editor();
     element.name = 'comment[body]';
     expect(detectAdapter(element, new URL('https://github.com/acme/repo/issues/1'))).toBe(
@@ -264,9 +264,9 @@ describe('editor safety', () => {
     expect(detectAdapter(element, new URL('https://github.com/acme/repo/pull/1/files'))).toBe(
       'github-markdown',
     );
-    expect(
-      detectAdapter(element, new URL('https://github.com/acme/repo/discussions/1')),
-    ).toBeUndefined();
+    expect(detectAdapter(element, new URL('https://github.com/acme/repo/discussions/1'))).toBe(
+      'github-markdown',
+    );
     element.autocomplete = 'cc-number';
     expect(detectAdapter(element)).toBeUndefined();
     const password = document.createElement('input');
@@ -286,11 +286,24 @@ describe('editor safety', () => {
     element.dataset.testid = 'markdown-editor-textarea';
     expect(detectAdapter(element, url)).toBe('github-markdown');
     delete element.dataset.testid;
-    expect(detectAdapter(element, url)).toBeUndefined();
+    expect(detectAdapter(element, url)).toBe('generic-text');
     element.name = 'review_comment[body]';
-    expect(
-      detectAdapter(element, new URL('https://github.com/acme/repo/settings')),
-    ).toBeUndefined();
+    expect(detectAdapter(element, new URL('https://github.com/acme/repo/settings'))).toBe(
+      'github-markdown',
+    );
+  });
+
+  it.each([
+    'https://github.com/acme/repo/commit/abc',
+    'https://github.com/acme/repo/discussions/3',
+    'https://ordinary.test/comments',
+  ])('supports ordinary controls without route restrictions: %s', (url) => {
+    const { element } = editor();
+    expect(detectAdapter(element, new URL(url))).toBe('generic-text');
+    element.name = 'comment[body]';
+    expect(detectAdapter(element, new URL(url))).toBe(
+      url.includes('github.com') ? 'github-markdown' : 'generic-text',
+    );
   });
 
   it('identifies the observed nameless review textarea by its local Markdown association', () => {
@@ -300,25 +313,25 @@ describe('editor safety', () => {
     const url = new URL('https://github.com/acme/repo/pull/15/changes');
     expect(detectAdapter(field, url)).toBe('github-markdown');
     toolbar.setAttribute('for', 'another-draft');
-    expect(detectAdapter(field, url)).toBeUndefined();
+    expect(detectAdapter(field, url)).toBe('generic-text');
     toolbar.setAttribute('for', field.id);
     const nested = document.createElement('fieldset');
     field.closest('fieldset')!.append(nested);
     nested.append(toolbar);
-    expect(detectAdapter(field, url)).toBeUndefined();
+    expect(detectAdapter(field, url)).toBe('generic-text');
   });
 
-  it('rejects ambiguous IDs, unrelated Textarea components and disabled review fieldsets', () => {
+  it('falls back to plain text for ambiguous Markdown identity while rejecting disabled fieldsets', () => {
     document.body.innerHTML = reviewComposer('_r_nc_');
     const field = document.querySelector('textarea')!;
     const url = new URL('https://github.com/acme/repo/pull/15/changes');
     const duplicate = document.createElement('textarea');
     duplicate.id = field.id;
     document.body.prepend(duplicate);
-    expect(detectAdapter(field, url)).toBeUndefined();
+    expect(detectAdapter(field, url)).toBe('generic-text');
     duplicate.remove();
     field.dataset.component = 'SomethingElse';
-    expect(detectAdapter(field, url)).toBeUndefined();
+    expect(detectAdapter(field, url)).toBe('generic-text');
     field.dataset.component = 'Textarea';
     field.closest('fieldset')!.disabled = true;
     expect(detectAdapter(field, url)).toBeUndefined();
