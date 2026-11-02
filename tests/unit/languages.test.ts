@@ -28,6 +28,21 @@ describe('searchable language catalogue', () => {
     expect(searchLanguages('es').map((x) => x.code)).toEqual(['es']);
     expect(searchLanguages('francais').map((x) => x.code)).toContain('fr');
   });
+  it('matches Chinese family searches without dropping Traditional Chinese', () => {
+    for (const query of ['中', '中文', 'Chinese', 'zh']) {
+      expect(searchLanguages(query).map((language) => language.code)).toEqual([
+        'zh-Hans',
+        'zh-Hant',
+      ]);
+    }
+    expect(searchLanguages('zh-CN').map((language) => language.code)).toEqual(['zh-Hans']);
+    expect(searchLanguages('zh-TW').map((language) => language.code)).toEqual(['zh-Hant']);
+  });
+  it('uses Chinese primary labels for every built-in language', () => {
+    for (const language of LANGUAGES) expect(language.name).toMatch(/\p{Script=Han}/u);
+    expect(languageName('bo')).toBe('藏语');
+    expect(languageName('fr')).toBe('法语');
+  });
   it('keeps automatic detection out of target choices and never duplicates it', () => {
     expect(searchLanguages('', true)[0]!.code).toBe('auto');
     expect(searchLanguages('auto', true).map((x) => x.code)).toEqual(['auto']);

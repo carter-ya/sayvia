@@ -86,7 +86,7 @@ test('manual source language survives immediate popup closure, execution and a l
     await expect(p.getByLabel('手动译文', { exact: true })).toHaveValue('');
     await p.close();
     p = await manual(f);
-    await expect(p.getByLabel('源语言', { exact: true })).toHaveValue('日本語');
+    await expect(p.getByLabel('源语言', { exact: true })).toHaveValue('日语');
     await expect(p.getByLabel('待翻译文本', { exact: true })).toHaveValue('你好');
     await expect(p.getByLabel('手动译文', { exact: true })).toHaveValue('');
     expect(f.count()).toBe(1);

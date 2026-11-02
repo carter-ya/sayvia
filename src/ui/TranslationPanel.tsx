@@ -1,5 +1,6 @@
 import { TranslationMetrics } from './TranslationMetrics';
 import type { TranslationProgress, ResultMetrics } from '../runtime/translation-progress';
+import { TranslationLoading } from './TranslationLoading';
 import { ReadingPreview } from './ReadingPreview';
 import { AutoTextarea } from './AutoTextarea';
 import { LanguageField } from './LanguageField';
@@ -109,11 +110,7 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
           aria-label="流式译文"
           tabIndex={0}
         >
-          {state.progress?.text || (
-            <p className="result-placeholder">
-              {state.progress?.phase === 'thinking' ? '模型思考中' : '等待首字'}
-            </p>
-          )}
+          {state.progress?.text || <TranslationLoading />}
         </div>
       ) : state.mode === 'read' && !editing ? (
         <div className="result-region" role="region" aria-label="译文预览" tabIndex={0}>

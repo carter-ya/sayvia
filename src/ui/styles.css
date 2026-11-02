@@ -741,3 +741,12 @@ p {
   margin-top: 12px;
   padding-top: 10px;
 }
+
+.manual-result-shell {
+  position: relative;
+}
+.manual-result-shell > .translation-loading {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}

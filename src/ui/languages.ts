@@ -1,35 +1,29 @@
+import { LANGUAGE_LABELS } from './language-labels';
 export interface LanguageOption {
   code: string;
   name: string;
   english: string;
+  native: string;
   aliases: string[];
 }
-const codes =
-  'af am ar az be bg bn bo bs ca cs cy da de el en en-GB en-US es et eu fa fi fil fr fr-CA ga gl gu he hi hr hu hy id is it ja ka kk km kn ko la lo lt lv mk ml mn mr ms mt my nb ne nl nn pa pl ps pt pt-BR pt-PT ro ru si sk sl so sq sr sv sw ta te th tr uk ur uz vi zh-Hans zh-Hant zu'.split(
-    ' ',
-  );
-const english = new Intl.DisplayNames(['en'], { type: 'language', languageDisplay: 'standard' });
-const nativeNames: Record<string, string> = {
-  'zh-Hans': '简体中文',
-  'zh-Hant': '繁體中文',
-  zu: 'isiZulu',
-};
+const chinese = new Intl.DisplayNames(['zh-Hans'], {
+  type: 'language',
+  languageDisplay: 'standard',
+});
 const aliases: Record<string, string[]> = {
-  'zh-Hans': ['zh', 'zh-CN', 'zh-SG', '中文', '简体'],
-  'zh-Hant': ['zh-TW', 'zh-HK', '繁体'],
+  'zh-Hans': ['zh', 'zh-CN', 'zh-SG', '中文', '汉语', '漢語', '简体'],
+  'zh-Hant': ['zh', 'zh-TW', 'zh-HK', '中文', '汉语', '漢語', '繁体', '繁體中文'],
   en: ['英语', '英文'],
   ja: ['日语', '日文'],
   ko: ['韩语', '韩文'],
 };
 const collator = new Intl.Collator('en', { sensitivity: 'base' });
-export const LANGUAGES: LanguageOption[] = codes
-  .map((code) => ({
+export const LANGUAGES: LanguageOption[] = Object.entries(LANGUAGE_LABELS)
+  .map(([code, [name, english, native]]) => ({
     code,
-    name:
-      nativeNames[code] ??
-      new Intl.DisplayNames([code], { type: 'language', languageDisplay: 'standard' }).of(code) ??
-      code,
-    english: english.of(code) ?? code,
+    name,
+    english,
+    native,
     aliases: aliases[code] ?? [],
   }))
   .sort((a, b) => collator.compare(a.english, b.english) || a.code.localeCompare(b.code, 'en'));
@@ -47,22 +41,23 @@ export function canonicalLanguage(value: string): string | undefined {
 }
 function customDisplayName(code: string) {
   try {
-    return english.of(code) ?? code;
+    return chinese.of(code) ?? code;
   } catch {
     return code;
   }
 }
 export function searchLanguages(query: string, allowAuto = false) {
   const key = normalize(query.trim());
-  const exact = key
-    ? LANGUAGES.filter((language) =>
-        [language.code, ...language.aliases].some((value) => normalize(value) === key),
-      )
-    : [];
+  const exact =
+    key && canonicalLanguage(key)
+      ? LANGUAGES.filter((language) =>
+          [language.code, ...language.aliases].some((value) => normalize(value) === key),
+        )
+      : [];
   if (exact.length) return exact;
   const options = LANGUAGES.filter((language) =>
-    [language.code, language.name, language.english, ...language.aliases].some((value) =>
-      normalize(value).includes(key),
+    [language.code, language.name, language.native, language.english, ...language.aliases].some(
+      (value) => normalize(value).includes(key),
     ),
   );
   if (allowAuto && ['auto', '自动识别', 'detect'].some((value) => normalize(value).includes(key)))
@@ -70,6 +65,7 @@ export function searchLanguages(query: string, allowAuto = false) {
       code: 'auto',
       name: '自动识别',
       english: 'Automatic detection',
+      native: '',
       aliases: [],
     });
   const custom = canonicalLanguage(query);
@@ -83,6 +79,7 @@ export function searchLanguages(query: string, allowAuto = false) {
       code: custom,
       name: customDisplayName(custom),
       english: '自定义 BCP-47',
+      native: '',
       aliases: [],
     });
   return options;
