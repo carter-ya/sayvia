@@ -1,7 +1,7 @@
 export const panelStyle = `
 :host { all: initial; position: fixed; z-index: 2147483647; top: 12px; right: 12px; width: min(340px, calc(100vw - 16px)); color-scheme: light dark; }
 * { box-sizing: border-box; }
-section { --surface: light-dark(#fff,#1d2822); --field: light-dark(#f5f7f4,#26362c); --ink: light-dark(#273b32,#e6eee8); --muted: light-dark(#768178,#9faea4); --line: light-dark(#e1e7df,#3b4b41); --accent: light-dark(#286947,#a4d5b9); font: 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 32px #142b2526; padding: 12px; max-height: calc(100dvh - var(--panel-top, 12px) - 8px); overflow: auto; }
+section { --surface: light-dark(#fff,#1d2822); --field: light-dark(#f5f7f4,#26362c); --ink: light-dark(#273b32,#e6eee8); --muted: light-dark(#768178,#9faea4); --line: light-dark(#e1e7df,#3b4b41); --accent: light-dark(#286947,#a4d5b9); font: 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 32px #142b2526; padding: 12px; max-height: var(--panel-max-height, calc(100dvh - var(--panel-top, 12px) - 8px)); overflow: auto; }
 section:focus { outline: none; } :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 header, .actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 header { justify-content: space-between; margin-bottom: 10px; } strong { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; letter-spacing: -.2px; }

@@ -524,6 +524,10 @@ Chrome 后台可能空闲终止，且长时间等待 fetch 响应也受生命周
 
 ## 12 页面面板与交互实现
 
+GitHub 写作入口优先通过 markdown-toolbar 的 for 或工具栏 aria-controls 精确关联 textarea；现代编辑器使用同一表单／编辑器容器内的唯一工具栏关联。多个候选或编辑框不明确时保留已有手动入口，避免关联到另一份草稿。按钮置于原生工具栏，使用中性色小图标与局部样式隔离，保留可信操作判断和原编辑框绑定。[GitHub 工具栏组件](https://github.com/github/markdown-toolbar-element)
+
+写作浮窗仍是文档级 Shadow Root portal，以触发按钮的实时视口坐标定位，按可用空间向上或向下展开，约束宽高与边缘。滚动、resize、面板尺寸及工具栏重建合并到动画帧更新；关闭与销毁时解绑监听器和 observer。工具栏替换时重新查找同一编辑框的按钮，保留当前候选。
+
 内容脚本默认安装轻量入口，首次触发才渲染 React 面板。选区图标为 26px；指针选择使用 pointerup 的 clientX／clientY，键盘选择使用最后一行矩形，视口边缘进行夹取。Shadow Root 内局部 reset，关键尺寸用 px 或组件变量，避免网站根 rem 值影响；主题使用 CSS variables 与 prefers-color-scheme。WXT 提供内容脚本上下文清理和 Shadow Root UI 工具。[WXT 内容脚本文档](https://wxt.dev/guide/essentials/content-scripts.html)
 
 面板使用纯文本原文区和可编辑译文 textarea，不以 innerHTML 渲染模型结果。模型与目标语言切换创建新任务，不修改正在执行任务。清晰区分复制、替换选区和替换全文；只在能力与校验均有效时显示可用替换操作。

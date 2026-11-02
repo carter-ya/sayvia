@@ -17,7 +17,7 @@ try {
   await f.context.route(url, (route) =>
     route.fulfill({
       contentType: 'text/html; charset=utf-8',
-      body: '<!doctype html><meta charset="utf-8"><p id="article">Read <code>timeout</code> first.</p><textarea name="comment[body]">你好</textarea>',
+      body: '<!doctype html><meta charset="utf-8"><p id="article">Read <code>timeout</code> first.</p><markdown-toolbar for="benchmark-editor"><button type="button">B</button></markdown-toolbar><textarea id="benchmark-editor" name="comment[body]">你好</textarea>',
     }),
   );
   await f.page.goto(url);
