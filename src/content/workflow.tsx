@@ -3,6 +3,7 @@ import { copyText } from './copy-text';
 import { newId } from '../runtime/uuid';
 import { createRoot } from 'react-dom/client';
 import { browser } from 'wxt/browser';
+import { detectAdapter } from '../adapters/detect';
 import { EditorRegistry } from '../adapters/registry';
 import { ReadingSelectionCache } from '../adapters/selection-cache';
 import type { TextEditorSession } from '../adapters/text-session';
@@ -31,6 +32,9 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const registry = new EditorRegistry();
   const selection = new ReadingSelectionCache(true);
   let lastEditor: TextEditorSession | undefined;
+  let selectedEditor:
+    | { element: HTMLTextAreaElement; editor: TextEditorSession; snapshot: EditorSnapshot }
+    | undefined;
   let focusTarget: HTMLElement | undefined;
   let current: Draft | undefined;
   let disposed = false;
@@ -71,12 +75,38 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const entry = new SelectionEntry(() => {
     if (automatic) open('read', true);
   });
+  const writeEntry = new SelectionEntry(
+    () => {
+      const selected = selectedEditor;
+      if (
+        !automatic ||
+        !selected ||
+        !selected.editor.validate(selected.snapshot).ok ||
+        detectAdapter(selected.element) !== 'github-markdown' ||
+        selected.element.selectionStart !== selected.snapshot.range.start ||
+        selected.element.selectionEnd !== selected.snapshot.range.end
+      ) {
+        writeEntry.hide();
+        selectedEditor = undefined;
+        return;
+      }
+      const anchor = writeEntry.panelAnchor();
+      open('write', true, true, selected.element);
+      if (anchor && visible && current?.editor === selected.editor)
+        anchoredPanel.attach(() => anchor);
+    },
+    '使用 Sayvia 翻译输入选区',
+    'writing',
+  );
   const anchoredPanel = new AnchoredPanel(host);
   const editorEntries = new EditorEntries((element) => {
     if (automatic) open('write', true, true, element);
   }, anchoredPanel.update);
   const owns = (event: Event) =>
-    event.composedPath().includes(host) || entry.owns(event) || editorEntries.owns(event);
+    event.composedPath().includes(host) ||
+    entry.owns(event) ||
+    writeEntry.owns(event) ||
+    editorEntries.owns(event);
   const render = () => {
     if (!disposed) {
       host.style.setProperty(
@@ -488,6 +518,10 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     sendResponse({ taskId: event.taskId, documentNonce: registry.documentNonce });
   };
   const focus = (event: FocusEvent) => {
+    if (!owns(event) && event.target !== selectedEditor?.element) {
+      writeEntry.hide();
+      selectedEditor = undefined;
+    }
     if (visible && state.mode === 'write' && !owns(event) && event.target instanceof Element)
       bind(event.target);
   };
@@ -499,6 +533,30 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       (event instanceof KeyboardEvent && event.key === 'Escape')
     )
       return;
+    writeEntry.hide();
+    selectedEditor = undefined;
+    if (
+      event.target instanceof HTMLTextAreaElement &&
+      detectAdapter(event.target) === 'github-markdown'
+    ) {
+      entry.hide();
+      const element = event.target;
+      if (automatic && !state.busy && !writing && element.selectionEnd > element.selectionStart) {
+        const editor = registry.bind(element);
+        if (editor) {
+          try {
+            selectedEditor = { element, editor, snapshot: editor.capture() };
+            writeEntry.showRect(
+              element.getBoundingClientRect(),
+              event instanceof MouseEvent ? { x: event.clientX, y: event.clientY } : undefined,
+            );
+          } catch {
+            selectedEditor = undefined;
+          }
+        }
+      }
+      return;
+    }
     captureSelection();
     if (automatic && !state.busy && !writing) {
       const selected = window.getSelection();
@@ -519,6 +577,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   };
   const changed = (event: Event) => {
     if (!owns(event)) {
+      writeEntry.hide();
+      selectedEditor = undefined;
       refreshEligibility();
       if (state.candidate && current?.editor && !state.canReplace && !current.applied)
         state.status = '原稿已修改，仅可复制译文。';
@@ -528,6 +588,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const escape = (event: KeyboardEvent) => {
     if (event.isTrusted && event.key === 'Escape') {
       entry.hide();
+      writeEntry.hide();
+      selectedEditor = undefined;
       if (!visible) return;
       event.preventDefault();
       actions.close();
@@ -543,6 +605,14 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   browser.runtime.onMessage.addListener(listener);
   const observer = new MutationObserver(() => {
     if (!host.isConnected) dispose();
+    if (
+      selectedEditor &&
+      (!selectedEditor.editor.validate(selectedEditor.snapshot).ok ||
+        detectAdapter(selectedEditor.element) !== 'github-markdown')
+    ) {
+      writeEntry.hide();
+      selectedEditor = undefined;
+    }
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
   function open(
@@ -559,6 +629,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     if (!discard()) return;
     cancel();
     entry.hide();
+    writeEntry.hide();
+    selectedEditor = undefined;
     anchoredPanel.detach();
     entryMode = inline ? 'inline' : 'toolbar';
     const sequence = ++openSequence;
@@ -653,6 +725,10 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   function setAutomatic(enabled: boolean) {
     automaticEpoch += 1;
     automatic = enabled;
+    if (!enabled) {
+      writeEntry.hide();
+      selectedEditor = undefined;
+    }
     editorEntries.setEnabled(enabled);
     if (!enabled) {
       entry.hide();
@@ -684,6 +760,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     }
     window.removeEventListener('pagehide', dispose);
     entry.dispose();
+    writeEntry.dispose();
+    selectedEditor = undefined;
     editorEntries.dispose();
     anchoredPanel.detach();
     registry.dispose();

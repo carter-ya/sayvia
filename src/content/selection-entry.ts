@@ -3,8 +3,13 @@ export class SelectionEntry {
   private readonly host = document.createElement('div');
   private readonly button = document.createElement('button');
   private anchor?: { x: number; y: number };
-  constructor(activate: () => void) {
-    this.host.dataset.sayviaEntry = '';
+  constructor(
+    activate: () => void,
+    label = '使用 Sayvia 翻译选中文字',
+    kind: 'reading' | 'writing' = 'reading',
+  ) {
+    if (kind === 'reading') this.host.dataset.sayviaEntry = '';
+    else this.host.dataset.sayviaEditorSelectionEntry = '';
     const shadow = this.host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent = `:host { all: initial; position: fixed; z-index: 2147483647; display: none; }
@@ -14,7 +19,7 @@ export class SelectionEntry {
     this.button.type = 'button';
     this.button.innerHTML =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h12M9 2v3M12 5c-1 6-4 9-8 11M6 8c1 3 3 5 6 7M13 21l4-11 4 11M14.5 17h5"/></svg>';
-    this.button.setAttribute('aria-label', '使用 Sayvia 翻译选中文字');
+    this.button.setAttribute('aria-label', label);
     this.button.title = '翻译';
     this.button.addEventListener('pointerdown', (event) => {
       if (event.isTrusted) event.preventDefault();
@@ -37,6 +42,9 @@ export class SelectionEntry {
       this.hide();
       return;
     }
+    this.showRect(rect, pointer);
+  }
+  showRect(rect: DOMRect, pointer?: { x: number; y: number }) {
     // Pointer selection follows the release point; keyboard selection uses its final line.
     this.anchor = pointer
       ? { x: pointer.x + 8, y: pointer.y + 10 }
