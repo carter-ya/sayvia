@@ -2,6 +2,7 @@ import { detectAdapter } from '../adapters/detect';
 
 const selector = 'textarea[name="comment[body]"], textarea#new_comment_field';
 const toolbarSelector = 'markdown-toolbar, [role="toolbar"]';
+const watchedSelector = `${selector}, ${toolbarSelector}, [data-sayvia-write-entry]`;
 const visibleToolbar = (toolbar: HTMLElement) =>
   !toolbar.closest('[hidden], [inert], [aria-hidden="true"]') &&
   getComputedStyle(toolbar).visibility !== 'hidden' &&
@@ -70,15 +71,14 @@ export class EditorEntries {
             const target = record.target as Element;
             return (
               this.entries.has(target as HTMLTextAreaElement) ||
-              target.matches(`${selector}, ${toolbarSelector}`) ||
-              Boolean(target.querySelector(selector))
+              target.matches(watchedSelector) ||
+              Boolean(target.querySelector(watchedSelector))
             );
           }
           return [...record.addedNodes, ...record.removedNodes].some(
             (node) =>
               node instanceof Element &&
-              (node.matches(`${selector}, ${toolbarSelector}, [data-sayvia-write-entry]`) ||
-                Boolean(node.querySelector(selector))),
+              (node.matches(watchedSelector) || Boolean(node.querySelector(watchedSelector))),
           );
         })
       )
@@ -156,7 +156,10 @@ export class EditorEntries {
       button.addEventListener('click', (event) => {
         if (!event.isTrusted || !this.enabled) return;
         event.stopPropagation();
-        if (detectAdapter(element) !== 'github-markdown') {
+        if (
+          detectAdapter(element) !== 'github-markdown' ||
+          toolbarFor(element) !== host.parentElement
+        ) {
           this.scan();
           return;
         }

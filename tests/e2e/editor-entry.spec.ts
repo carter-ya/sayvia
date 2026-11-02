@@ -252,11 +252,72 @@ test('anchored writing follows scrolling, flips above when needed and fits narro
       })
       .toBe(true);
     await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('Reviewed candidate');
+    await panel.locator('.source-details > summary').click();
+    await panel.locator('.panel-options > summary').click();
+    await f.page.setViewportSize({ width: 375, height: 250 });
+    await f.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect
+      .poll(async () => {
+        const p = (await panel.boundingBox())!;
+        return p.x >= 0 && p.x + p.width <= 375 && p.y >= 0 && p.y + p.height <= 250;
+      })
+      .toBe(true);
+
     f.page.once('dialog', (d) => void d.accept());
     await panel.getByRole('button', { name: '关闭翻译面板' }).click();
     await expect(panel).toHaveCount(0);
     await f.page.setViewportSize({ width: 900, height: 700 });
     await expect(panel).toHaveCount(0);
+    expect(f.count()).toBe(1);
+  } finally {
+    await f.close();
+  }
+});
+
+test('wrapped toolbar insertion and replacement reassociate the same draft and active popover', async () => {
+  const f = await githubFixture();
+  try {
+    await expect(f.page.getByRole('button', { name: '使用 Sayvia 翻译这份评论' })).toHaveCount(1);
+    await f.page.evaluate(() => {
+      const form = document.createElement('form');
+      form.id = 'late-form';
+      form.innerHTML = '<textarea id="late-field" name="comment[body]">你好</textarea>';
+      document.body.append(form);
+      return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    await expect(f.page.locator('#late-form [data-sayvia-write-entry]')).toHaveCount(0);
+    await f.page.locator('#late-form').evaluate((form) => {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'toolbar-wrapper';
+      wrapper.innerHTML =
+        '<markdown-toolbar for="late-field"><button type="button">B</button></markdown-toolbar>';
+      form.prepend(wrapper);
+    });
+    const button = f.page
+      .locator('#late-form')
+      .getByRole('button', { name: '使用 Sayvia 翻译这份评论' });
+    await expect(button).toBeVisible();
+    await button.click();
+    const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' });
+    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('English');
+    await panel.getByLabel('译文', { exact: true }).fill('Edited result');
+    await f.page.locator('#toolbar-wrapper').evaluate((wrapper) => {
+      const replacement = document.createElement('div');
+      replacement.id = 'toolbar-wrapper';
+      replacement.style.paddingTop = '45px';
+      replacement.innerHTML =
+        '<markdown-toolbar for="late-field"><button type="button">B</button></markdown-toolbar>';
+      wrapper.replaceWith(replacement);
+    });
+    await expect(f.page.locator('#toolbar-wrapper [data-sayvia-write-entry]')).toHaveCount(1);
+    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('Edited result');
+    await expect
+      .poll(async () => {
+        const b = (await button.boundingBox())!,
+          p = (await panel.boundingBox())!;
+        return Math.min(Math.abs(p.y - b.y - b.height), Math.abs(p.y + p.height - b.y));
+      })
+      .toBeLessThanOrEqual(12);
     expect(f.count()).toBe(1);
   } finally {
     await f.close();

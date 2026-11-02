@@ -30,7 +30,7 @@ export class AnchoredPanel {
       const below = Math.max(0, innerHeight - rect.bottom - gap * 2);
       const above = Math.max(0, rect.top - gap * 2);
       const down = below >= height || below >= above;
-      const available = Math.max(1, down ? below : above);
+      const available = Math.max(1, Math.min(down ? below : above, innerHeight - gap * 2));
       const left = Math.max(gap, Math.min(rect.right - width, innerWidth - width - gap));
       const top = Math.max(
         gap,
