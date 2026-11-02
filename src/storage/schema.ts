@@ -38,8 +38,8 @@ const Provider = z
 export const Preferences = z
   .object({
     defaultProviderId: Id.optional(),
-    readTarget: z.string().trim().min(1).max(20),
-    writeTarget: z.string().trim().min(1).max(20),
+    readTarget: z.string().trim().min(1).max(40),
+    writeTarget: z.string().trim().min(1).max(40),
     quickReplace: z.boolean(),
     theme: z.enum(['system', 'light', 'dark']),
   })
