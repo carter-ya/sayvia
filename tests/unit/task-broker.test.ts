@@ -107,6 +107,7 @@ async function setup(initial?: TaskSession) {
     sitePermitted: vi.fn<(origin: string) => Promise<boolean>>().mockResolvedValue(true),
     permitted: vi.fn<(baseUrl: string) => Promise<boolean>>().mockResolvedValue(true),
     deliver: vi.fn(async () => true),
+    progress: vi.fn(async () => {}),
   };
   const broker = new TaskBroker(storage, repository, host, platform);
   await broker.ready;
@@ -642,3 +643,60 @@ it.each(['ja', undefined])(
     expect(() => SessionSchema.parse(f.saved())).not.toThrow();
   },
 );
+
+describe('ephemeral stream routing', () => {
+  it('routes only newer progress, never persists partial text and ignores late chunks after cancel', async () => {
+    const f = await setup(),
+      who = owner(),
+      request = start(who);
+    const response = await f.broker.handle(request, who);
+    expect(response.ok).toBe(true);
+    const id = f.saved().routes[0]!.taskId;
+    const progress = {
+      text: 'PRIVATE_PARTIAL_OUTPUT',
+      elapsedMs: 100,
+      phase: 'translating' as const,
+      estimates: { inputTokens: 20, outputTokens: 3 },
+    };
+    f.views.set(id, { taskId: id, state: 'running', progress });
+    const writes = f.storage.write.mock.calls.length;
+    await f.broker.reconcile(true);
+    expect(f.platform.progress).toHaveBeenCalledTimes(1);
+    expect(f.storage.write.mock.calls.length).toBe(writes);
+    expect(JSON.stringify(f.saved())).not.toContain(progress.text);
+    await f.broker.reconcile(true);
+    expect(f.platform.progress).toHaveBeenCalledTimes(1);
+    await f.broker.handle(control(request, 'translation.cancel'), who);
+    f.views.set(id, { taskId: id, state: 'running', progress: { ...progress, elapsedMs: 200 } });
+    await f.broker.reconcile(true);
+    expect(f.platform.progress).toHaveBeenCalledTimes(1);
+    expect(f.saved().routes[0]!.state).toBe('canceled');
+  });
+  it('returns ephemeral progress to the owning manual popup and retains only final usage', async () => {
+    const f = await setup(),
+      who = { ...owner(), kind: 'manual' as const },
+      request = start(who);
+    const response = await f.broker.handle(request, who),
+      id = f.saved().routes[0]!.taskId;
+    expect(response.ok).toBe(true);
+    const progress = {
+      text: 'MANUAL_PARTIAL',
+      elapsedMs: 100,
+      phase: 'translating' as const,
+      estimates: { inputTokens: 20, outputTokens: 3 },
+    };
+    f.views.set(id, { taskId: id, state: 'running', progress });
+    expect((await f.broker.readManual(who.tabId))?.task?.progress?.text).toBe('MANUAL_PARTIAL');
+    expect(JSON.stringify(f.saved())).not.toContain('MANUAL_PARTIAL');
+    expect(await f.broker.readManual(who.tabId + 1)).toBeNull();
+    f.views.set(id, {
+      taskId: id,
+      state: 'ready',
+      result: { ...result, usage: { inputTokens: 12, outputTokens: 8, totalTokens: 20 } },
+    });
+    const final = await f.broker.readManual(who.tabId);
+    expect(final?.task?.progress).toBeUndefined();
+    expect(final?.metrics?.usage?.totalTokens).toBe(20);
+    expect(SessionSchema.safeParse(f.saved()).success).toBe(true);
+  });
+});

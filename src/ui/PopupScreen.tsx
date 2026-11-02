@@ -1,3 +1,4 @@
+import { TranslationMetrics } from './TranslationMetrics';
 import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { LanguageField } from './LanguageField';
@@ -188,7 +189,7 @@ export function PopupScreen() {
               aria-label="手动译文"
               rows={2}
               maxLength={48_000}
-              value={fields.result}
+              value={busy ? (manual.progress?.text ?? '') : fields.result}
               disabled={!ready || busy}
               placeholder="译文将显示在这里，可继续修改。"
               onChange={(event) => {
@@ -196,6 +197,12 @@ export function PopupScreen() {
               }}
             />
           </label>
+          <TranslationMetrics
+            busy={busy}
+            startedAt={manual.startedAt}
+            progress={manual.progress}
+            result={manual.metrics}
+          />
           <div className="popup-actions">
             <button
               type="button"

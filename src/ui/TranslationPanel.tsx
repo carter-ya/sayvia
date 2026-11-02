@@ -1,3 +1,5 @@
+import { TranslationMetrics } from './TranslationMetrics';
+import type { TranslationProgress, ResultMetrics } from '../runtime/translation-progress';
 import { ReadingPreview } from './ReadingPreview';
 import { AutoTextarea } from './AutoTextarea';
 import { LanguageField } from './LanguageField';
@@ -20,6 +22,9 @@ export interface PanelState {
   canRestore: boolean;
   hasOriginal: boolean;
   status: string;
+  startedAt?: number | undefined;
+  progress?: TranslationProgress | undefined;
+  metrics?: ResultMetrics | undefined;
 }
 export interface PanelActions {
   translate(): void;
@@ -97,7 +102,20 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
         </summary>
         <AutoTextarea aria-label="原文" readOnly value={state.source} rows={3} />
       </details>
-      {state.mode === 'read' && !editing ? (
+      {state.busy ? (
+        <div
+          className="result-region streaming-preview"
+          role="region"
+          aria-label="流式译文"
+          tabIndex={0}
+        >
+          {state.progress?.text || (
+            <p className="result-placeholder">
+              {state.progress?.phase === 'thinking' ? '模型思考中' : '等待首字'}
+            </p>
+          )}
+        </div>
+      ) : state.mode === 'read' && !editing ? (
         <div className="result-region" role="region" aria-label="译文预览" tabIndex={0}>
           {state.candidate ? (
             <ReadingPreview text={state.candidate} />
@@ -121,6 +139,12 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
           />
         </label>
       )}
+      <TranslationMetrics
+        busy={state.busy}
+        startedAt={state.startedAt}
+        progress={state.progress}
+        result={state.metrics}
+      />
       <div className="actions main-actions">
         {state.mode === 'read' && state.candidate && (
           <button

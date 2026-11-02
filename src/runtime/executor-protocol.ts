@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { TranslationResult } from './translation-progress';
+import type { TranslationProgress, TranslationResult } from './translation-progress';
 import { SourceInputSchema } from '../core/source-input';
 
 export const EXECUTOR_PORT = 'sayvia.executor.v1';
@@ -45,5 +45,6 @@ export interface ExecutionView {
   taskId: string;
   state: ExecutionState;
   result?: TranslationResult;
+  progress?: TranslationProgress;
   error?: string;
 }

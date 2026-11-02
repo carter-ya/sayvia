@@ -67,7 +67,15 @@ export class TaskRunner {
     }
     entry.timer = setTimeout(() => this.finish(entry, 'timedOut', 'TIMEOUT'), remaining);
     void translate(
-      { ...input, signal: entry.controller.signal },
+      {
+        ...input,
+        signal: entry.controller.signal,
+        onProgress: (progress) => {
+          if (entry.view.state !== 'running' || entry.controller?.signal.aborted) return;
+          entry.view.progress = progress;
+          this.changed(input.taskId);
+        },
+      },
       this.fetcher,
       entry.processor,
     ).then(
@@ -118,6 +126,7 @@ export class TaskRunner {
     delete entry.processor;
     delete entry.timer;
     entry.view.state = state;
+    delete entry.view.progress;
     if (error) entry.view.error = error;
     if (state !== 'ready') delete entry.view.result;
     entry.expiresAt = Date.now() + (state === 'ready' ? RESULT_TTL_MS : DEDUP_TTL_MS);

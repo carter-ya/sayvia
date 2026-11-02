@@ -29,7 +29,7 @@ export default defineBackground(() => {
   void repository.ready.catch(() => undefined);
   void sessionReady.catch(() => undefined);
   const host = new ExecutorHost(Promise.all([repository.ready, sessionReady]), () => {
-    void broker.reconcile().catch(() => undefined);
+    void broker.reconcile(true).catch(() => undefined);
   });
   const broker = new TaskBroker(taskStorage, repository, host, {
     sitePermitted: (origin) => sites.permitted(origin),
@@ -51,6 +51,21 @@ export default defineBackground(() => {
           { documentId: route.documentId, frameId: route.frameId },
         )
         .catch(() => undefined);
+    },
+    async progress(route, progress) {
+      if (route.mode === 'manual' || !route.documentId) return;
+      await browser.tabs.sendMessage(
+        route.tabId,
+        {
+          protocolVersion: 1,
+          type: 'translation.progress',
+          taskId: route.taskId,
+          clientTaskId: route.clientTaskId,
+          documentNonce: route.documentNonce,
+          progress,
+        },
+        { documentId: route.documentId, frameId: route.frameId },
+      );
     },
     async deliver(route, result, canApply) {
       if (!route.documentId) return false;

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TranslationResultSchema } from './translation-progress';
+import { ProgressSchema, TranslationResultSchema } from './translation-progress';
 const Identity = {
   protocolVersion: z.literal(1),
   taskId: z.uuid(),
@@ -7,6 +7,9 @@ const Identity = {
   documentNonce: z.uuid(),
 };
 export const TaskEventSchema = z.discriminatedUnion('type', [
+  z
+    .object({ ...Identity, type: z.literal('translation.progress'), progress: ProgressSchema })
+    .strict(),
   z
     .object({
       ...Identity,

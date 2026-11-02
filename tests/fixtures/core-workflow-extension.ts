@@ -13,6 +13,7 @@ export async function workflowFixture() {
   let delay = 0;
   let responseMode: 'normal' | 'invalid' | 'rate-limited' = 'normal';
   let held = false;
+  let streaming: { gap: number; end: 'normal' | 'truncated' | 'invalid' } | undefined;
   const heldResponses = new Set<() => void>();
   const pending = new Set<object>();
   const requestBodies: string[] = [];
@@ -90,6 +91,49 @@ export async function workflowFixture() {
                       ),
                   })),
                 });
+                if (streaming) {
+                  const { gap, end } = streaming;
+                  response.writeHead(200, {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                  });
+                  response.flushHeaders();
+                  const chunk = (delta: unknown, finish_reason: string | null = null) => ({
+                    choices: [{ index: 0, delta, finish_reason }],
+                  });
+                  const split = Math.max(
+                    content.indexOf('"text":"') + 11,
+                    Math.floor(content.length * 0.65),
+                  );
+                  const finishContent =
+                    end === 'invalid'
+                      ? content.slice(split, -2) + ',{"id":"invalid","text":"x"}]}'
+                      : content.slice(split);
+                  const parts = [
+                    chunk({ reasoning_content: 'FIXTURE_PRIVATE_REASONING' }),
+                    chunk({ content: content.slice(0, split) }),
+                    chunk({ content: finishContent }),
+                    chunk({}, 'stop'),
+                    {
+                      choices: [],
+                      usage: { prompt_tokens: 123, completion_tokens: 45, total_tokens: 168 },
+                    },
+                  ];
+                  const timers = parts.map((part, index) =>
+                    setTimeout(() => {
+                      if (!response.destroyed)
+                        response.write('data: ' + JSON.stringify(part) + '\n\n');
+                    }, index * gap),
+                  );
+                  timers.push(
+                    setTimeout(() => {
+                      if (!response.destroyed)
+                        response.end(end === 'truncated' ? '' : 'data: [DONE]\n\n');
+                    }, parts.length * gap),
+                  );
+                  response.on('close', () => timers.forEach(clearTimeout));
+                  return;
+                }
                 response.writeHead(200, { 'Content-Type': 'application/json' });
                 response.end(
                   JSON.stringify({
@@ -192,6 +236,9 @@ export async function workflowFixture() {
     open,
     count: () => count,
     requestBodies,
+    stream: (gap = 250, end: 'normal' | 'truncated' | 'invalid' = 'normal') => {
+      streaming = { gap, end };
+    },
     pending: () => pending.size,
     response: (mode: typeof responseMode) => {
       responseMode = mode;

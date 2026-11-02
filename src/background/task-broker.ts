@@ -1,3 +1,8 @@
+import {
+  ProgressSchema,
+  ResultMetricsSchema,
+  type TranslationProgress,
+} from '../runtime/translation-progress';
 import type { ConfigRepository } from '../storage/repository';
 import type { Execution, ExecutionView } from '../runtime/executor-protocol';
 import type { StartPayload, TaskMessage, TaskRoute, TaskSession } from '../runtime/task-protocol';
@@ -18,6 +23,7 @@ export interface TaskOwner {
 }
 export interface TaskPlatform {
   notify?(route: TaskRoute): Promise<void>;
+  progress?(route: TaskRoute, progress: TranslationProgress): Promise<void>;
   sitePermitted?(origin: string): Promise<boolean>;
   permitted(baseUrl: string): Promise<boolean>;
   deliver(
@@ -40,6 +46,7 @@ const ERRORS = new Set([
 export class TaskBroker {
   readonly ready: Promise<void>;
   private state!: TaskSession;
+  private progress = new Map<string, TranslationProgress>();
   private queue: Promise<unknown> = Promise.resolve();
   constructor(
     private readonly storage: TaskStorage,
@@ -70,6 +77,9 @@ export class TaskBroker {
     return this.storage.write(structuredClone(this.state));
   }
   private prune() {
+    for (const id of this.progress.keys())
+      if (!this.state.routes.some((r) => r.taskId === id && r.state === 'running'))
+        this.progress.delete(id);
     this.state.routes = this.state.routes.filter(
       (route) => ACTIVE.has(route.state) || route.expiresAt > Date.now(),
     );
@@ -94,6 +104,10 @@ export class TaskBroker {
       clientTaskId: route.clientTaskId,
       documentNonce: route.documentNonce,
       state: route.state,
+      startedAt: route.startedAt,
+      ...(route.state === 'running' && this.progress.has(route.taskId)
+        ? { progress: this.progress.get(route.taskId) }
+        : {}),
       canApply: route.mode === 'write' && !route.recovered && route.state === 'delivered',
       provider: { id: route.providerId, revision: route.providerRevision, model: route.model },
       ...(route.error ? { error: route.error } : {}),
@@ -276,9 +290,22 @@ export class TaskBroker {
       return;
     }
     route.state = outcome.state;
+    if (outcome.state === 'running') {
+      const parsed = ProgressSchema.safeParse(outcome.progress);
+      if (parsed.success) {
+        const previous = this.progress.get(route.taskId);
+        if (!previous || parsed.data.elapsedMs > previous.elapsedMs) {
+          this.progress.set(route.taskId, parsed.data);
+          if (route.mode !== 'manual')
+            await this.platform.progress?.(route, parsed.data).catch(() => undefined);
+        }
+      }
+      return;
+    }
+    this.progress.delete(route.taskId);
     if (outcome.error) route.error = outcome.error;
     if (outcome.state !== 'ready') {
-      if (outcome.state !== 'running') await this.notify(route);
+      await this.notify(route);
       return;
     }
     if (!outcome.result) {
@@ -296,6 +323,13 @@ export class TaskBroker {
         return;
       }
       draft.result = outcome.result.text;
+      draft.metrics = ResultMetricsSchema.parse({
+        requested: outcome.result.requested,
+        durationMs: outcome.result.durationMs,
+        streamed: outcome.result.streamed,
+        usage: outcome.result.usage,
+        estimates: outcome.result.estimates,
+      });
       draft.revision = (draft.revision ?? 0) + 1;
     } else if (
       !(await this.platform.deliver(
@@ -318,6 +352,7 @@ export class TaskBroker {
   }
   private async cancelRoute(route: TaskRoute) {
     const wasActive = ACTIVE.has(route.state);
+    this.progress.delete(route.taskId);
     route.state = 'canceled';
     route.error = 'CANCELED';
     route.recovered = true;
@@ -333,13 +368,14 @@ export class TaskBroker {
     if (draft) delete draft.result;
     await this.notify(route);
   }
-  private async reconcileRoutes() {
+  private async reconcileRoutes(progressOnly = false) {
+    const before = JSON.stringify(this.state);
     for (const route of this.state.routes) if (ACTIVE.has(route.state)) await this.refresh(route);
-    await this.persist();
-    await this.closeIdle();
+    if (!progressOnly || JSON.stringify(this.state) !== before) await this.persist();
+    if (!this.state.routes.some((route) => ACTIVE.has(route.state))) await this.closeIdle();
   }
-  reconcile() {
-    return this.serial(() => this.reconcileRoutes());
+  reconcile(progressOnly = false) {
+    return this.serial(() => this.reconcileRoutes(progressOnly));
   }
   private closeIdle() {
     return this.host.closeIfIdle().catch(() => undefined);
@@ -458,9 +494,10 @@ export class TaskBroker {
         (value) => value.clientTaskId === draft.clientTaskId && value.tabId === tabId,
       );
     if (route && ACTIVE.has(route.state)) {
+      const before = JSON.stringify(this.state);
       await this.refresh(route);
-      await this.persist();
-      await this.closeIdle();
+      if (JSON.stringify(this.state) !== before) await this.persist();
+      if (!ACTIVE.has(route.state)) await this.closeIdle();
     }
     if (!draft) return null;
     const view = structuredClone(draft);
