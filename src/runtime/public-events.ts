@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TranslationResultSchema } from './translation-progress';
 const Identity = {
   protocolVersion: z.literal(1),
   taskId: z.uuid(),
@@ -12,14 +13,7 @@ export const TaskEventSchema = z.discriminatedUnion('type', [
       type: z.literal('translation.result'),
       canApply: z.boolean(),
       quickReplaceAllowed: z.boolean().optional(),
-      result: z
-        .object({
-          text: z.string().max(48_000),
-          requested: z.boolean(),
-          durationMs: z.number().nonnegative(),
-          algorithmVersion: z.string().max(80),
-        })
-        .strict(),
+      result: TranslationResultSchema,
       provider: z
         .object({ id: z.uuid(), revision: z.int().nonnegative(), model: z.string().max(160) })
         .strict(),

@@ -1,3 +1,9 @@
+import { readCompletionStream, tokenUsage, StreamError } from './completion-stream';
+import type {
+  TranslationProgress,
+  TranslationResult,
+  TokenUsage,
+} from '../runtime/translation-progress';
 import { z } from 'zod';
 import { type SourceInput, SourceError } from '../core/source-input';
 import { PlanError } from '../core/translation-plan';
@@ -6,6 +12,7 @@ import { chatCompletionsEndpoint, EndpointError } from './endpoint';
 
 export const ALGORITHM_VERSION = 'segments-v2.3';
 export const MAX_RESPONSE_BYTES = 1024 * 1024;
+export const MAX_STREAM_BYTES = 16 * 1024 * 1024;
 export const EXECUTION_BUDGET_MS = 60_000;
 export type ProviderErrorCode =
   | 'CONFIG_REQUIRED'
@@ -114,13 +121,14 @@ export interface TranslationRequest {
   targetLanguage: string;
   signal?: AbortSignal;
   deadlineAt?: number;
+  onProgress?(progress: TranslationProgress): void;
 }
 
 export async function translate(
   request: TranslationRequest,
   fetcher: typeof fetch = fetch,
   processor: TranslationProcessor = localProcessor(),
-) {
+): Promise<TranslationResult> {
   const startedAt = Date.now();
   const remaining = Math.min(
     EXECUTION_BUDGET_MS,
@@ -157,6 +165,65 @@ export async function translate(
     if (!config.success || !sourceLanguage.success || !targetLanguage.success)
       throw new ProviderError('CONFIG_REQUIRED');
     const endpoint = chatCompletionsEndpoint(config.data.baseUrl);
+    const body = JSON.stringify({
+      model: config.data.model,
+      stream: true,
+      stream_options: { include_usage: true },
+      messages: [
+        { role: 'system', content: SYSTEM_INSTRUCTION },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            sourceLanguage: sourceLanguage.data,
+            targetLanguage: targetLanguage.data,
+            ...prepared.payload,
+          }),
+        },
+      ],
+    });
+    const estimates = {
+      inputTokens: Math.ceil(new TextEncoder().encode(body).length / 4),
+      outputTokens: 0,
+    };
+    let usage: TokenUsage | undefined,
+      lastProgress = 0,
+      latestPreview = '',
+      reasoningCharacters = 0;
+    // Withhold a credential-prefix suffix too: it can span arbitrary network chunks.
+    const safePreview = (text: string) => {
+      if (text.includes(config.data.apiKey)) throw new ProviderError('UNSUPPORTED_RESPONSE');
+      for (let length = Math.min(text.length, config.data.apiKey.length - 1); length > 0; length--)
+        if (text.endsWith(config.data.apiKey.slice(0, length))) return text.slice(0, -length);
+      return text;
+    };
+    const emit = async (content: string, reasoning: number, actual?: TokenUsage, force = false) => {
+      usage = actual ?? usage;
+      reasoningCharacters = Math.max(reasoningCharacters, reasoning);
+      estimates.outputTokens = Math.ceil(
+        (new TextEncoder().encode(content).length + reasoningCharacters * 2) / 4,
+      );
+      if (!request.onProgress) return;
+      const now = Date.now();
+      if (!force && now - lastProgress < 80) return;
+      lastProgress = now;
+      if (processor.preview && content)
+        latestPreview = safePreview(await processor.preview(content, controller.signal));
+      if (controller.signal.aborted) return;
+      request.onProgress({
+        text: latestPreview,
+        elapsedMs: now - startedAt,
+        phase: force
+          ? 'validating'
+          : content
+            ? 'translating'
+            : reasoning
+              ? 'thinking'
+              : 'connecting',
+        estimates: { ...estimates },
+        ...(usage ? { usage } : {}),
+      });
+    };
+    await emit('', 0);
     const response = await fetcher(endpoint, {
       method: 'POST',
       headers: {
@@ -168,35 +235,37 @@ export async function translate(
       redirect: 'error',
       referrerPolicy: 'no-referrer',
       signal: controller.signal,
-      body: JSON.stringify({
-        model: config.data.model,
-        stream: false,
-        messages: [
-          { role: 'system', content: SYSTEM_INSTRUCTION },
-          {
-            role: 'user',
-            content: JSON.stringify({
-              sourceLanguage: sourceLanguage.data,
-              targetLanguage: targetLanguage.data,
-              ...prepared.payload,
-            }),
-          },
-        ],
-      }),
+      body,
     });
     if (!response.ok) await httpError(response);
-    const raw = await readLimited(response);
-    if (abortCode) throw new ProviderError(abortCode);
-    let json: unknown;
-    try {
-      json = JSON.parse(raw);
-    } catch {
-      throw new ProviderError('UNSUPPORTED_RESPONSE');
+    const streamed =
+      response.headers.get('content-type')?.toLowerCase().includes('text/event-stream') ?? false;
+    let content: string;
+    if (streamed) {
+      const result = await readCompletionStream(
+        response,
+        MAX_STREAM_BYTES,
+        emit,
+        MAX_RESPONSE_BYTES,
+      );
+      content = result.content;
+      usage = result.usage ?? usage;
+    } else {
+      const raw = await readLimited(response);
+      let json: unknown;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        throw new ProviderError('UNSUPPORTED_RESPONSE');
+      }
+      const completion = CompletionSchema.safeParse(json);
+      if (!completion.success || completion.data.choices[0]!.message.refusal)
+        throw new ProviderError('UNSUPPORTED_RESPONSE');
+      content = completion.data.choices[0]!.message.content;
+      usage = tokenUsage((json as { usage?: unknown }).usage);
     }
-    const completion = CompletionSchema.safeParse(json);
-    if (!completion.success || completion.data.choices[0]!.message.refusal)
-      throw new ProviderError('UNSUPPORTED_RESPONSE');
-    const content = completion.data.choices[0]!.message.content;
+    await emit(content, 0, usage, true);
+    if (abortCode) throw new ProviderError(abortCode);
     let candidate: unknown;
     try {
       candidate = JSON.parse(content);
@@ -217,12 +286,16 @@ export async function translate(
     return {
       text,
       requested: true,
+      streamed,
+      ...(usage ? { usage } : {}),
+      estimates,
       durationMs: Date.now() - startedAt,
       algorithmVersion: ALGORITHM_VERSION,
     };
   } catch (error) {
     if (abortCode) throw new ProviderError(abortCode);
     if (error instanceof ProviderError || error instanceof SourceError) throw error;
+    if (error instanceof StreamError) throw new ProviderError('UNSUPPORTED_RESPONSE');
     if (error instanceof EndpointError) throw new ProviderError('CONFIG_REQUIRED');
     if (error instanceof PlanError) throw new ProviderError('FORMAT_INVALID');
     throw new ProviderError('NETWORK_ERROR');
