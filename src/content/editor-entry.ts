@@ -1,6 +1,6 @@
 import { detectAdapter } from '../adapters/detect';
 
-const selector = 'textarea[name="comment[body]"], textarea#new_comment_field';
+import { GITHUB_COMMENT_SELECTOR as selector } from '../adapters/github-editor';
 const toolbarSelector = 'markdown-toolbar, [role="toolbar"]';
 const watchedSelector = `${selector}, ${toolbarSelector}, [data-sayvia-write-entry]`;
 const visibleToolbar = (toolbar: HTMLElement) =>
@@ -101,6 +101,7 @@ export class EditorEntries {
         'for',
         'role',
         'aria-controls',
+        'data-testid',
       ],
     });
     window.addEventListener('popstate', this.schedule);

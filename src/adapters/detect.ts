@@ -1,3 +1,4 @@
+import { GITHUB_COMMENT_SELECTOR } from './github-editor';
 import type { AdapterKind, TextControl } from './types';
 
 export function isTextControl(element: Element): element is TextControl {
@@ -33,7 +34,7 @@ export function detectAdapter(
     if (
       route &&
       element instanceof HTMLTextAreaElement &&
-      element.matches('textarea[name="comment[body]"], textarea#new_comment_field')
+      element.matches(GITHUB_COMMENT_SELECTOR)
     ) {
       return 'github-markdown';
     }

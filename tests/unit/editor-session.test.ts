@@ -274,6 +274,24 @@ describe('editor safety', () => {
     expect(detectAdapter(password)).toBeUndefined();
   });
 
+  it('recognizes inline review drafts and modern GitHub Markdown editors', () => {
+    const { element } = editor();
+    const url = new URL('https://github.com/acme/repo/pull/3/changes');
+    for (const name of ['review_comment[body]', 'pull_request_review[body]']) {
+      element.name = name;
+      expect(detectAdapter(element, url)).toBe('github-markdown');
+    }
+    element.name = 'body';
+    element.dataset.testid = 'markdown-editor-textarea';
+    expect(detectAdapter(element, url)).toBe('github-markdown');
+    delete element.dataset.testid;
+    expect(detectAdapter(element, url)).toBeUndefined();
+    element.name = 'review_comment[body]';
+    expect(
+      detectAdapter(element, new URL('https://github.com/acme/repo/settings')),
+    ).toBeUndefined();
+  });
+
   it('rejects an input that changes to a password field after capture', async () => {
     const element = document.createElement('input');
     element.type = 'text';

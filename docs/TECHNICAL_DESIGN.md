@@ -361,7 +361,7 @@ DOM 节点通过本地 WeakMap 查找，不序列化到消息，不通过“再�
 
 ### 8.2 首版适配策略
 
-GitHub 适配优先于通用适配。GitHub 仅对经验证的 Issue／PR 常规纯文本评论框开放完整能力；Discussions 独立记录验证结果。通用适配限制为可见、可编辑的 textarea 与 text/search input，排除 disabled、readonly、密码、支付字段及其他敏感标记。
+GitHub 适配优先于通用适配。GitHub 对已识别的 Issue／PR 普通评论和 PR 行内审核评论、审核总结开放完整能力；Discussions 独立记录验证结果。通用适配限制为可见、可编辑的 textarea 与 text/search input，排除 disabled、readonly、密码、支付字段及其他敏感标记。
 
 富文本、代码编辑器和跨域 iframe 仅预览与复制。不根据相似 DOM 结构猜测支持。GitHub 具体选择器和站点事件在 M1 实页验证后落地，不在本方案虚构稳定私有 API。
 
@@ -533,7 +533,11 @@ Chrome 后台可能空闲终止，且长时间等待 fetch 响应也受生命周
 
 所有任务释放后关闭 Offscreen Document。空闲时无周期轮询、无常驻 Worker。Offscreen 的 WORKERS 用途和仅 runtime 扩展 API 可用的限制，以官方说明为边界。[Chrome Offscreen 文档](https://developer.chrome.com/docs/extensions/reference/api/offscreen)
 
+GitHub 评论框内的可信鼠标／键盘选区另用写作浮动入口，保持与阅读入口分离。仅缓存这份编辑框的快照；点击时重新检查节点、原稿 revision、选择范围和站点可用状态，随后复用写作的 Markdown 保护、预览与替换流程。选区事件不发模型请求，不回退到另一份草稿。关闭编辑器、原稿修改、失焦或权限失效后清除入口。
+
 ## 12 页面面板与交互实现
+
+GitHub 编辑器检测和工具栏发现共用评论框选择器，覆盖 comment[body]、review_comment[body]、pull_request_review[body]、new_comment_field 及现代 Markdown 编辑器的 markdown-editor-textarea 标记。所有识别仍受 Issue／PR 路径、可见和可编辑条件约束。
 
 GitHub 写作入口优先通过 markdown-toolbar 的 for 或工具栏 aria-controls 精确关联 textarea；现代编辑器使用同一表单／编辑器容器内的唯一工具栏关联。多个候选或编辑框不明确时保留已有手动入口，避免关联到另一份草稿。按钮置于原生工具栏，使用中性色小图标与局部样式隔离，保留可信操作判断和原编辑框绑定。[GitHub 工具栏组件](https://github.com/github/markdown-toolbar-element)
 
