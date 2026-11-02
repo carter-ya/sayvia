@@ -141,6 +141,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     if (editor) {
       lastEditor = editor;
       lastPreview = undefined;
+      previewRange = undefined;
       focusTarget = element as HTMLElement;
     } else if (
       element.matches(
@@ -150,7 +151,9 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     ) {
       // An unsupported editing target must never fall back to a previous draft.
       lastEditor = undefined;
-      lastPreview = previewEditor(element);
+      const preview = previewEditor(element);
+      if (lastPreview !== preview) previewRange = undefined;
+      lastPreview = preview;
       focusTarget = element as HTMLElement;
     }
   };
@@ -169,6 +172,11 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       current = { source, baseline: '', eligible: false, backendAllows: false, applied: false };
     } else if (lastPreview && previewEditor(lastPreview)) {
       let range = previewRange;
+      if (
+        range &&
+        (!lastPreview.contains(range.startContainer) || !lastPreview.contains(range.endContainer))
+      )
+        throw new Error('SELECTION_LOST');
       if (state.scope === 'full' || !range) {
         range = document.createRange();
         range.selectNodeContents(lastPreview);
@@ -610,8 +618,10 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
           preview &&
           preview.contains(selected.anchorNode) &&
           preview.contains(selected.focusNode)
-        )
+        ) {
           selectedPreview = preview;
+          if (preview === lastPreview) previewRange = selected.getRangeAt(0).cloneRange();
+        }
         entry.show(
           selected.getRangeAt(0),
           event instanceof MouseEvent ? { x: event.clientX, y: event.clientY } : undefined,

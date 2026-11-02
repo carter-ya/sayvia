@@ -161,6 +161,47 @@ test('rich editor scope can return to the original selection after translating t
     await f.close();
   }
 });
+test('refreshing after switching rich/native editors reads the newly focused draft, never a cached range from another editor', async () => {
+  const f = await fixture(
+    undefined,
+    '<div id=rich contenteditable=true role=textbox><span>你好</span><p>PRIVATE_FIRST_DRAFT</p></div><div id=second contenteditable=true role=textbox>中文 第二份</div><input id=single type=text value=你好>',
+  );
+  try {
+    const first = f.page.locator('#rich');
+    await first.focus();
+    await f.page.evaluate(() => {
+      const text = document.querySelector('#rich span')!.firstChild!;
+      const r = document.createRange();
+      r.setStart(text, 0);
+      r.setEnd(text, 2);
+      const s = window.getSelection()!;
+      s.removeAllRanges();
+      s.addRange(r);
+    });
+    await first.press('Shift');
+    await f.page.getByRole('button', { name: '使用 Sayvia 翻译选中文字' }).click();
+    const panel = f.page.getByRole('dialog', panelName);
+    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('English');
+    await panel.getByText('更多选项', { exact: true }).click();
+    await f.page.locator('#second').focus();
+    await panel.getByRole('button', { name: '重新读取原文', exact: true }).click();
+    await expect(panel.getByLabel('原文', { exact: true })).toHaveValue('中文 第二份');
+    await panel.getByRole('button', { name: '翻译', exact: true }).click();
+    await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('English 第二份');
+    expect(f.requestBodies[1]).not.toContain('PRIVATE_FIRST_DRAFT');
+    await f.page.locator('#single').focus();
+    await panel.getByRole('button', { name: '重新读取原文', exact: true }).click();
+    await expect(panel.getByLabel('原文', { exact: true })).toHaveValue('你好');
+    await first.focus();
+    await panel.getByRole('button', { name: '重新读取原文', exact: true }).click();
+    await expect(panel.getByLabel('原文', { exact: true })).toHaveValue(/PRIVATE_FIRST_DRAFT/);
+    await expect(panel.getByRole('button', { name: /替换/ })).toHaveCount(0);
+    await expect(f.page.locator('#second')).toHaveText('中文 第二份');
+    await expect(f.page.locator('#single')).toHaveValue('你好');
+  } finally {
+    await f.close();
+  }
+});
 test('the real commit composer contract has a toolbar and input-selection translation', async () => {
   const f = await fixture(commitUrl, commitDiff() + reviewComposer('_r_commit_'));
   try {
