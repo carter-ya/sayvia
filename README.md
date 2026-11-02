@@ -18,6 +18,8 @@ pnpm dev
 
 pnpm build 生成 .output/chrome-mv3。在 Chrome 扩展管理页打开开发者模式，选择“加载已解压的扩展程序”并加载该目录。在设置中保存 API Key、模型和服务地址。普通网页默认可用，选中文字后点击鼠标旁的紧凑翻译图标即可开始翻译，无需逐网站或 API 主机授权。安装／更新权限由 Chrome 统一确认，可在 Chrome 扩展菜单管理网站访问。在 GitHub Issue／PR 编辑器操作栏中点击翻译图标，即可在按钮附近的浮窗翻译该框选区或全文，默认先预览再替换。工具栏“翻译当前输入”仍可作为备用入口。受限页面可在工具栏的“手动翻译”页签粘贴文本。需要快速写作时，在设置的“更多设置”提前开启快速替换；原稿变化或任务恢复时仍只预览。付费模型只在明确操作后调用，评论仍由用户自行提交。
 
+开发包的固定 ID 为 `cjahocldgaicopmfhphamjnhbfaookam`，由 [固定公钥](config/extension-identity.ts) 写入 manifest.key，不因解压目录改变而重新生成。公钥不是模型 API Key，也不是 CRX 签名私钥。首次从未固定 ID 的旧包切换时，Chrome 会按新 ID 隔离数据，需在新扩展中重新配置模型和 Key；旧 ID 下的配置不会自动迁移。后续在同一浏览器配置中直接更新即可保留数据；卸载扩展或清除数据仍会删除配置。正式上架前应改为商店分配的公钥并核对 ID，不承诺与当前开发 ID 一致。[Chrome 官方说明](https://developer.chrome.com/docs/extensions/reference/manifest/key)
+
 当前体验修正与验证见 [UX01](docs/validation/UX01.md)；旧验证记录均对应其注明的源提交。
 
 ## 检查与打包
