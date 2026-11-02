@@ -162,16 +162,23 @@ export function needsTranslation(plan: TranslationPlan) {
 export function translationPayload(plan: TranslationPlan) {
   assertPlan(plan);
   return {
-    segments: plan.segments.map((segment) => ({
-      id: segment.id,
-      text: segment.text,
-      protectedTokens: segment.tokens.map((token) => ({
-        marker: token.marker,
-        role: token.role,
-        leadingWhitespace: token.leadingWhitespace,
-        trailingWhitespace: token.trailingWhitespace,
-      })),
-    })),
+    segments: plan.segments.map((segment) => {
+      const protectedTokens = segment.tokens.map((token) =>
+        token.role === 'content' && !token.leadingWhitespace && !token.trailingWhitespace
+          ? token.marker
+          : {
+              marker: token.marker,
+              role: token.role,
+              ...(token.leadingWhitespace ? { leadingWhitespace: true as const } : {}),
+              ...(token.trailingWhitespace ? { trailingWhitespace: true as const } : {}),
+            },
+      );
+      return {
+        id: segment.id,
+        text: segment.text,
+        ...(protectedTokens.length ? { protectedTokens } : {}),
+      };
+    }),
   };
 }
 

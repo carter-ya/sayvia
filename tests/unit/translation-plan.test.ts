@@ -32,8 +32,8 @@ describe('source interval translation plans', () => {
     const plan = createTranslationPlan({ kind: 'plain-text', text: '<hello> timeout\n  next' });
     expect(translationPayload(plan)).toEqual({
       segments: [
-        { id: 's0', text: '<hello> timeout', protectedTokens: [] },
-        { id: 's1', text: 'next', protectedTokens: [] },
+        { id: 's0', text: '<hello> timeout' },
+        { id: 's1', text: 'next' },
       ],
     });
     expect(

@@ -62,9 +62,7 @@ describe('single-request translation protocol', () => {
       return jsonResponse(
         completion(
           JSON.stringify({
-            segments: [
-              { id: 's0', text: `Hello ${payload.segments[0].protectedTokens[0].marker}` },
-            ],
+            segments: [{ id: 's0', text: `Hello ${payload.segments[0].protectedTokens[0]}` }],
           }),
         ),
       );
