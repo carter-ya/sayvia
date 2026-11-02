@@ -86,8 +86,9 @@ describe('single-request translation protocol', () => {
       headers: { Authorization: 'Bearer DUMMY_TEST_KEY' },
     });
     const body = JSON.parse(String(init!.body));
-    expect(Object.keys(body).sort()).toEqual(['messages', 'model', 'stream']);
-    expect(body.stream).toBe(false);
+    expect(Object.keys(body).sort()).toEqual(['messages', 'model', 'stream', 'stream_options']);
+    expect(body.stream).toBe(true);
+    expect(body.stream_options).toEqual({ include_usage: true });
     expect(body.messages.map((message: { role: string }) => message.role)).toEqual([
       'system',
       'user',

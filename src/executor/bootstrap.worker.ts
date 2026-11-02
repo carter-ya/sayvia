@@ -8,7 +8,7 @@ const Request = z.discriminatedUnion('type', [
   z.object({ type: z.literal('prepare'), id: z.uuid(), value: SourceInputSchema }).strict(),
   z
     .object({
-      type: z.literal('reconstruct'),
+      type: z.enum(['preview', 'reconstruct']),
       id: z.uuid(),
       value: z.string().max(MAX_OUTPUT_CHARACTERS * 8),
     })
@@ -31,7 +31,9 @@ self.addEventListener('message', (event: MessageEvent<unknown>) => {
   void (
     request.type === 'prepare'
       ? processor.prepare(request.value, signal)
-      : processor.reconstruct(request.value, signal)
+      : request.type === 'preview'
+        ? processor.preview!(request.value, signal)
+        : processor.reconstruct(request.value, signal)
   ).then(
     (data) => self.postMessage({ id: request.id, ok: true, data }),
     () => self.postMessage({ id: request.id, ok: false }),

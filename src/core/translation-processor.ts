@@ -1,3 +1,4 @@
+import { previewTranslation } from './translation-preview';
 import type { SourceInput } from './source-input';
 import {
   createTranslationPlan,
@@ -16,6 +17,7 @@ export interface TranslationProcessor {
     payload: ReturnType<typeof translationPayload>;
     required: boolean;
   }>;
+  preview?(content: string, signal: AbortSignal): Promise<string>;
   reconstruct(content: string, signal: AbortSignal): Promise<string>;
   dispose(): void;
 }
@@ -30,6 +32,9 @@ export function localProcessor(): TranslationProcessor {
         payload: translationPayload(plan),
         required: needsTranslation(plan),
       };
+    },
+    async preview(content) {
+      return plan ? previewTranslation(plan, content) : '';
     },
     async reconstruct(content) {
       if (!plan) throw new Error('INVALID_PLAN');

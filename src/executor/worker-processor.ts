@@ -16,7 +16,7 @@ export class WorkerProcessor implements TranslationProcessor {
       new Worker(new URL('./bootstrap.worker.ts', import.meta.url), { type: 'module' }),
   ) {}
 
-  private call(type: 'prepare' | 'reconstruct', value: unknown, signal: AbortSignal) {
+  private call(type: 'prepare' | 'preview' | 'reconstruct', value: unknown, signal: AbortSignal) {
     if (this.disposed || signal.aborted) return Promise.reject(new ProviderError('CANCELED'));
     if (!this.worker) {
       this.worker = this.create();
@@ -55,6 +55,11 @@ export class WorkerProcessor implements TranslationProcessor {
 
   async prepare(source: SourceInput, signal: AbortSignal): Promise<Prepared> {
     return (await this.call('prepare', source, signal)) as Prepared;
+  }
+
+  async preview(content: string, signal: AbortSignal): Promise<string> {
+    if (content.length > MAX_OUTPUT_CHARACTERS * 8) return '';
+    return (await this.call('preview', content, signal)) as string;
   }
 
   async reconstruct(content: string, signal: AbortSignal): Promise<string> {
