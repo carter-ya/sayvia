@@ -3,11 +3,13 @@ import { copyText } from './copy-text';
 import { newId } from '../runtime/uuid';
 import { createRoot } from 'react-dom/client';
 import { browser } from 'wxt/browser';
-import { detectAdapter } from '../adapters/detect';
+import { FocusedEditorEntry } from './focused-editor-entry';
+import { previewEditor } from '../adapters/preview-editor';
+import { isTextControl, detectAdapter } from '../adapters/detect';
 import { EditorRegistry } from '../adapters/registry';
 import { ReadingSelectionCache } from '../adapters/selection-cache';
 import type { TextEditorSession } from '../adapters/text-session';
-import type { EditorSnapshot } from '../adapters/types';
+import type { TextControl, EditorSnapshot } from '../adapters/types';
 import { parseSourceInput, type SourceInput } from '../core/source-input';
 import { validateEditedTranslation } from '../core/translation-plan';
 import { TaskEventSchema } from '../runtime/public-events';
@@ -32,9 +34,11 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const registry = new EditorRegistry();
   const selection = new ReadingSelectionCache(true);
   let lastEditor: TextEditorSession | undefined;
+  let lastPreview: HTMLElement | undefined;
+  let previewRange: Range | undefined;
+  let selectedPreview: HTMLElement | undefined;
   let selectedEditor:
-    | { element: HTMLTextAreaElement; editor: TextEditorSession; snapshot: EditorSnapshot }
-    | undefined;
+    { element: TextControl; editor: TextEditorSession; snapshot: EditorSnapshot } | undefined;
   let focusTarget: HTMLElement | undefined;
   let current: Draft | undefined;
   let disposed = false;
@@ -73,7 +77,12 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     status: '',
   };
   const entry = new SelectionEntry(() => {
-    if (automatic) open('read', true);
+    if (automatic) {
+      const preview = selectedPreview;
+      const anchor = entry.panelAnchor();
+      open(preview ? 'write' : 'read', true, true, preview);
+      if (preview && anchor) anchoredPanel.attach(() => anchor);
+    }
   });
   const writeEntry = new SelectionEntry(
     () => {
@@ -82,7 +91,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         !automatic ||
         !selected ||
         !selected.editor.validate(selected.snapshot).ok ||
-        detectAdapter(selected.element) !== 'github-markdown' ||
+        !detectAdapter(selected.element) ||
         selected.element.selectionStart !== selected.snapshot.range.start ||
         selected.element.selectionEnd !== selected.snapshot.range.end
       ) {
@@ -102,11 +111,18 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const editorEntries = new EditorEntries((element) => {
     if (automatic) open('write', true, true, element);
   }, anchoredPanel.update);
+  const focusedEntry = new FocusedEditorEntry(
+    (element) => {
+      if (automatic) open('write', true, true, element);
+    },
+    (element) => Boolean(editorEntries.anchorFor(element)),
+  );
   const owns = (event: Event) =>
     event.composedPath().includes(host) ||
     entry.owns(event) ||
     writeEntry.owns(event) ||
-    editorEntries.owns(event);
+    editorEntries.owns(event) ||
+    focusedEntry.owns(event);
   const render = () => {
     if (!disposed) {
       host.style.setProperty(
@@ -124,6 +140,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     const editor = registry.bind(element);
     if (editor) {
       lastEditor = editor;
+      lastPreview = undefined;
       focusTarget = element as HTMLElement;
     } else if (
       element.matches(
@@ -133,6 +150,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     ) {
       // An unsupported editing target must never fall back to a previous draft.
       lastEditor = undefined;
+      lastPreview = previewEditor(element);
       focusTarget = element as HTMLElement;
     }
   };
@@ -148,6 +166,13 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const capture = () => {
     if (state.mode === 'read') {
       const source = selection.read(document);
+      current = { source, baseline: '', eligible: false, backendAllows: false, applied: false };
+    } else if (lastPreview && previewEditor(lastPreview)) {
+      if (state.scope === 'full' || !previewRange) {
+        previewRange = document.createRange();
+        previewRange.selectNodeContents(lastPreview);
+      }
+      const source = selection.captureRange(previewRange, document);
       current = { source, baseline: '', eligible: false, backendAllows: false, applied: false };
     } else {
       if (!lastEditor) throw new Error('UNSUPPORTED');
@@ -167,7 +192,9 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       };
       state.replaceScope = snapshot.scope;
     }
-    state.source = state.mode === 'read' ? selection.readText(document) : current.source.text;
+    state.previewOnly = state.mode === 'write' && !current.editor;
+    state.source =
+      current.source.kind === 'dom-selection' ? selection.readText(document) : current.source.text;
     state.hasOriginal = current.editor?.previousOriginal() !== undefined;
     state.canRestore = current.editor?.canRestore() ?? false;
   };
@@ -249,7 +276,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
           return;
         if (!preferences?.ok || typeof preferences.data?.quickReplace !== 'boolean')
           throw new Error('CONTEXT_LOST');
-        state.quickReplace = preferences.data.quickReplace;
+        state.quickReplace = preferences.data.quickReplace && !state.previewOnly;
         draft.quickReplace = state.quickReplace;
         if (draft.editor && draft.snapshot && !draft.editor.validate(draft.snapshot).ok)
           throw new Error('SOURCE_CHANGED');
@@ -262,7 +289,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         payload: {
           clientTaskId,
           documentNonce: registry.documentNonce,
-          mode: state.mode,
+          mode: draft.source.kind === 'dom-selection' ? 'read' : state.mode,
           ...(entryMode === 'inline' ? { entry: 'inline' } : {}),
           scope: draft.snapshot?.scope ?? 'selection',
           source: draft.source,
@@ -494,14 +521,17 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       state.metrics = event.result;
       current.baseline = event.result.text;
       current.backendAllows = event.canApply;
-      state.candidate = event.result.text;
+      state.candidate = event.result.requested ? event.result.text : '';
+      if (!event.result.requested) current.backendAllows = false;
       state.model = event.provider.model;
       refreshEligibility();
       state.status = !event.result.requested
-        ? '所选内容按代码或格式保护，未调用模型。'
-        : state.mode === 'write' && !state.canReplace
-          ? '原稿已变化或翻译已恢复，仅可复制译文。'
-          : '译文已就绪，请预览后操作。';
+        ? '未执行翻译：所选内容全部被识别为代码或格式，未发送给模型。'
+        : state.previewOnly
+          ? '此编辑器提供预览与复制，请复制译文后粘贴。'
+          : state.mode === 'write' && !state.canReplace
+            ? '原稿已变化或翻译已恢复，仅可复制译文。'
+            : '译文已就绪，请预览后操作。';
     } else {
       current.backendAllows = false;
       state.canReplace = false;
@@ -535,13 +565,21 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       return;
     writeEntry.hide();
     selectedEditor = undefined;
+    selectedPreview = undefined;
+    focusedEntry.update();
     if (
-      event.target instanceof HTMLTextAreaElement &&
-      detectAdapter(event.target) === 'github-markdown'
+      event.target instanceof Element &&
+      isTextControl(event.target) &&
+      detectAdapter(event.target)
     ) {
       entry.hide();
       const element = event.target;
-      if (automatic && !state.busy && !writing && element.selectionEnd > element.selectionStart) {
+      if (
+        automatic &&
+        !state.busy &&
+        !writing &&
+        (element.selectionEnd ?? 0) > (element.selectionStart ?? 0)
+      ) {
         const editor = registry.bind(element);
         if (editor) {
           try {
@@ -566,6 +604,13 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
           return;
         }
         selection.read(document);
+        const preview = event.target instanceof Element ? previewEditor(event.target) : undefined;
+        if (
+          preview &&
+          preview.contains(selected.anchorNode) &&
+          preview.contains(selected.focusNode)
+        )
+          selectedPreview = preview;
         entry.show(
           selected.getRangeAt(0),
           event instanceof MouseEvent ? { x: event.clientX, y: event.clientY } : undefined,
@@ -608,7 +653,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     if (
       selectedEditor &&
       (!selectedEditor.editor.validate(selectedEditor.snapshot).ok ||
-        detectAdapter(selectedEditor.element) !== 'github-markdown')
+        !detectAdapter(selectedEditor.element))
     ) {
       writeEntry.hide();
       selectedEditor = undefined;
@@ -631,6 +676,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     entry.hide();
     writeEntry.hide();
     selectedEditor = undefined;
+    selectedPreview = undefined;
+    previewRange = undefined;
     anchoredPanel.detach();
     entryMode = inline ? 'inline' : 'toolbar';
     const sequence = ++openSequence;
@@ -656,10 +703,24 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       const live = window.getSelection();
       if (autoTranslate && (!live || live.isCollapsed || live.rangeCount !== 1)) selection.clear();
       captureSelection();
-    } else if (mode === 'write') bind(editorTarget ?? document.activeElement);
+    } else if (mode === 'write') {
+      bind(editorTarget ?? document.activeElement);
+      const live = window.getSelection();
+      if (
+        lastPreview &&
+        live &&
+        !live.isCollapsed &&
+        live.rangeCount === 1 &&
+        lastPreview.contains(live.anchorNode) &&
+        lastPreview.contains(live.focusNode)
+      )
+        previewRange = live.getRangeAt(0).cloneRange();
+    }
     try {
       capture();
-      state.status = '确认原文和目标语言后，点击翻译。';
+      state.status = state.previewOnly
+        ? '此编辑器提供预览与复制，请复制译文后粘贴。'
+        : '确认原文和目标语言后，点击翻译。';
     } catch (error) {
       current = undefined;
       state.status = userError(error);
@@ -675,7 +736,11 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     render();
     if (inline && mode === 'read') anchoredPanel.attach(() => entry.panelAnchor(), true);
     if (inline && mode === 'write' && editorTarget)
-      anchoredPanel.attach(() => editorEntries.anchorFor(editorTarget));
+      anchoredPanel.attach(
+        () =>
+          editorEntries.anchorFor(editorTarget) ??
+          (editorTarget.isConnected ? editorTarget.getBoundingClientRect() : undefined),
+      );
     const target = state.target;
     void browser.runtime
       .sendMessage({ protocolVersion: 1, type: 'page.preferences', requestId: newId() })
@@ -706,7 +771,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
           ) {
             state.target = mode === 'read' ? response.data.readTarget : response.data.writeTarget;
             state.ready = true;
-            state.quickReplace = response.data.quickReplace;
+            state.quickReplace = response.data.quickReplace && !state.previewOnly;
             state.model = response.data.model ?? '';
             host.style.colorScheme =
               response.data.theme === 'system' ? 'light dark' : response.data.theme;
@@ -730,6 +795,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       selectedEditor = undefined;
     }
     editorEntries.setEnabled(enabled);
+    focusedEntry.setEnabled(enabled);
     if (!enabled) {
       entry.hide();
       if (entryMode === 'inline' && state.busy) {
@@ -763,6 +829,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     writeEntry.dispose();
     selectedEditor = undefined;
     editorEntries.dispose();
+    focusedEntry.dispose();
     anchoredPanel.detach();
     registry.dispose();
     selection.clear();

@@ -363,7 +363,7 @@ DOM 节点通过本地 WeakMap 查找，不序列化到消息，不通过“再�
 
 ### 8.2 首版适配策略
 
-GitHub 适配优先于通用适配。GitHub 对已识别的 Issue／PR 普通评论和 PR 行内审核评论、审核总结开放完整能力；Discussions 独立记录验证结果。通用适配限制为可见、可编辑的 textarea 与 text/search input，排除 disabled、readonly、密码、支付字段及其他敏感标记。
+GitHub 适配优先于通用适配。GitHub 对已识别的评论框使用 Markdown 能力，不以 Issue／PR／commit／Discussions 路径决定是否允许翻译；未识别为 Markdown 的原生控件回退到通用文本适配。通用适配限制为可见、可编辑的 textarea 与 text/search input，排除 disabled、readonly、密码、支付字段及其他敏感标记。
 
 富文本、代码编辑器和跨域 iframe 仅预览与复制。不根据相似 DOM 结构猜测支持。GitHub 具体选择器和站点事件在 M1 实页验证后落地，不在本方案虚构稳定私有 API。
 
@@ -535,11 +535,17 @@ Chrome 后台可能空闲终止，且长时间等待 fetch 响应也受生命周
 
 所有任务释放后关闭 Offscreen Document。空闲时无周期轮询、无常驻 Worker。Offscreen 的 WORKERS 用途和仅 runtime 扩展 API 可用的限制，以官方说明为边界。[Chrome Offscreen 文档](https://developer.chrome.com/docs/extensions/reference/api/offscreen)
 
-GitHub 评论框内的可信鼠标／键盘选区另用写作浮动入口，保持与阅读入口分离。仅缓存这份编辑框的快照；点击时重新检查节点、原稿 revision、选择范围和站点可用状态，随后复用写作的 Markdown 保护、预览与替换流程。选区事件不发模型请求，不回退到另一份草稿。关闭编辑器、原稿修改、失焦或权限失效后清除入口。
+所有受支持原生文本控件内的可信鼠标／键盘选区另用写作浮动入口，保持与阅读入口分离。仅缓存这份编辑框的快照；点击时重新检查节点、原稿 revision、选择范围和站点可用状态，随后复用写作的 Markdown 保护、预览与替换流程。选区事件不发模型请求，不回退到另一份草稿。关闭编辑器、原稿修改、失焦或权限失效后清除入口。
 
 ## 12 页面面板与交互实现
 
-GitHub 编辑器检测和工具栏发现共用评论框选择器，覆盖 comment[body]、review_comment[body]、pull_request_review[body]、new_comment_field 及现代 Markdown 编辑器的 markdown-editor-textarea 标记。所有识别仍受 Issue／PR 路径、可见和可编辑条件约束。
+GitHub 编辑器检测和工具栏发现共用评论框选择器，覆盖 comment[body]、review_comment[body]、pull_request_review[body]、new_comment_field 及现代 Markdown 编辑器的 markdown-editor-textarea 标记。现代 fieldset 内的无 name/testid Textarea 通过本地 markdown-toolbar/for 关联识别。识别保留可见和可编辑条件，不设置页面路径白名单。
+
+通用文本框通过事件委托发现当前焦点，显示唯一的上下文翻译入口；不遍历读取所有草稿。原生 input／textarea 的选区与回写沿用快照、修订号、IME、原节点及 InputEvent 校验。GitHub 工具栏已关联时隐藏上下文入口；工具栏缺失时仍可翻译。聚焦入口随布局变化定位，失焦、禁用、只读、节点移除或站点关闭时撤销。
+
+可见 contenteditable 的全文或选区通过只读 DOM Range 抓取，冻结原范围并沿用 ReadingSelectionCache 的内容签名校验。界面使用写作目标语言，但后台走只读任务，不生成 editorSessionId 或开启快速替换；展示预览与复制提示并隐藏替换按钮，不操作富文本内部 DOM。
+
+GitHub Markdown diff 识别依赖 github.com、具名 Markdown 文件表格及明确单元格元数据，不依赖 PR 路径。PR 的 data-diff-side／data-line-number 和 commit 的 data-line-anchor 两种结构归一为 side／line；锚点须属于当前表格，冲突、缺失及跨列选区明确拒绝。仍只提交原选区内的可译正文，行内代码与链接目标在本机保护。无需翻译的结果清空候选，明确显示未执行翻译。
 
 GitHub 写作入口优先通过 markdown-toolbar 的 for 或工具栏 aria-controls 精确关联 textarea；现代编辑器使用同一表单／编辑器容器内的唯一工具栏关联。多个候选或编辑框不明确时保留已有手动入口，避免关联到另一份草稿。按钮置于原生工具栏，使用中性色小图标与局部样式隔离，保留可信操作判断和原编辑框绑定。[GitHub 工具栏组件](https://github.com/github/markdown-toolbar-element)
 
@@ -565,7 +571,7 @@ GitHub 写作入口优先通过 markdown-toolbar 的 for 或工具栏 aria-contr
 | 适配集成 | 原生 textarea、受控输入框、选区、IME、input 事件同步、DOM 替换、编辑后撤回、恢复冲突；网页阅读中部分代码、跨链接与段落选区的语义映射 |
 | 扩展集成 | 权限拒绝与撤销、来源校验、内容脚本无法读取存储、Offscreen 实际 Worker、后台重启和取消竞态 |
 | 端到端 | 构建产物加载，配置、选中文字、预览、复制、替换、恢复、受限页面手动输入 |
-| 人工实站 | GitHub Issue、PR、Discussions 逐项验证，SPA 导航和页面重渲染，核对真实提交状态 |
+| 人工实站 | GitHub Issue、PR、commit、Discussions 及普通网站编辑框逐项验证，SPA 导航和页面重渲染，核对真实提交状态 |
 | 模型质量 | M1 用每款 12 条固定真实样例验证算法与耗时；M3 扩充到至少 30 条，按 PRD 验证发布质量 |
 | 更新保留 | 同 ID、同浏览器配置，重启和 vN 到 vN+1 升级后配置及 Key 可用 |
 
