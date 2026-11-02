@@ -159,6 +159,7 @@ export function LanguageField({
         ref={list}
         className="language-list"
         role="listbox"
+        tabIndex={-1}
         aria-label={`${label}选项`}
         popover="manual"
       >
