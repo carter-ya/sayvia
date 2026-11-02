@@ -165,12 +165,12 @@ export function captureDomRange(range: Range, expectedDocument: Document = docum
     for (const ancestor of ancestors) visible.set(ancestor, true);
     return true;
   };
-  const codeKind = (element: Element | null) =>
-    element?.closest('pre')
-      ? ('code-block' as const)
-      : element?.closest('code')
-        ? ('inline-code' as const)
-        : undefined;
+  const codeKind = (element: Element | null) => {
+    // <pre> preserves whitespace; sites also use it for ordinary comment prose.
+    // Only an explicit <code> ancestor establishes code semantics.
+    if (!element?.closest('code')) return undefined;
+    return element.closest('pre') ? ('code-block' as const) : ('inline-code' as const);
+  };
 
   const walk = (node: Node, depth: number) => {
     if (++visited > MAX_NODES || depth > MAX_DEPTH) throw new SourceError('SELECTION_TOO_COMPLEX');
