@@ -10,13 +10,13 @@ export interface ReadingLink {
 
 function literal(text: string, lineStart: boolean) {
   const escaped = text
-    .replace(/[\\`*[\]<>|~&]/g, '\\$&')
+    .replace(/[\\`*![\]<>|~&]/g, '\\$&')
     .replace(/(?<![\p{L}\p{N}])_/gu, '\\_')
     .replace(/(^|\n)([ \t]*)([#=+-])(?=\s)/g, '$1$2\\$3')
-    .replace(/(^|\n)([ \t]*\d+)([.)])(?=\s)/g, '$1$2\\$3');
+    .replace(/(^|\n)([ \t]*\d+)([.)])(?=\s|$)/g, '$1$2\\$3');
   return lineStart
     ? escaped
-        .replace(/^([ \t]*)([-=])(?=[-=]|$)/, '$1\\$2')
+        .replace(/^([ \t]*)([-=+#])/, '$1\\$2')
         .replace(/^[ \t]+/, (indentation) =>
           [...indentation].map((character) => (character === '\t' ? '&#9;' : '&#32;')).join(''),
         )

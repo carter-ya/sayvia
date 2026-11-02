@@ -264,6 +264,29 @@ describe('formatted reading selections', () => {
         ).not.toMatch(/CODESECRET|CODETAIL|CODEVALUE/);
       }
   });
+  it('retains literal exclamation marks immediately before selected links', () => {
+    const { source } = capture(
+      '<p>Read !<a href="https://example.test/guide">guide</a> first.</p>',
+    );
+    const tree = parseMarkdown(source.text);
+    expect(JSON.stringify(tree)).not.toContain('"type":"image"');
+    expect(JSON.stringify(tree)).toContain('"type":"link"');
+    expect(JSON.stringify(tree)).toContain('Read !');
+  });
+  it.each(['#', '###', '+', '1.', '2)'])(
+    'keeps standalone Markdown block markers literal: %s',
+    (value) => {
+      const { source } = capture(`<p>${value}</p>`);
+      const tree = parseMarkdown(source.text);
+      expect(tree.children[0]?.type).toBe('paragraph');
+      const first = tree.children[0];
+      expect(
+        first && 'children' in first
+          ? first.children.map((child) => ('value' in child ? child.value : '')).join('')
+          : '',
+      ).toBe(value);
+    },
+  );
   it('rejects formatted input mixed with contradictory flat semantic intervals', () => {
     expect(() =>
       parseSourceInput({

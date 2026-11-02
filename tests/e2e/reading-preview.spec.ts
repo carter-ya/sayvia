@@ -166,7 +166,7 @@ test('bare URLs stop at semantic boundaries and keep sentence punctuation outsid
       const root = document.createElement('div');
       root.id = 'url-boundaries';
       root.innerHTML =
-        '<p>See https://punct.test/guide.</p><p>Read https://example.test/<code>path with spaces</code> first. See https://another.test/<a href="https://actual.test/target">guide</a>.</p><p>Read <code>CODE_FIRST\n\nCODE_SECOND</code> first.</p><p><a href="https://crossing.test/">Read <code>BOUND_SECRET</code></a><code>BOUND_VALUE</code> first.</p>';
+        '<p>See https://punct.test/guide.</p><p>Read https://example.test/<code>path with spaces</code> first. See https://another.test/<a href="https://actual.test/target">guide</a>.</p><p>Read <code>CODE_FIRST\n\nCODE_SECOND</code> first.</p><p><a href="https://crossing.test/">Read <code>BOUND_SECRET</code></a><code>BOUND_VALUE</code> first.</p><p>Read !<a href="https://exclamation.test/guide">specialguide</a> first.</p>';
       document.body.prepend(root);
     });
     const panel = await select(f.page, 'url-boundaries');
@@ -181,6 +181,11 @@ test('bare URLs stop at semantic boundaries and keep sentence punctuation outsid
       'href',
       'https://actual.test/target',
     );
+    await expect(preview.getByRole('link', { name: 'specialguide', exact: true })).toHaveAttribute(
+      'href',
+      'https://exclamation.test/guide',
+    );
+    await expect(preview.locator('img')).toHaveCount(0);
     expect(f.requestBodies[0]).not.toMatch(
       /path with spaces|CODE_FIRST|CODE_SECOND|BOUND_SECRET|BOUND_VALUE|punct.test|actual.test/,
     );
