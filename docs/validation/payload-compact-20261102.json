@@ -1,0 +1,1559 @@
+{
+  "baselineCommit": "1fcabe44e8e9c28e90011d80434aef2753981bbe",
+  "candidateCodeCommit": "3033d3a72a3ea56fb787c3314d54ae50b69f6d28",
+  "candidateAlgorithm": "segments-v2.2",
+  "method": "Fixed 17-case corpus, then 4 selected cases repeated twice with alternating request order. API-reported usage covers complete system and user prompts, with no automatic retries. Input and total counts are reported separately; repeated cases have extra weight in combined totals.",
+  "retentionCriteria": [
+    "Every requested pair has strictly fewer prompt tokens; protected-only cases make no calls in either variant.",
+    "Each provider has lower total tokens in each of the initial and focused cohorts.",
+    "Every candidate completes and passes local reconstruction and protected-text checks."
+  ],
+  "agentSemanticReview": "Recorded translations compared for meaning, negation, numbers and obvious new regressions; no new obvious candidate regression identified. One OpenAI baseline mysql-url repeat dropped unmarked JSON_*; the candidate retained it. This is agent inspection, not human release acceptance.",
+  "humanReleaseAcceptancePending": true,
+  "providers": {
+    "openai": {
+      "initial": {
+        "model": "gpt-6-luna",
+        "rawReportSha256": "b617838b7ed5c4532465ff0c8ab0e01c18c173f498c6ceeef136a0c79bd69b01",
+        "corpusSha256": "969a4755e7e8193a822ef88412c879531b6ce16865d8bb743e4cddf05293edea",
+        "pairCount": 17,
+        "totals": {
+          "baseline": {
+            "prompt_tokens": 6604,
+            "completion_tokens": 3073,
+            "total_tokens": 9677
+          },
+          "candidate": {
+            "prompt_tokens": 6169,
+            "completion_tokens": 2842,
+            "total_tokens": 9011
+          }
+        },
+        "pairs": [
+          {
+            "id": "m1-01",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "只有测试通过后才可以合并。这不是已经修复的确认；请保留 3 次重试，不要改成 5 次。"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 367,
+                "completion_tokens": 116,
+                "total_tokens": 483
+              },
+              "translatedText": "You may merge only after the tests pass. This is not confirmation that it has already been fixed; please keep 3 retries, and do not change it to 5.",
+              "requestSha256": "edd7dfe3d164888d4d128d850fdff825e50b3bc2f17512a803eac6cb527328a6"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 362,
+                "completion_tokens": 106,
+                "total_tokens": 468
+              },
+              "translatedText": "It can only be merged after the tests pass. This does not confirm that it has already been fixed; please keep 3 retries and don't change it to 5.",
+              "requestSha256": "bf6f80398d4476137cf23af89c403318763f1c21dfbf31f0e820f1d548c5fc30"
+            }
+          },
+          {
+            "id": "m1-02",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "The timeout may increase under load, but we have not confirmed the cause."
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 347,
+                "completion_tokens": 35,
+                "total_tokens": 382
+              },
+              "translatedText": "负载增加时，超时时间可能会延长，但我们尚未确认原因。",
+              "requestSha256": "87140ba1b0b87d16ccca0cdc99e232e547040b56668e059aa3f39d480424ab87"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 351,
+                "completion_tokens": 112,
+                "total_tokens": 463
+              },
+              "translatedText": "负载较高时，超时时间可能会延长，但我们尚未确认原因。",
+              "requestSha256": "f89db11df468420b642e5db7db998dd3f02afb9e107be524f5b495d883ea1107"
+            }
+          },
+          {
+            "id": "m1-03",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "请保持 `timeout` 不变，并阅读[配置指南](https://example.test/config?mode=basic)。"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 461,
+                "completion_tokens": 288,
+                "total_tokens": 749
+              },
+              "translatedText": "Please keep `timeout` unchanged, and read the [configuration guide](https://example.test/config?mode=basic).",
+              "requestSha256": "0c45654c4f9f5fb8664f17d89dc9dcb568ec204cf9cb0889980244e6892a1e29"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 421,
+                "completion_tokens": 223,
+                "total_tokens": 644
+              },
+              "translatedText": "Please keep `timeout` unchanged, and read the [configuration guide](https://example.test/config?mode=basic).",
+              "requestSha256": "b99bdd9bc2a3588eb493097d6e4cc55aa4f1c9f9cece9591b87702ca290c9ea8"
+            }
+          },
+          {
+            "id": "m1-04",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "先运行以下示例，暂时不要增加重试次数。\n\n```ts\nconst retries = 3;\n  run(retries);\n```\n\n如果失败，请报告错误。"
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 358,
+                "completion_tokens": 89,
+                "total_tokens": 447
+              },
+              "translatedText": "Run the following example first; don't increase the number of retries for now.\n\n```ts\nconst retries = 3;\n  run(retries);\n```\n\nIf it fails, report the error.",
+              "requestSha256": "0e60e7c7a237810aaacb6269b6dbf90ae004c4c6c7bfacb695595a19d7b50441"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 367,
+                "completion_tokens": 97,
+                "total_tokens": 464
+              },
+              "translatedText": "Run the following example first; do not increase the number of retries for now.\n\n```ts\nconst retries = 3;\n  run(retries);\n```\n\nIf it fails, report the error.",
+              "requestSha256": "871d10495767860566d925264d5b93f54ae7dccbeecc5be13694ec0a44f0a3e5"
+            }
+          },
+          {
+            "id": "m1-05",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "- [x] 已确认问题\n- [ ] 尚未修复\n\n1. 备份配置\n2. 再执行测试"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 384,
+                "completion_tokens": 123,
+                "total_tokens": 507
+              },
+              "translatedText": "- [x] Confirmed issue\n- [ ] Not yet fixed\n\n1. Back up the configuration\n2. Run the test again",
+              "requestSha256": "e31f356afc32e8e033266f118fc9302f88b3bade44cacacf96797f8981998500"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 367,
+                "completion_tokens": 129,
+                "total_tokens": 496
+              },
+              "translatedText": "- [x] Issue confirmed\n- [ ] Not fixed yet\n\n1. Back up the configuration\n2. Run the tests again",
+              "requestSha256": "853209cca422ad2eba03b3465e4652ddbee8f4a10acff4fc291be6faf93532d4"
+            }
+          },
+          {
+            "id": "m1-06",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "![设置界面](https://example.test/settings.png \"settings\")\n\n查看[安装说明][install]。\n\n[install]: https://example.test/install \"installation\""
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 406,
+                "completion_tokens": 222,
+                "total_tokens": 628
+              },
+              "translatedText": "![Settings interface](https://example.test/settings.png \"settings\")\n\nView the [installation instructions][install].\n\n[install]: https://example.test/install \"installation\"",
+              "requestSha256": "7f814573cd92b0b0890c1f62e0cee889a380f26c7eb93baa260b85687e570764"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 433,
+                "completion_tokens": 169,
+                "total_tokens": 602
+              },
+              "translatedText": "![Settings interface](https://example.test/settings.png \"settings\")\n\nView [installation instructions][install].\n\n[install]: https://example.test/install \"installation\"",
+              "requestSha256": "d2138805627240c27ae586e9a1082d5f391cea6d4a44855e3dcf711fcd0b8a55"
+            }
+          },
+          {
+            "id": "m1-07",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "> 这**不是**发布承诺。\n\n请保留 \\* 字符和 &amp; 实体。<b>KEEP_HTML</b>"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 556,
+                "completion_tokens": 406,
+                "total_tokens": 962
+              },
+              "translatedText": "> This **is not** a release commitment.\n\nPlease preserve \\* characters and &amp; entities.<b>KEEP_HTML</b>",
+              "requestSha256": "a6663360fafb8f6f1ce57c4c261c5e632271748b70df3c637a3c1a9d58f9e190"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 482,
+                "completion_tokens": 399,
+                "total_tokens": 881
+              },
+              "translatedText": "> This **is not** a release commitment.\n\nPlease preserve \\* characters and &amp; entities.<b>KEEP_HTML</b>",
+              "requestSha256": "aeb28a92733a9fc8d306e0baf5d1c02828f00531b29748e00f3213da33e52e84"
+            }
+          },
+          {
+            "id": "m1-08",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "| 项目 | 状态 |\n| :--- | ---: |\n| 翻译 | 待审核 |\n| 发布 | 未承诺 |"
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 433,
+                "completion_tokens": 284,
+                "total_tokens": 717
+              },
+              "translatedText": "| Project | status |\n| :--- | ---: |\n| Translation | pending review |\n| Release | not promised |",
+              "requestSha256": "2222abef7c6eaa9e397e6c0e6806cd00d9d5caf054a15f30696579337a042fcf"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 488,
+                "completion_tokens": 168,
+                "total_tokens": 656
+              },
+              "translatedText": "| Project | status |\n| :--- | ---: |\n| Translation | pending review |\n| Publish | not promised |",
+              "requestSha256": "7a283475e7893ab91bd15ff2dfc6edc43857852058a71262bcc8fc1428499738"
+            }
+          },
+          {
+            "id": "m1-09",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "请 @carter-ya 查看 owner/repo#123 和 #42。\n参考 https://example.test/guide?a=1，不要发送邮件到 demo@example.test"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 549,
+                "completion_tokens": 260,
+                "total_tokens": 809
+              },
+              "translatedText": "Please check @carter-ya, owner/repo#123, and #42.\nRefer to https://example.test/guide?a=1, do not send email to demo@example.test",
+              "requestSha256": "476fcafb1a806e4ce973ac5e8c5721e75f24ef0b0dd759984d26a0193fa2ebe6"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 461,
+                "completion_tokens": 269,
+                "total_tokens": 730
+              },
+              "translatedText": "Please @carter-ya check owner/repo#123 and #42.\nRefer to https://example.test/guide?a=1; do not send email to demo@example.test",
+              "requestSha256": "4cb29bd9056930ee3e70d1cf1cb11c9ab117d5b47478f838792cc9793d07d622"
+            }
+          },
+          {
+            "id": "m1-10",
+            "round": 0,
+            "source": {
+              "kind": "dom-selection",
+              "text": "Read timeout only if the request fails.",
+              "protectedRanges": [
+                {
+                  "kind": "inline-code",
+                  "start": 5,
+                  "end": 12
+                }
+              ],
+              "marks": []
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 363,
+                "completion_tokens": 136,
+                "total_tokens": 499
+              },
+              "translatedText": "仅在请求失败时阅读 timeout。",
+              "requestSha256": "877d9c774f0b662645b19a37b34eabe0ae9e4eaf4235324ff2ed848c1dee849b"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 382,
+                "completion_tokens": 158,
+                "total_tokens": 540
+              },
+              "translatedText": "仅在请求失败时阅读 timeout。",
+              "requestSha256": "caaf61bb4f57a43849902d4004ae8e6865cc3c7c5a47df2f44328cc4f6f519a8"
+            }
+          },
+          {
+            "id": "m1-11",
+            "round": 0,
+            "source": {
+              "kind": "dom-selection",
+              "text": "Run the example:\nconst limit = 3;\n  retry(limit);\nDo not increase it.",
+              "protectedRanges": [
+                {
+                  "kind": "code-block",
+                  "start": 17,
+                  "end": 49
+                }
+              ],
+              "marks": []
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 357,
+                "completion_tokens": 70,
+                "total_tokens": 427
+              },
+              "translatedText": "运行示例：\nconst limit = 3;\n  retry(limit);\n不要增加它。",
+              "requestSha256": "6c533b87b8ffc7d351cd9cf9a8cc34a9839afb761dc3bf6ed69e6c5e041d5a82"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 349,
+                "completion_tokens": 77,
+                "total_tokens": 426
+              },
+              "translatedText": "运行示例：\nconst limit = 3;\n  retry(limit);\n不要增加它。",
+              "requestSha256": "ca46e048b6f98653d565e765aa7c3406c413cbb60108033965928ef5f950382e"
+            }
+          },
+          {
+            "id": "m1-12",
+            "round": 0,
+            "source": {
+              "kind": "dom-selection",
+              "text": "Read the setup guide.\nChanges are not saved automatically.",
+              "protectedRanges": [],
+              "marks": [
+                {
+                  "kind": "link-label",
+                  "start": 9,
+                  "end": 20
+                },
+                {
+                  "kind": "line-break",
+                  "start": 21,
+                  "end": 22
+                }
+              ]
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 351,
+                "completion_tokens": 63,
+                "total_tokens": 414
+              },
+              "translatedText": "阅读设置指南。\n更改不会自动保存。",
+              "requestSha256": "41e4a800aafce80f3fc545d83803f7526cdb455355407d0e2633035adf6edeaf"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 358,
+                "completion_tokens": 63,
+                "total_tokens": 421
+              },
+              "translatedText": "阅读设置指南。\n更改不会自动保存。",
+              "requestSha256": "8f7a65bc685b4fec66278f1694e60cfd2f297494b0009deabc2dda9808a800c9"
+            }
+          },
+          {
+            "id": "mysql-url",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "To which function JSON_* you are referring to? https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 386,
+                "completion_tokens": 226,
+                "total_tokens": 612
+              },
+              "translatedText": "你指的是哪个 JSON_* 函数？ https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "f7ba551cda0c3bb967bec0e172d4386b2b6b4ee860d384a11594dc2334e1a1e3"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 367,
+                "completion_tokens": 166,
+                "total_tokens": 533
+              },
+              "translatedText": "你指的是哪个 JSON_* 函数？ https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "189c94cc23b79cff39e08531bf16a3ada37ad519c2601e5d482cf9987062223c"
+            }
+          },
+          {
+            "id": "multiple-urls",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "Compare https://example.test/reference/installation?version=8.4&platform=linux with https://example.test/reference/configuration?version=8.4&mode=basic before changing settings."
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 383,
+                "completion_tokens": 180,
+                "total_tokens": 563
+              },
+              "translatedText": "更改设置前，请比较https://example.test/reference/installation?version=8.4&platform=linux和https://example.test/reference/configuration?version=8.4&mode=basic。",
+              "requestSha256": "115a19f3fcbd69f83b5b076267189f6fcb3ff40837156f4f4bdd88286091d08b"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 419,
+                "completion_tokens": 194,
+                "total_tokens": 613
+              },
+              "translatedText": "更改设置前，请比较 https://example.test/reference/installation?version=8.4&platform=linux 和 https://example.test/reference/configuration?version=8.4&mode=basic。",
+              "requestSha256": "9aabbc70798ae8f3bbb1e236e50b699b9d88fb12fceb309c5831bd4fff4d4e09"
+            }
+          },
+          {
+            "id": "literal-marker",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "Keep ⟦SV0:1⟧ as written and see https://example.test/guide."
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 391,
+                "completion_tokens": 423,
+                "total_tokens": 814
+              },
+              "translatedText": "将 ⟦SV0:1⟧ 保持原样，并查看 https://example.test/guide.",
+              "requestSha256": "9a38ffaf151a7d18070bc41ad52a5676d3a745b99a9b20379680ac58316f11f3"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 372,
+                "completion_tokens": 256,
+                "total_tokens": 628
+              },
+              "translatedText": "保持⟦SV0:1⟧原样，并查看https://example.test/guide.",
+              "requestSha256": "7f5be528abc8460b1b420791f8d10867c9b2f39de2b025508fc0915edb2b8963"
+            }
+          },
+          {
+            "id": "code-whitespace",
+            "round": 0,
+            "source": {
+              "kind": "dom-selection",
+              "text": "Read \tlimit\t only if the request fails.",
+              "protectedRanges": [
+                {
+                  "kind": "inline-code",
+                  "start": 5,
+                  "end": 12
+                }
+              ],
+              "marks": []
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 347,
+                "completion_tokens": 208,
+                "total_tokens": 555
+              },
+              "translatedText": "读取 \tlimit\t 仅在请求失败时。",
+              "requestSha256": "d62ddbab74c09fca6cf94e19b16b9ba1ae220b621e80b6b88d047ed7acab48ce"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 355,
+                "completion_tokens": 200,
+                "total_tokens": 555
+              },
+              "translatedText": "阅读 \tlimit\t 仅在请求失败时。",
+              "requestSha256": "65c8f5cfac088b8d3942df3319251999c08eaef466dbc5b1eca486f36f7fbaa7"
+            }
+          },
+          {
+            "id": "protected-only",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0
+              },
+              "translatedText": "https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0
+              },
+              "translatedText": "https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+            }
+          }
+        ]
+      },
+      "focused": {
+        "model": "gpt-6-luna",
+        "rawReportSha256": "927991c73a870c9bd6ca93e5fe914fca63e77a44139d42175479f274aec4ad92",
+        "corpusSha256": "189f4dacd6c7ec455b42937911ecc3798ac2bafbdd35f943ac9d80b62ee1262c",
+        "pairCount": 8,
+        "totals": {
+          "baseline": {
+            "prompt_tokens": 3234,
+            "completion_tokens": 1523,
+            "total_tokens": 4757
+          },
+          "candidate": {
+            "prompt_tokens": 3036,
+            "completion_tokens": 1200,
+            "total_tokens": 4236
+          }
+        },
+        "pairs": [
+          {
+            "id": "m1-02",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "The timeout may increase under load, but we have not confirmed the cause."
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 351,
+                "completion_tokens": 73,
+                "total_tokens": 424
+              },
+              "translatedText": "负载较高时，超时时间可能会增加，但我们尚未确认原因。",
+              "requestSha256": "f89db11df468420b642e5db7db998dd3f02afb9e107be524f5b495d883ea1107"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 347,
+                "completion_tokens": 74,
+                "total_tokens": 421
+              },
+              "translatedText": "负载较高时，超时时间可能会增加，但我们尚未确认原因。",
+              "requestSha256": "87140ba1b0b87d16ccca0cdc99e232e547040b56668e059aa3f39d480424ab87"
+            }
+          },
+          {
+            "id": "m1-03",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "请保持 `timeout` 不变，并阅读[配置指南](https://example.test/config?mode=basic)。"
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 421,
+                "completion_tokens": 234,
+                "total_tokens": 655
+              },
+              "translatedText": "Please keep `timeout` unchanged, and read the [configuration guide](https://example.test/config?mode=basic).",
+              "requestSha256": "b99bdd9bc2a3588eb493097d6e4cc55aa4f1c9f9cece9591b87702ca290c9ea8"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 461,
+                "completion_tokens": 238,
+                "total_tokens": 699
+              },
+              "translatedText": "Please keep `timeout` unchanged, and read the [configuration guide](https://example.test/config?mode=basic).",
+              "requestSha256": "0c45654c4f9f5fb8664f17d89dc9dcb568ec204cf9cb0889980244e6892a1e29"
+            }
+          },
+          {
+            "id": "mysql-url",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "To which function JSON_* you are referring to? https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 386,
+                "completion_tokens": 370,
+                "total_tokens": 756
+              },
+              "translatedText": "你指的是哪个 JSON_* 函数？https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "f7ba551cda0c3bb967bec0e172d4386b2b6b4ee860d384a11594dc2334e1a1e3"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 367,
+                "completion_tokens": 157,
+                "total_tokens": 524
+              },
+              "translatedText": "你指的是哪个 JSON_* 函数？ https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "189c94cc23b79cff39e08531bf16a3ada37ad519c2601e5d482cf9987062223c"
+            }
+          },
+          {
+            "id": "multiple-urls",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "Compare https://example.test/reference/installation?version=8.4&platform=linux with https://example.test/reference/configuration?version=8.4&mode=basic before changing settings."
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 383,
+                "completion_tokens": 136,
+                "total_tokens": 519
+              },
+              "translatedText": "更改设置前，请比较https://example.test/reference/installation?version=8.4&platform=linux和https://example.test/reference/configuration?version=8.4&mode=basic。",
+              "requestSha256": "115a19f3fcbd69f83b5b076267189f6fcb3ff40837156f4f4bdd88286091d08b"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 419,
+                "completion_tokens": 146,
+                "total_tokens": 565
+              },
+              "translatedText": "更改设置前，请比较https://example.test/reference/installation?version=8.4&platform=linux与https://example.test/reference/configuration?version=8.4&mode=basic。",
+              "requestSha256": "9aabbc70798ae8f3bbb1e236e50b699b9d88fb12fceb309c5831bd4fff4d4e09"
+            }
+          },
+          {
+            "id": "m1-02",
+            "round": 1,
+            "source": {
+              "kind": "plain-text",
+              "text": "The timeout may increase under load, but we have not confirmed the cause."
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 347,
+                "completion_tokens": 76,
+                "total_tokens": 423
+              },
+              "translatedText": "负载较高时，超时时间可能会增加，但我们尚未确认原因。",
+              "requestSha256": "87140ba1b0b87d16ccca0cdc99e232e547040b56668e059aa3f39d480424ab87"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 351,
+                "completion_tokens": 72,
+                "total_tokens": 423
+              },
+              "translatedText": "负载较高时，超时时间可能会增加，但我们尚未确认原因。",
+              "requestSha256": "f89db11df468420b642e5db7db998dd3f02afb9e107be524f5b495d883ea1107"
+            }
+          },
+          {
+            "id": "m1-03",
+            "round": 1,
+            "source": {
+              "kind": "markdown",
+              "text": "请保持 `timeout` 不变，并阅读[配置指南](https://example.test/config?mode=basic)。"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 461,
+                "completion_tokens": 183,
+                "total_tokens": 644
+              },
+              "translatedText": "Please keep `timeout` unchanged, and read [configuration guide](https://example.test/config?mode=basic).",
+              "requestSha256": "0c45654c4f9f5fb8664f17d89dc9dcb568ec204cf9cb0889980244e6892a1e29"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 421,
+                "completion_tokens": 297,
+                "total_tokens": 718
+              },
+              "translatedText": "Please keep `timeout` unchanged, and read the [configuration guide](https://example.test/config?mode=basic).",
+              "requestSha256": "b99bdd9bc2a3588eb493097d6e4cc55aa4f1c9f9cece9591b87702ca290c9ea8"
+            }
+          },
+          {
+            "id": "mysql-url",
+            "round": 1,
+            "source": {
+              "kind": "plain-text",
+              "text": "To which function JSON_* you are referring to? https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html"
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 367,
+                "completion_tokens": 75,
+                "total_tokens": 442
+              },
+              "translatedText": "你指的是哪个 JSON_* 函数？ https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "189c94cc23b79cff39e08531bf16a3ada37ad519c2601e5d482cf9987062223c"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 386,
+                "completion_tokens": 281,
+                "total_tokens": 667
+              },
+              "translatedText": "你指的是哪个函数 https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html？",
+              "requestSha256": "f7ba551cda0c3bb967bec0e172d4386b2b6b4ee860d384a11594dc2334e1a1e3"
+            }
+          },
+          {
+            "id": "multiple-urls",
+            "round": 1,
+            "source": {
+              "kind": "plain-text",
+              "text": "Compare https://example.test/reference/installation?version=8.4&platform=linux with https://example.test/reference/configuration?version=8.4&mode=basic before changing settings."
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 419,
+                "completion_tokens": 160,
+                "total_tokens": 579
+              },
+              "translatedText": "更改设置前，请比较https://example.test/reference/installation?version=8.4&platform=linux和https://example.test/reference/configuration?version=8.4&mode=basic。",
+              "requestSha256": "9aabbc70798ae8f3bbb1e236e50b699b9d88fb12fceb309c5831bd4fff4d4e09"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 383,
+                "completion_tokens": 151,
+                "total_tokens": 534
+              },
+              "translatedText": "更改设置前，请比较https://example.test/reference/installation?version=8.4&platform=linux和https://example.test/reference/configuration?version=8.4&mode=basic。",
+              "requestSha256": "115a19f3fcbd69f83b5b076267189f6fcb3ff40837156f4f4bdd88286091d08b"
+            }
+          }
+        ]
+      },
+      "combinedTotals": {
+        "baseline": {
+          "prompt_tokens": 9838,
+          "completion_tokens": 4596,
+          "total_tokens": 14434
+        },
+        "candidate": {
+          "prompt_tokens": 9205,
+          "completion_tokens": 4042,
+          "total_tokens": 13247
+        }
+      },
+      "combinedReductionPercent": {
+        "prompt_tokens": 6.434,
+        "completion_tokens": 12.054,
+        "total_tokens": 8.224
+      }
+    },
+    "deepseek": {
+      "initial": {
+        "model": "deepseek-flash",
+        "rawReportSha256": "d7f155468f71be688f79b8fbea488ffd50c345281422a7346241335fbc9545a6",
+        "corpusSha256": "969a4755e7e8193a822ef88412c879531b6ce16865d8bb743e4cddf05293edea",
+        "pairCount": 17,
+        "totals": {
+          "baseline": {
+            "prompt_tokens": 7139,
+            "completion_tokens": 5743,
+            "total_tokens": 12882
+          },
+          "candidate": {
+            "prompt_tokens": 6597,
+            "completion_tokens": 5952,
+            "total_tokens": 12549
+          }
+        },
+        "pairs": [
+          {
+            "id": "m1-01",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "只有测试通过后才可以合并。这不是已经修复的确认；请保留 3 次重试，不要改成 5 次。"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 396,
+                "completion_tokens": 199,
+                "total_tokens": 595
+              },
+              "translatedText": "Merging is allowed only after the tests pass. This is not confirmation that it has been fixed; please keep 3 retries and do not change it to 5.",
+              "requestSha256": "92231ee95db4b5b50006df6dba77b1fde286ea00a9503ff6791d51b6df19eaba"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 390,
+                "completion_tokens": 227,
+                "total_tokens": 617
+              },
+              "translatedText": "Merge only after the tests pass. This is not confirmation that it has been fixed; please keep 3 retries, and do not change it to 5.",
+              "requestSha256": "4d96fe24f2c060d86267ff9de26381609c2cfd3188efd6ac09d0d512bdb16265"
+            }
+          },
+          {
+            "id": "m1-02",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "The timeout may increase under load, but we have not confirmed the cause."
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 378,
+                "completion_tokens": 145,
+                "total_tokens": 523
+              },
+              "translatedText": "在负载下超时可能会增加，但我们尚未确认原因。",
+              "requestSha256": "500bb5f954c7e0f273ced52b90d45973ca0b33f5d15df23ed3a3d29c2733a201"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 384,
+                "completion_tokens": 91,
+                "total_tokens": 475
+              },
+              "translatedText": "超时时间在高负载下可能会增加，但我们尚未确认原因。",
+              "requestSha256": "ecdc0fcfe4155ba3e0b165f2841d912637e30265bcf97533e2f3d919b260bb72"
+            }
+          },
+          {
+            "id": "m1-03",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "请保持 `timeout` 不变，并阅读[配置指南](https://example.test/config?mode=basic)。"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 497,
+                "completion_tokens": 479,
+                "total_tokens": 976
+              },
+              "translatedText": "Please keep `timeout` unchanged, and read the [configuration guide](https://example.test/config?mode=basic).",
+              "requestSha256": "d6e207e5f71a4275a97c495410ce83f4e1886eff893989f8d7cc377c0ea36256"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 447,
+                "completion_tokens": 763,
+                "total_tokens": 1210
+              },
+              "translatedText": "Please keep `timeout` unchanged, and read the [configuration guide](https://example.test/config?mode=basic).",
+              "requestSha256": "ba83315d00788dd0614cc18a728c1d6e7623c5fbf09baf7e295c23928ff0f4a1"
+            }
+          },
+          {
+            "id": "m1-04",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "先运行以下示例，暂时不要增加重试次数。\n\n```ts\nconst retries = 3;\n  run(retries);\n```\n\n如果失败，请报告错误。"
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 388,
+                "completion_tokens": 173,
+                "total_tokens": 561
+              },
+              "translatedText": "Run the following example first, and do not increase the number of retries for now.\n\n```ts\nconst retries = 3;\n  run(retries);\n```\n\nIf it fails, report the error.",
+              "requestSha256": "349bdf9c3ed3f63d50ac65a784794a800b4ef530432f2f993bb3af65b1c44362"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 399,
+                "completion_tokens": 115,
+                "total_tokens": 514
+              },
+              "translatedText": "First run the following example, and do not increase the number of retries for now.\n\n```ts\nconst retries = 3;\n  run(retries);\n```\n\nIf it fails, please report the error.",
+              "requestSha256": "9faf944d393f99f489d0bec75cdb810621fd473b90d5dab9cca12857a3475b6a"
+            }
+          },
+          {
+            "id": "m1-05",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "- [x] 已确认问题\n- [ ] 尚未修复\n\n1. 备份配置\n2. 再执行测试"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 416,
+                "completion_tokens": 245,
+                "total_tokens": 661
+              },
+              "translatedText": "- [x] Confirmed issue\n- [ ] Not yet fixed\n\n1. Back up configuration\n2. Run tests again",
+              "requestSha256": "bb04310748f6e0aaaaa4fe754a2342478c50443c12905d2331470e43bfe21660"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 399,
+                "completion_tokens": 139,
+                "total_tokens": 538
+              },
+              "translatedText": "- [x] Confirmed issue\n- [ ] Not yet fixed\n\n1. Backup configuration\n2. Then run the test",
+              "requestSha256": "b72a049fc0cdbf2632a26e37d29a7a047d7c0e0dae2442d2c63a10d2cdca5e8a"
+            }
+          },
+          {
+            "id": "m1-06",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "![设置界面](https://example.test/settings.png \"settings\")\n\n查看[安装说明][install]。\n\n[install]: https://example.test/install \"installation\""
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 434,
+                "completion_tokens": 425,
+                "total_tokens": 859
+              },
+              "translatedText": "![Settings interface](https://example.test/settings.png \"settings\")\n\nView the [installation instructions][install].\n\n[install]: https://example.test/install \"installation\"",
+              "requestSha256": "22a03f07e6c005fd681a16283c528c3bed21d068815c1078d776852800bd106a"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 467,
+                "completion_tokens": 557,
+                "total_tokens": 1024
+              },
+              "translatedText": "![Settings screen](https://example.test/settings.png \"settings\")\n\nView [installation instructions][install].\n\n[install]: https://example.test/install \"installation\"",
+              "requestSha256": "d48817ab5c63145b488f0126f98099c7a2a8b92404c19958b403d76e1674c160"
+            }
+          },
+          {
+            "id": "m1-07",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "> 这**不是**发布承诺。\n\n请保留 \\* 字符和 &amp; 实体。<b>KEEP_HTML</b>"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 591,
+                "completion_tokens": 681,
+                "total_tokens": 1272
+              },
+              "translatedText": "> This **is not** a release commitment.\n\nPlease keep the \\* character and the &amp; entity.<b>KEEP_HTML</b>",
+              "requestSha256": "28e7e488cf183c2fbe0f31715c1f1a254a2460a3109f676623c14375050127b3"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 496,
+                "completion_tokens": 834,
+                "total_tokens": 1330
+              },
+              "translatedText": "> This **is not** a release commitment.\n\nPlease keep the \\* character and the &amp; entity.<b>KEEP_HTML</b>",
+              "requestSha256": "593547b4da1db48219bd3ca987c342145fa3fde935b24e9ddaf63a115ab35934"
+            }
+          },
+          {
+            "id": "m1-08",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "| 项目 | 状态 |\n| :--- | ---: |\n| 翻译 | 待审核 |\n| 发布 | 未承诺 |"
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 454,
+                "completion_tokens": 285,
+                "total_tokens": 739
+              },
+              "translatedText": "| Project | status |\n| :--- | ---: |\n| Translation | pending review |\n| Release | not committed |",
+              "requestSha256": "71e42df03951c4268c474ca619b92975bb7c1a50c5da1d1424c864bffda005b3"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 521,
+                "completion_tokens": 431,
+                "total_tokens": 952
+              },
+              "translatedText": "| Project | status |\n| :--- | ---: |\n| Translation | pending review |\n| Release | uncommitted |",
+              "requestSha256": "cb74ed7683a05db24dc8517110bc243986e3e140c34e1a1e1b5f9df0710877e1"
+            }
+          },
+          {
+            "id": "m1-09",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "请 @carter-ya 查看 owner/repo#123 和 #42。\n参考 https://example.test/guide?a=1，不要发送邮件到 demo@example.test"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 587,
+                "completion_tokens": 529,
+                "total_tokens": 1116
+              },
+              "translatedText": "Please @carter-ya check owner/repo#123 and #42.\nRefer to https://example.test/guide?a=1; do not send email to demo@example.test",
+              "requestSha256": "9abe4d27f27c3c78020ad4727f27d690c6fd35b17d44781254eae102a4d27b76"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 476,
+                "completion_tokens": 509,
+                "total_tokens": 985
+              },
+              "translatedText": "Please @carter-ya check owner/repo#123 and #42.\nRefer to https://example.test/guide?a=1; do not send email to demo@example.test",
+              "requestSha256": "dfad952d3d5f9be60e9e6651e78f40a42147515390c6a5ed43589cc50a2f1879"
+            }
+          },
+          {
+            "id": "m1-10",
+            "round": 0,
+            "source": {
+              "kind": "dom-selection",
+              "text": "Read timeout only if the request fails.",
+              "protectedRanges": [
+                {
+                  "kind": "inline-code",
+                  "start": 5,
+                  "end": 12
+                }
+              ],
+              "marks": []
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 392,
+                "completion_tokens": 474,
+                "total_tokens": 866
+              },
+              "translatedText": "仅在请求失败时读取 timeout。",
+              "requestSha256": "9ec3c28bdcd81dfc54dd934081418446f410a651e07bffc9a2f6fdf258ca7676"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 415,
+                "completion_tokens": 322,
+                "total_tokens": 737
+              },
+              "translatedText": "仅在请求失败时读取timeout。",
+              "requestSha256": "bf4c7b1316cf4a7e5f229554529bea75a74748ce5e293be78ab9782cc08c434c"
+            }
+          },
+          {
+            "id": "m1-11",
+            "round": 0,
+            "source": {
+              "kind": "dom-selection",
+              "text": "Run the example:\nconst limit = 3;\n  retry(limit);\nDo not increase it.",
+              "protectedRanges": [
+                {
+                  "kind": "code-block",
+                  "start": 17,
+                  "end": 49
+                }
+              ],
+              "marks": []
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 391,
+                "completion_tokens": 108,
+                "total_tokens": 499
+              },
+              "translatedText": "运行示例：\nconst limit = 3;\n  retry(limit);\n不要增加它。",
+              "requestSha256": "44c37a254f7eb97e4a7a900ebdb6f6400020b41fb5ca7535bd97a86f35bbbda0"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 380,
+                "completion_tokens": 94,
+                "total_tokens": 474
+              },
+              "translatedText": "运行示例：\nconst limit = 3;\n  retry(limit);\n不要增加它。",
+              "requestSha256": "781161c871e484bc4d66037148fe517a7ba35291191e9c21e79a1583ec80aff2"
+            }
+          },
+          {
+            "id": "m1-12",
+            "round": 0,
+            "source": {
+              "kind": "dom-selection",
+              "text": "Read the setup guide.\nChanges are not saved automatically.",
+              "protectedRanges": [],
+              "marks": [
+                {
+                  "kind": "link-label",
+                  "start": 9,
+                  "end": 20
+                },
+                {
+                  "kind": "line-break",
+                  "start": 21,
+                  "end": 22
+                }
+              ]
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 382,
+                "completion_tokens": 101,
+                "total_tokens": 483
+              },
+              "translatedText": "阅读设置指南。\n更改不会自动保存。",
+              "requestSha256": "31cb7e2188388ea1f131be26012130d5ecdc1908574df8d98ee51a3788ddc21b"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 393,
+                "completion_tokens": 112,
+                "total_tokens": 505
+              },
+              "translatedText": "阅读设置指南。\n更改不会自动保存。",
+              "requestSha256": "5663bd4e75d316aacd7b7c04f7c909a74a498093f10e697d13cd429e80e6bb67"
+            }
+          },
+          {
+            "id": "mysql-url",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "To which function JSON_* you are referring to? https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 419,
+                "completion_tokens": 490,
+                "total_tokens": 909
+              },
+              "translatedText": "你指的是哪个 JSON_* 函数？https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "61f94c3dc42ed80d91f231fb9b6cf8786b681b29d6dcf9ef04bbad1bf87c8172"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 396,
+                "completion_tokens": 861,
+                "total_tokens": 1257
+              },
+              "translatedText": "你指的是哪个 JSON_* 函数？https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "f88951d507f454853d1301715837c9ef7b3ebf768142c9c36634fe47cd04e16a"
+            }
+          },
+          {
+            "id": "multiple-urls",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "Compare https://example.test/reference/installation?version=8.4&platform=linux with https://example.test/reference/configuration?version=8.4&mode=basic before changing settings."
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 408,
+                "completion_tokens": 224,
+                "total_tokens": 632
+              },
+              "translatedText": "更改设置前，请比较https://example.test/reference/installation?version=8.4&platform=linux和https://example.test/reference/configuration?version=8.4&mode=basic。",
+              "requestSha256": "fbed1e51df07b025f3092b3c21121a106e8347796a00c9d6d585db40216e8431"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 453,
+                "completion_tokens": 573,
+                "total_tokens": 1026
+              },
+              "translatedText": "更改设置前，请比较 https://example.test/reference/installation?version=8.4&platform=linux 与 https://example.test/reference/configuration?version=8.4&mode=basic。",
+              "requestSha256": "2b679b04049cc1b35f1f0463ac3a61ac3dee7dc37e45ed9f44d4782c6280b2d7"
+            }
+          },
+          {
+            "id": "literal-marker",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "Keep ⟦SV0:1⟧ as written and see https://example.test/guide."
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 421,
+                "completion_tokens": 360,
+                "total_tokens": 781
+              },
+              "translatedText": "将⟦SV0:1⟧按原样保留，并查看https://example.test/guide.",
+              "requestSha256": "65fad2e1051f3c3d41d5b9c3064091e58dcd5fd8f4b7b148c8505bd7c539fc9d"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 398,
+                "completion_tokens": 539,
+                "total_tokens": 937
+              },
+              "translatedText": "保留⟦SV0:1⟧原文，并参见https://example.test/guide.",
+              "requestSha256": "843c97bdd5634151e6c7cb6a34ee0963f60c6dd053de6c3b2b821570ab1f7dbe"
+            }
+          },
+          {
+            "id": "code-whitespace",
+            "round": 0,
+            "source": {
+              "kind": "dom-selection",
+              "text": "Read \tlimit\t only if the request fails.",
+              "protectedRanges": [
+                {
+                  "kind": "inline-code",
+                  "start": 5,
+                  "end": 12
+                }
+              ],
+              "marks": []
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 379,
+                "completion_tokens": 159,
+                "total_tokens": 538
+              },
+              "translatedText": "读取 \tlimit\t 仅在请求失败时。",
+              "requestSha256": "78a3b7899e82f6dba45560c3cc9b559386d9bd0b93ca524692585430f11340fc"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 389,
+                "completion_tokens": 451,
+                "total_tokens": 840
+              },
+              "translatedText": "读取 \tlimit\t 仅在请求失败时。",
+              "requestSha256": "7f272812859208a179d0ac9b47b42c16c549573af2789b19f1b16ec2af6eeabc"
+            }
+          },
+          {
+            "id": "protected-only",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0
+              },
+              "translatedText": "https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0
+              },
+              "translatedText": "https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+            }
+          }
+        ]
+      },
+      "focused": {
+        "model": "deepseek-flash",
+        "rawReportSha256": "3224dc93944dc9a03ee0838e62bb70f8fc0e69577b93b64b96d6ad08528ed86e",
+        "corpusSha256": "189f4dacd6c7ec455b42937911ecc3798ac2bafbdd35f943ac9d80b62ee1262c",
+        "pairCount": 8,
+        "totals": {
+          "baseline": {
+            "prompt_tokens": 3506,
+            "completion_tokens": 3338,
+            "total_tokens": 6844
+          },
+          "candidate": {
+            "prompt_tokens": 3258,
+            "completion_tokens": 3137,
+            "total_tokens": 6395
+          }
+        },
+        "pairs": [
+          {
+            "id": "m1-02",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "The timeout may increase under load, but we have not confirmed the cause."
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 384,
+                "completion_tokens": 84,
+                "total_tokens": 468
+              },
+              "translatedText": "在负载下超时时间可能会增加，但我们尚未确认原因。",
+              "requestSha256": "ecdc0fcfe4155ba3e0b165f2841d912637e30265bcf97533e2f3d919b260bb72"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 378,
+                "completion_tokens": 122,
+                "total_tokens": 500
+              },
+              "translatedText": "在负载下超时可能会增加，但我们尚未确认原因。",
+              "requestSha256": "500bb5f954c7e0f273ced52b90d45973ca0b33f5d15df23ed3a3d29c2733a201"
+            }
+          },
+          {
+            "id": "m1-03",
+            "round": 0,
+            "source": {
+              "kind": "markdown",
+              "text": "请保持 `timeout` 不变，并阅读[配置指南](https://example.test/config?mode=basic)。"
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 447,
+                "completion_tokens": 537,
+                "total_tokens": 984
+              },
+              "translatedText": "Please keep `timeout` unchanged and read the [configuration guide](https://example.test/config?mode=basic).",
+              "requestSha256": "ba83315d00788dd0614cc18a728c1d6e7623c5fbf09baf7e295c23928ff0f4a1"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 497,
+                "completion_tokens": 852,
+                "total_tokens": 1349
+              },
+              "translatedText": "Please keep `timeout` unchanged, and read the [configuration guide](https://example.test/config?mode=basic).",
+              "requestSha256": "d6e207e5f71a4275a97c495410ce83f4e1886eff893989f8d7cc377c0ea36256"
+            }
+          },
+          {
+            "id": "mysql-url",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "To which function JSON_* you are referring to? https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 419,
+                "completion_tokens": 323,
+                "total_tokens": 742
+              },
+              "translatedText": "你指的是哪个 JSON_* 函数？https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "61f94c3dc42ed80d91f231fb9b6cf8786b681b29d6dcf9ef04bbad1bf87c8172"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 396,
+                "completion_tokens": 313,
+                "total_tokens": 709
+              },
+              "translatedText": "你指的是哪个 JSON_* 函数？https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "f88951d507f454853d1301715837c9ef7b3ebf768142c9c36634fe47cd04e16a"
+            }
+          },
+          {
+            "id": "multiple-urls",
+            "round": 0,
+            "source": {
+              "kind": "plain-text",
+              "text": "Compare https://example.test/reference/installation?version=8.4&platform=linux with https://example.test/reference/configuration?version=8.4&mode=basic before changing settings."
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 408,
+                "completion_tokens": 555,
+                "total_tokens": 963
+              },
+              "translatedText": "更改设置前，请比较https://example.test/reference/installation?version=8.4&platform=linux与https://example.test/reference/configuration?version=8.4&mode=basic。",
+              "requestSha256": "fbed1e51df07b025f3092b3c21121a106e8347796a00c9d6d585db40216e8431"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 453,
+                "completion_tokens": 239,
+                "total_tokens": 692
+              },
+              "translatedText": "更改设置前，请比较 https://example.test/reference/installation?version=8.4&platform=linux 与 https://example.test/reference/configuration?version=8.4&mode=basic。",
+              "requestSha256": "2b679b04049cc1b35f1f0463ac3a61ac3dee7dc37e45ed9f44d4782c6280b2d7"
+            }
+          },
+          {
+            "id": "m1-02",
+            "round": 1,
+            "source": {
+              "kind": "plain-text",
+              "text": "The timeout may increase under load, but we have not confirmed the cause."
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 378,
+                "completion_tokens": 126,
+                "total_tokens": 504
+              },
+              "translatedText": "超时在高负载下可能会增加，但我们尚未确认原因。",
+              "requestSha256": "500bb5f954c7e0f273ced52b90d45973ca0b33f5d15df23ed3a3d29c2733a201"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 384,
+                "completion_tokens": 97,
+                "total_tokens": 481
+              },
+              "translatedText": "在负载下超时可能会增加，但我们尚未确认原因。",
+              "requestSha256": "ecdc0fcfe4155ba3e0b165f2841d912637e30265bcf97533e2f3d919b260bb72"
+            }
+          },
+          {
+            "id": "m1-03",
+            "round": 1,
+            "source": {
+              "kind": "markdown",
+              "text": "请保持 `timeout` 不变，并阅读[配置指南](https://example.test/config?mode=basic)。"
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 497,
+                "completion_tokens": 629,
+                "total_tokens": 1126
+              },
+              "translatedText": "Please keep `timeout` unchanged, and read the [configuration guide](https://example.test/config?mode=basic).",
+              "requestSha256": "d6e207e5f71a4275a97c495410ce83f4e1886eff893989f8d7cc377c0ea36256"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 447,
+                "completion_tokens": 638,
+                "total_tokens": 1085
+              },
+              "translatedText": "Please keep `timeout` unchanged and read the [configuration guide](https://example.test/config?mode=basic).",
+              "requestSha256": "ba83315d00788dd0614cc18a728c1d6e7623c5fbf09baf7e295c23928ff0f4a1"
+            }
+          },
+          {
+            "id": "mysql-url",
+            "round": 1,
+            "source": {
+              "kind": "plain-text",
+              "text": "To which function JSON_* you are referring to? https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html"
+            },
+            "protectionPassedBoth": true,
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 396,
+                "completion_tokens": 505,
+                "total_tokens": 901
+              },
+              "translatedText": "你指的是哪个 JSON_* 函数？ https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "f88951d507f454853d1301715837c9ef7b3ebf768142c9c36634fe47cd04e16a"
+            },
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 419,
+                "completion_tokens": 649,
+                "total_tokens": 1068
+              },
+              "translatedText": "你指的是哪个 JSON_* 函数？https://dev.mysql.com/doc/refman/8.4/en/json-function-reference.html",
+              "requestSha256": "61f94c3dc42ed80d91f231fb9b6cf8786b681b29d6dcf9ef04bbad1bf87c8172"
+            }
+          },
+          {
+            "id": "multiple-urls",
+            "round": 1,
+            "source": {
+              "kind": "plain-text",
+              "text": "Compare https://example.test/reference/installation?version=8.4&platform=linux with https://example.test/reference/configuration?version=8.4&mode=basic before changing settings."
+            },
+            "protectionPassedBoth": true,
+            "baseline": {
+              "usage": {
+                "prompt_tokens": 453,
+                "completion_tokens": 465,
+                "total_tokens": 918
+              },
+              "translatedText": "更改设置前，请比较https://example.test/reference/installation?version=8.4&platform=linux与https://example.test/reference/configuration?version=8.4&mode=basic。",
+              "requestSha256": "2b679b04049cc1b35f1f0463ac3a61ac3dee7dc37e45ed9f44d4782c6280b2d7"
+            },
+            "candidate": {
+              "usage": {
+                "prompt_tokens": 408,
+                "completion_tokens": 341,
+                "total_tokens": 749
+              },
+              "translatedText": "更改设置前，请比较 https://example.test/reference/installation?version=8.4&platform=linux 与 https://example.test/reference/configuration?version=8.4&mode=basic。",
+              "requestSha256": "fbed1e51df07b025f3092b3c21121a106e8347796a00c9d6d585db40216e8431"
+            }
+          }
+        ]
+      },
+      "combinedTotals": {
+        "baseline": {
+          "prompt_tokens": 10645,
+          "completion_tokens": 9081,
+          "total_tokens": 19726
+        },
+        "candidate": {
+          "prompt_tokens": 9855,
+          "completion_tokens": 9089,
+          "total_tokens": 18944
+        }
+      },
+      "combinedReductionPercent": {
+        "prompt_tokens": 7.421,
+        "completion_tokens": -0.088,
+        "total_tokens": 3.964
+      }
+    }
+  },
+  "decision": "retain",
+  "observedModelRequests": 96
+}
