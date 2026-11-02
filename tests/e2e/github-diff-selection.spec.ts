@@ -62,3 +62,52 @@ test('a multi-line diff range excludes the opposite side and retains inline code
     await f.close();
   }
 });
+
+test('closing-fence README prose renders as paragraphs and has a visible editing field', async () => {
+  const f = await fixture();
+  try {
+    await f.page.evaluate(() => {
+      const tbody = document.querySelector('tbody')!;
+      tbody.innerHTML = [
+        '```',
+        '',
+        '<span class="pl-s">`</span><span class="pl-c1">NullDecimal</span><span class="pl-s">`</span> Read first.',
+        'Read first.',
+      ]
+        .map(
+          (line, i) =>
+            `<tr><td data-diff-side="right" data-line-number="${450 + i}"><code class="diff-text"><div id="line-${i}" class="diff-text-inner">${line || '<br>'}</div></code></td></tr>`,
+        )
+        .join('');
+      const r = document.createRange();
+      r.setStart(document.querySelector('#line-2')!, 0);
+      r.setEnd(document.querySelector('#line-3')!, 1);
+      const s = window.getSelection()!;
+      s.removeAllRanges();
+      s.addRange(r);
+    });
+    await f.page.keyboard.press('Shift');
+    await f.page.getByRole('button', { name: '使用 Sayvia 翻译选中文字' }).click();
+    const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' }),
+      preview = panel.getByRole('region', { name: '译文预览' });
+    await expect(preview).toContainText('阅读');
+    await expect(preview.locator('pre')).toHaveCount(0);
+    await expect(preview.locator('code')).toHaveText('NullDecimal');
+    expect(await preview.innerText()).not.toContain('\n阅读');
+    await panel.getByRole('button', { name: '编辑译文', exact: true }).click();
+    const field = panel.getByLabel('译文', { exact: true });
+    for (const scheme of ['light', 'dark'] as const) {
+      await f.page.emulateMedia({ colorScheme: scheme });
+      const style = await field.evaluate((el) => ({
+        border: getComputedStyle(el).borderWidth,
+        padding: getComputedStyle(el).padding,
+        background: getComputedStyle(el).backgroundColor,
+      }));
+      expect(style.border).toBe('1px');
+      expect(style.padding).toBe('10px 12px');
+      expect(style.background).not.toBe('rgba(0, 0, 0, 0)');
+    }
+  } finally {
+    await f.close();
+  }
+});

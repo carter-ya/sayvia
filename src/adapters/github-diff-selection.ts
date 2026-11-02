@@ -12,6 +12,34 @@ function parent(node: Node) {
   return node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
 }
 
+// The Markdown highlighter emits paired delimiter/body/delimiter spans for
+// inline code. A bare code fence followed by these visible prose tokens is a
+// closing fence; an unlabelled opening fence would highlight its body as raw code.
+function hasMarkdownProse(inner: Element, document: Document) {
+  for (const open of inner.querySelectorAll('.pl-s')) {
+    const delimiter = open.textContent ?? '';
+    if (!/^`+$/.test(delimiter) || open.closest('.pl-c1, .pl-c')) continue;
+    const body = open.nextElementSibling;
+    const close = body?.nextElementSibling;
+    if (
+      !body?.classList.contains('pl-c1') ||
+      !close?.classList.contains('pl-s') ||
+      close.textContent !== delimiter
+    )
+      continue;
+    const range = document.createRange();
+    range.setStartBefore(open);
+    range.setEndAfter(close);
+    try {
+      if (captureDomRange(range, document).text === delimiter + body.textContent + delimiter)
+        return true;
+    } catch {
+      /* Hidden or unsupported markup cannot establish prose context. */
+    }
+  }
+  return false;
+}
+
 // GitHub's source diff wraps Markdown prose in <code> as well as real code.
 // Interpret that wrapper only inside a named Markdown diff on github.com.
 export function captureGithubMarkdownDiff(
@@ -62,6 +90,7 @@ export function captureGithubMarkdownDiff(
   let context = '';
   let contextLines = 0;
   let contextStartLine = 0;
+  const proseHints: number[] = [];
   let selectedStart: number | undefined;
   let selectedEnd: number | undefined;
   let previous = 0;
@@ -85,6 +114,7 @@ export function captureGithubMarkdownDiff(
       }
       context = '';
       contextLines = 0;
+      proseHints.length = 0;
     }
     previous = line;
     const full = fullRange(inner);
@@ -97,6 +127,7 @@ export function captureGithubMarkdownDiff(
       prefix.setEnd(range.startContainer, range.startOffset);
       selectedStart = context.length + text(prefix).length;
     }
+    if (hasMarkdownProse(inner, document)) proseHints.push(context.length);
     context += raw;
     if (context.length > MAX_CONTEXT) throw new SourceError('SELECTION_TOO_COMPLEX');
     if (inner === end) {
@@ -112,22 +143,40 @@ export function captureGithubMarkdownDiff(
   // A bare first fence in a partial hunk can be a closing fence whose opener
   // was omitted by GitHub. Do not guess its direction and expose code as prose.
   const firstFence = /^(?:[ \t]*>[ \t]?)* {0,3}(`{3,}|~{3,})([^\r\n]*)$/m.exec(context);
+  let markdownOffset = 0;
   if (contextStartLine > 1 && firstFence && !firstFence[2]!.trim()) {
-    return {
-      plainText: selectedText,
-      source: readingMarkdown(
-        {
-          kind: 'dom-selection',
-          text: selectedText,
-          protectedRanges: [{ start: 0, end: selectedText.length, kind: 'inline-code' }],
-          marks: [],
-        },
-        [],
-      ),
-    };
+    const fenceEnd = firstFence.index + firstFence[0].length;
+    const followingFence = /^(?:[ \t]*>[ \t]?)* {0,3}(`{3,}|~{3,})([^\r\n]*)$/m.exec(
+      context.slice(fenceEnd + 1),
+    );
+    const proofEnd = followingFence ? fenceEnd + 1 + followingFence.index : context.length;
+    if (proseHints.some((offset) => offset > fenceEnd && offset < proofEnd))
+      markdownOffset = fenceEnd;
+    else {
+      return {
+        plainText: selectedText,
+        source: readingMarkdown(
+          {
+            kind: 'dom-selection',
+            text: selectedText,
+            protectedRanges: [{ start: 0, end: selectedText.length, kind: 'inline-code' }],
+            marks: [],
+          },
+          [],
+        ),
+      };
+    }
   }
   const edits: { start: number; end: number; text: string }[] = [];
-  const markdown = markdownTextIntervals(context);
+  const parsed = markdownTextIntervals(context.slice(markdownOffset));
+  const shifted = (spans: { start: number; end: number }[]) =>
+    spans.map((span) => ({ start: span.start + markdownOffset, end: span.end + markdownOffset }));
+  const markdown = {
+    eligible: shifted(parsed.eligible),
+    html: shifted(parsed.html),
+    linePrefixes: shifted(parsed.linePrefixes),
+    opaque: shifted(parsed.opaque),
+  };
   const protectedContext: { start: number; end: number }[] = [];
   let eligibleEnd = 0;
   for (const eligible of markdown.eligible) {
@@ -159,7 +208,12 @@ export function captureGithubMarkdownDiff(
   for (const opaque of merged) {
     const from = Math.max(selectedStart, opaque.start);
     const to = Math.min(selectedEnd, opaque.end);
-    const clipped = opaque.start < selectedStart || opaque.end > selectedEnd;
+    const clipped = [...markdown.opaque, ...markdown.html, { start: 0, end: markdownOffset }].some(
+      (span) =>
+        span.start < to &&
+        span.end > from &&
+        (span.start < selectedStart || span.end > selectedEnd),
+    );
     if (
       from >= to ||
       (!clipped &&
