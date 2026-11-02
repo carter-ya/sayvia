@@ -4,7 +4,7 @@ export const panelStyle = `
 section { --surface: light-dark(#fff,#1d2822); --field: light-dark(#f5f7f4,#26362c); --ink: light-dark(#273b32,#e6eee8); --muted: light-dark(#768178,#9faea4); --line: light-dark(#e1e7df,#3b4b41); --accent: light-dark(#286947,#a4d5b9); font: 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 32px #142b2526; padding: 12px; max-height: min(680px, var(--panel-max-height, calc(100dvh - var(--panel-top, 12px) - 8px))); overflow: auto; display: flex; flex-direction: column; }
 section > * { flex-shrink: 0; }
 .result-region { min-height: 0; overflow: auto; overscroll-behavior: contain; flex: 1 1 auto; margin: 12px 0; scrollbar-gutter: stable; }
-.reading-preview { font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; user-select: text; }
+.reading-preview { white-space: pre-wrap; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; user-select: text; }
 .reading-preview p { margin: 0 0 12px; } .reading-preview > :last-child { margin-bottom: 0; }
 .reading-preview code { font: .9em/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 2px 4px; background: var(--field); border-radius: 4px; white-space: pre-wrap; }
 .reading-preview pre { margin: 10px 0; padding: 10px; background: var(--field); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; } .reading-preview pre code { padding: 0; background: transparent; }

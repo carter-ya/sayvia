@@ -1,4 +1,4 @@
-import { createElement, useMemo, type ReactNode } from 'react';
+import { createElement, useMemo, type ReactNode, type MouseEvent } from 'react';
 import type { Root, RootContent } from 'mdast';
 import { parseMarkdown } from '../core/markdown';
 import { safeWebLink } from '../core/safe-link';
@@ -22,15 +22,21 @@ export function ReadingPreview({ text }: { text: string }) {
             : undefined;
         const link = (url: string | undefined) => {
           const href = url && safeWebLink(url);
+          const open = (event: MouseEvent<HTMLAnchorElement>) => {
+            if (event.button !== 0 && event.button !== 1) return;
+            event.preventDefault();
+            event.stopPropagation();
+            if (event.nativeEvent.isTrusted && href)
+              window.open(href, '_blank', 'noopener,noreferrer');
+          };
           return href ? (
             <a
               key={index}
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={(event) => {
-                if (!event.nativeEvent.isTrusted) event.preventDefault();
-              }}
+              onClick={open}
+              onAuxClick={open}
             >
               {children}
             </a>

@@ -6,12 +6,17 @@ export interface ReadingLink {
   href: string;
 }
 
-function literal(text: string) {
-  return text
-    .replace(/[\\`*[\]<>|~]/g, '\\$&')
+function literal(text: string, lineStart: boolean) {
+  const escaped = text
+    .replace(/[\\`*[\]<>|~&]/g, '\\$&')
     .replace(/(?<![\p{L}\p{N}])_/gu, '\\_')
     .replace(/(^|\n)([ \t]*)([#=+-])(?=\s)/g, '$1$2\\$3')
     .replace(/(^|\n)([ \t]*\d+)([.)])(?=\s)/g, '$1$2\\$3');
+  return lineStart
+    ? escaped.replace(/^[ \t]+/, (indentation) =>
+        [...indentation].map((character) => (character === '\t' ? '&#9;' : '&#32;')).join(''),
+      )
+    : escaped;
 }
 function code(text: string, block: boolean) {
   const fence = '`'.repeat(
@@ -45,7 +50,7 @@ export function readingMarkdown(source: DomSource, links: readonly ReadingLink[]
         output +=
           label === link.href && !protectedCode
             ? `<${link.href}>`
-            : `[${render(cursor, link.end, true)}](<${link.href.replace(/</g, '%3C').replace(/>/g, '%3E')}>)`;
+            : `[${render(cursor, link.end, true)}](<${link.href.replace(/&/g, '&amp;').replace(/</g, '%3C').replace(/>/g, '%3E')}>)`;
         cursor = link.end;
         continue;
       }
@@ -88,7 +93,10 @@ export function readingMarkdown(source: DomSource, links: readonly ReadingLink[]
         !source.text.startsWith('http://', next)
       )
         next++;
-      output += literal(source.text.slice(cursor, next));
+      output += literal(
+        source.text.slice(cursor, next),
+        cursor === 0 || source.text[cursor - 1] === '\n',
+      );
       cursor = next;
     }
     return output;

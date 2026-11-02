@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ReadingSelectionCache } from '../../src/adapters/selection-cache';
 import {
   createTranslationPlan,
+  needsTranslation,
   reconstructTranslation,
   translationPayload,
 } from '../../src/core/translation-plan';
@@ -113,6 +114,33 @@ describe('formatted reading selections', () => {
     expect(source.text).toBe('Read [guide](<https://example.test/guide>).');
     expect(outside).not.toHaveBeenCalled();
     expect(hidden).not.toHaveBeenCalled();
+  });
+  it('keeps indented preformatted prose eligible for translation', () => {
+    const { source } = capture('<pre>    Please translate this note.\n\tKeep this line too.</pre>');
+    expect(needsTranslation(createTranslationPlan(source))).toBe(true);
+    expect(JSON.stringify(parseMarkdown(source.text))).not.toContain('"type":"code"');
+  });
+  it('preserves entity-like query values in actual selected destinations', () => {
+    const { source } = capture(
+      '<p>Read <a href="https://example.test/?x=&amp;copy;">guide</a>.</p>',
+    );
+    const tree = parseMarkdown(source.text);
+    expect(JSON.stringify(tree)).toContain('https://example.test/?x=&copy;');
+    expect(JSON.stringify(tree)).not.toContain('©');
+  });
+  it.each([
+    '<p>https://example.test/?x=&amp;copy;</p>',
+    '<p><a href="https://example.test/?x=&amp;copy;">https://example.test/?x=&amp;copy;</a></p>',
+  ])('preserves entity-like values in visible URL autolinks: %s', (html) => {
+    const { source } = capture(html);
+    expect(JSON.stringify(parseMarkdown(source.text))).toContain('https://example.test/?x=&copy;');
+    expect(JSON.stringify(translationPayload(createTranslationPlan(source)))).not.toContain(
+      'example.test',
+    );
+  });
+  it('preserves literal entity-like prose rather than decoding it as HTML', () => {
+    const { source } = capture('<p>Keep &amp;copy; as written.</p>');
+    expect(JSON.stringify(parseMarkdown(source.text))).toContain('Keep &copy; as written.');
   });
   it('rejects formatted input mixed with contradictory flat semantic intervals', () => {
     expect(() =>

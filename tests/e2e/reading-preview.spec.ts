@@ -41,10 +41,17 @@ test('a long PR description has scrollable formatted output with visible copy/ed
     const pageCount = f.context.pages().length;
     await safeLink.evaluate((element) => (element as HTMLAnchorElement).click());
     expect(f.context.pages()).toHaveLength(pageCount);
+    await f.context.route('https://unwanted.example.test/redirect', (route) =>
+      route.fulfill({ contentType: 'text/html', body: 'Unexpected destination' }),
+    );
+    await safeLink.evaluate((element) =>
+      element.setAttribute('href', 'https://unwanted.example.test/redirect'),
+    );
     const opened = f.context.waitForEvent('page');
     await safeLink.click();
     const target = await opened;
-    await target.waitForURL(url);
+    await target.waitForLoadState('domcontentloaded');
+    expect(target.url()).toBe(url);
     expect(await target.evaluate(() => window.opener === null)).toBe(true);
     await target.close();
     await panel.locator('.source-details > summary').click();
@@ -122,6 +129,31 @@ test('edited HTML, remote images and unsafe links remain inert in a reading prev
     await expect(preview).toContainText('bad');
     await expect(preview).toContainText('remote');
     expect(f.count()).toBe(1);
+  } finally {
+    await f.close();
+  }
+});
+
+test('indented preformatted prose translates and keeps entity-like link destinations unchanged', async () => {
+  const f = await workflowFixture();
+  try {
+    await f.page.evaluate(() => {
+      const pre = document.createElement('pre');
+      pre.id = 'note';
+      pre.innerHTML = '    Read <a href="https://example.test/?x=&amp;copy;">guide</a> first.';
+      document.body.prepend(pre);
+    });
+    const panel = await select(f.page, 'note');
+    const preview = panel.getByRole('region', { name: '译文预览' });
+    await expect(preview).toContainText('阅读');
+    await expect(preview.locator('code,pre')).toHaveCount(0);
+    await expect(preview.getByRole('link')).toHaveAttribute(
+      'href',
+      'https://example.test/?x=&copy;',
+    );
+    expect((await preview.innerText()).startsWith('    ')).toBe(true);
+    expect(f.count()).toBe(1);
+    expect(f.requestBodies[0]).not.toContain('example.test');
   } finally {
     await f.close();
   }
