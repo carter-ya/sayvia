@@ -32,7 +32,7 @@ function matches(text: string, pattern: RegExp): Interval[] {
   }));
 }
 
-function protectedTokens(text: string, markdown: boolean) {
+export function protectedTokens(text: string, markdown: boolean) {
   const intervals = [
     ...matches(text, /\r\n|[\r\n\t]/g),
     ...matches(

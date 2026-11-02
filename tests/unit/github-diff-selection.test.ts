@@ -98,6 +98,31 @@ describe('GitHub Markdown source diff reading', () => {
     const begin = raw.indexOf('PRIVATE_TARGET');
     expect(needsTranslation(capture(0, 0, begin, begin + 7).plan)).toBe(false);
   });
+  it('keeps complete destinations protected when clipping removes the link opener', () => {
+    fixture(['[guide](PRIVATE_TARGET/path)']);
+    const raw = document.getElementById('line-0')!.textContent!;
+    const { plan } = capture(0, 0, 1, raw.length);
+    expect(needsTranslation(plan)).toBe(true);
+    expect(JSON.stringify(translationPayload(plan))).not.toContain('PRIVATE_TARGET');
+  });
+  it('keeps raw HTML code-body protection after clipping away the tags', () => {
+    fixture(['Read &lt;code&gt;PRIVATE_CODE&lt;/code&gt; first.']);
+    const raw = document.getElementById('line-0')!.textContent!;
+    const begin = raw.indexOf('PRIVATE_CODE');
+    expect(needsTranslation(capture(0, 0, begin, begin + 12).plan)).toBe(false);
+  });
+  it('does not rewrap a complete protected raw HTML span', () => {
+    fixture(['Read &lt;code&gt;PRIVATE_CODE&lt;/code&gt; first.']);
+    const { source, plan } = capture();
+    expect(source.text).toBe('Read <code>PRIVATE_CODE</code> first.');
+    expect(JSON.stringify(translationPayload(plan))).not.toContain('PRIVATE_CODE');
+  });
+  it('keeps a partial bare URL path local', () => {
+    fixture(['Read https://example.test/PRIVATE_TARGET first.']);
+    const raw = document.getElementById('line-0')!.textContent!;
+    const begin = raw.indexOf('PRIVATE_TARGET');
+    expect(needsTranslation(capture(0, 0, begin, begin + 7).plan)).toBe(false);
+  });
   it('does not translate a fenced code body when its opening fence is outside the selection', () => {
     fixture(['```text', 'PRIVATE_CODE_BODY', '```', 'Read first.']);
     const { source, plan } = capture(1, 3);

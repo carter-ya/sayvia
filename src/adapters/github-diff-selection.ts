@@ -1,6 +1,7 @@
 import { captureDomRange } from './dom-selection';
 import { readingMarkdown } from './reading-markdown';
 import { markdownTextIntervals } from '../core/markdown';
+import { createTranslationPlan, protectedTokens } from '../core/translation-plan';
 import { parseSourceInput, SourceError, type DomSource } from '../core/source-input';
 
 const INNER = 'td[data-diff-side][data-line-number] > code.diff-text > .diff-text-inner';
@@ -117,10 +118,38 @@ export function captureGithubMarkdownDiff(
   }
   if (eligibleEnd < context.length)
     protectedContext.push({ start: eligibleEnd, end: context.length });
-  for (const opaque of protectedContext) {
+  protectedContext.push(...markdown.html, ...markdown.linePrefixes);
+  for (const eligible of markdown.eligible) {
+    protectedContext.push(
+      ...protectedTokens(context.slice(eligible.start, eligible.end), true).map((span) => ({
+        start: span.start + eligible.start,
+        end: span.end + eligible.start,
+      })),
+    );
+  }
+  const merged: { start: number; end: number }[] = [];
+  for (const span of protectedContext.sort((a, b) => a.start - b.start || a.end - b.end)) {
+    const previous = merged.at(-1);
+    if (previous && span.start <= previous.end) previous.end = Math.max(previous.end, span.end);
+    else merged.push({ ...span });
+  }
+  const selectedParts = createTranslationPlan({
+    kind: 'markdown',
+    text: context.slice(selectedStart, selectedEnd),
+  }).parts;
+  for (const opaque of merged) {
     const from = Math.max(selectedStart, opaque.start);
     const to = Math.min(selectedEnd, opaque.end);
-    if (from >= to || (opaque.start >= selectedStart && opaque.end <= selectedEnd)) continue;
+    if (
+      from >= to ||
+      !selectedParts.some(
+        (part) =>
+          part.kind === 'text' &&
+          part.start + selectedStart < to &&
+          part.end + selectedStart > from,
+      )
+    )
+      continue;
     output += context.slice(cursor, from);
     const piece = context.slice(from, to);
     // A selection may start inside code, HTML or a Markdown link destination.
