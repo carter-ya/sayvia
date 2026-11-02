@@ -138,6 +138,21 @@ describe('GitHub Markdown source diff reading', () => {
     expect(needsTranslation(capture(0).plan)).toBe(true);
     expect(needsTranslation(capture(2).plan)).toBe(false);
   });
+  it('translates prose after a selected closing fence whose opener was not selected', () => {
+    fixture(['```go', 'PRIVATE_CODE', '```', 'Read first.']);
+    const { source, plan } = capture(2, 3);
+    expect(needsTranslation(plan)).toBe(true);
+    expect(JSON.stringify(translationPayload(plan))).toContain('Read first.');
+    expect(source.text).not.toContain('PRIVATE_CODE');
+  });
+  it('retains prose after selecting only the closing inline-code delimiter', () => {
+    fixture(['Read `PRIVATE_CODE` first.']);
+    const raw = document.getElementById('line-0')!.textContent!;
+    const { plan } = capture(0, 0, raw.lastIndexOf('`'), raw.length);
+    expect(needsTranslation(plan)).toBe(true);
+    expect(JSON.stringify(translationPayload(plan))).toContain('first.');
+    expect(JSON.stringify(translationPayload(plan))).not.toContain('PRIVATE_CODE');
+  });
   it('does not translate a fenced code body when its opening fence is outside the selection', () => {
     fixture(['```text', 'PRIVATE_CODE_BODY', '```', 'Read first.']);
     const { source, plan } = capture(1, 3);

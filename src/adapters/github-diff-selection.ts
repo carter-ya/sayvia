@@ -160,16 +160,21 @@ export function captureGithubMarkdownDiff(
   for (const opaque of merged) {
     const from = Math.max(selectedStart, opaque.start);
     const to = Math.min(selectedEnd, opaque.end);
+    const clipped = opaque.start < selectedStart || opaque.end > selectedEnd;
     if (
       from >= to ||
-      !selectedParts.some(
-        (part) =>
-          part.kind === 'text' &&
-          part.start + selectedStart < to &&
-          part.end + selectedStart > from,
-      )
+      (!clipped &&
+        !selectedParts.some(
+          (part) =>
+            part.kind === 'text' &&
+            part.start + selectedStart < to &&
+            part.end + selectedStart > from,
+        ))
     )
       continue;
+    // A clipped closing delimiter can otherwise look like a new opener and
+    // swallow genuine prose below it, even when standalone parsing has no text.
+    if (!context.slice(from, to).trim()) continue;
     output += context.slice(cursor, from);
     const piece = context.slice(from, to);
     // A selection may start inside code, HTML or a Markdown link destination.
