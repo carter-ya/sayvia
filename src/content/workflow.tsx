@@ -1,3 +1,4 @@
+import { AnchoredPanel } from './anchored-panel';
 import { copyText } from './copy-text';
 import { newId } from '../runtime/uuid';
 import { createRoot } from 'react-dom/client';
@@ -70,9 +71,10 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const entry = new SelectionEntry(() => {
     if (automatic) open('read', true);
   });
+  const anchoredPanel = new AnchoredPanel(host);
   const editorEntries = new EditorEntries((element) => {
     if (automatic) open('write', true, true, element);
-  });
+  }, anchoredPanel.update);
   const owns = (event: Event) =>
     event.composedPath().includes(host) || entry.owns(event) || editorEntries.owns(event);
   const render = () => {
@@ -389,6 +391,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       state.candidate = '';
       openSequence += 1;
       visible = false;
+      anchoredPanel.detach();
       host.style.setProperty('display', 'none', 'important');
       if (focusTarget?.isConnected) focusTarget.focus();
       render();
@@ -534,6 +537,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     if (!discard()) return;
     cancel();
     entry.hide();
+    anchoredPanel.detach();
     entryMode = inline ? 'inline' : 'toolbar';
     const sequence = ++openSequence;
     state.openSequence = sequence;
@@ -576,6 +580,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     }
     host.style.removeProperty('display');
     render();
+    if (inline && mode === 'write' && editorTarget)
+      anchoredPanel.attach(() => editorEntries.anchorFor(editorTarget));
     const target = state.target;
     void browser.runtime
       .sendMessage({ protocolVersion: 1, type: 'page.preferences', requestId: newId() })
@@ -657,6 +663,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     window.removeEventListener('pagehide', dispose);
     entry.dispose();
     editorEntries.dispose();
+    anchoredPanel.detach();
     registry.dispose();
     selection.clear();
     root.unmount();
