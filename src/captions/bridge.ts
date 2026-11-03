@@ -208,10 +208,12 @@ export class CaptionAssembler {
 
 // The caller owns one sender per document, never one per response.
 export class CaptionBridgeSender {
-  private readonly rate = new MessageRate();
   private waiting = 0;
   private tail: Promise<void> = Promise.resolve();
-  constructor(private readonly emit: (message: string) => void) {}
+  constructor(
+    private readonly emit: (message: string) => void,
+    private readonly rate = new MessageRate(),
+  ) {}
   send(scope: BridgeScope, cues: readonly CaptionCue[], signal: AbortSignal): Promise<void> {
     if (signal.aborted) return Promise.reject(new CaptionError('CAPTION_BRIDGE_INVALID'));
     if (this.waiting >= limits.assemblies) return Promise.reject(new CaptionError('CAPTION_LIMIT'));
