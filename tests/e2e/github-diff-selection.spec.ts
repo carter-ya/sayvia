@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { workflowFixture } from '../fixtures/core-workflow-extension';
+import { moduleComments, moduleDiff } from '../fixtures/github-module-diff';
 
 const url = 'https://github.com/exc-works/decimal/pull/10/changes';
 async function fixture() {
@@ -62,6 +63,56 @@ test('a multi-line diff range excludes the opposite side and retains inline code
     await f.close();
   }
 });
+
+for (const direction of ['forward', 'backward'] as const) {
+  test(`a ${direction} mouse selection from a line number translates Go comments`, async () => {
+    const f = await fixture();
+    try {
+      await f.page.evaluate((html) => {
+        document.querySelector('table')!.outerHTML = html;
+      }, moduleDiff());
+      const points = await f.page.evaluate(() => {
+        const point = (node: Node, offset: number) => {
+          const range = document.createRange();
+          range.setStart(node, offset);
+          range.collapse(true);
+          const rect = range.getBoundingClientRect();
+          return { x: rect.x + 1, y: rect.y + rect.height / 2 };
+        };
+        const end = document.querySelector('#line-2 .pl-c')!.firstChild!;
+        return {
+          start: point(document.querySelector('#number-0')!.firstChild!, 0),
+          end: point(end, end.textContent!.length),
+        };
+      });
+      const start = direction === 'forward' ? points.start : points.end;
+      const end = direction === 'forward' ? points.end : points.start;
+      await f.page.mouse.move(start.x, start.y);
+      await f.page.mouse.down();
+      await f.page.mouse.move(end.x, end.y, { steps: 15 });
+      await f.page.mouse.up();
+      expect(await f.page.evaluate(() => window.getSelection()?.toString())).toContain('10');
+      await f.page.getByRole('button', { name: '使用 Sayvia 翻译选中文字' }).click();
+      await expect(f.page.getByRole('region', { name: '译文预览' })).toContainText(
+        '定位入口及其编译器可用的文件。',
+      );
+      expect(f.count()).toBe(1);
+      const request = JSON.parse(f.requestBodies[0]!);
+      const payload = JSON.parse(request.messages[1].content);
+      expect(payload.segments.map((segment: { text: string }) => segment.text)).toEqual(
+        moduleComments,
+      );
+      const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' });
+      await panel.locator('.source-details > summary').click();
+      await expect(panel.getByLabel('原文', { exact: true })).toHaveValue(
+        moduleComments.join('\n'),
+      );
+      await expect(f.page.locator('#line-0')).toHaveText(moduleComments[0]!);
+    } finally {
+      await f.close();
+    }
+  });
+}
 
 test('closing-fence README prose renders as paragraphs and has a visible editing field', async () => {
   const f = await fixture();
