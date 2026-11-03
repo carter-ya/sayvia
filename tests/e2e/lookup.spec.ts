@@ -159,21 +159,21 @@ test('keyboard tabs and moving a dark narrow lookup card remain usable', async (
   }
 });
 
-test('all seven explicit languages can speak without a model call and missing local voices do not erase the word', async () => {
-  const f = await workflowFixture({ speech: true });
-  try {
-    const p = await popup(f);
-    await p.getByRole('tab', { name: '查词', exact: true }).click();
-    const samples = [
-      ['zh-Hans', '你好', 'zh-CN'],
-      ['en', 'hello', 'en-US'],
-      ['ja', 'こんにちは', 'ja-JP'],
-      ['ko', '안녕하세요', 'ko-KR'],
-      ['fr', 'bonjour', 'fr-FR'],
-      ['de', 'hallo', 'de-DE'],
-      ['es', 'hola', 'es-ES'],
-    ];
-    for (const [language, text, voice] of samples) {
+const speechSamples = [
+  ['zh-Hans', '你好', 'zh-CN'],
+  ['en', 'hello', 'en-US'],
+  ['ja', 'こんにちは', 'ja-JP'],
+  ['ko', '안녕하세요', 'ko-KR'],
+  ['fr', 'bonjour', 'fr-FR'],
+  ['de', 'hallo', 'de-DE'],
+  ['es', 'hola', 'es-ES'],
+] as const;
+for (const [language, text, voice] of speechSamples) {
+  test(`explicit ${language} can speak without a model call`, async () => {
+    const f = await workflowFixture({ speech: true });
+    try {
+      const p = await popup(f);
+      await p.getByRole('tab', { name: '查词', exact: true }).click();
       await p.getByLabel('单词或短语', { exact: true }).fill(text!);
       await chooseLanguage(p.getByLabel('源语言', { exact: true }), language!);
       await p.getByRole('button', { name: /^按.+慢速朗读$/ }).click();
@@ -181,7 +181,21 @@ test('all seven explicit languages can speak without a model call and missing lo
         .poll(async () => (await speech(f)).spoken.at(-1))
         .toEqual({ text, lang: voice, rate: 0.75 });
       await p.getByRole('button', { name: '停止朗读', exact: true }).click();
+      await expect.poll(async () => (await speech(f)).stops).toBe(1);
+      expect(f.count()).toBe(0);
+    } finally {
+      await f.close();
     }
+  });
+}
+
+test('missing local voices do not erase the word or use a remote voice', async () => {
+  const f = await workflowFixture({ speech: true });
+  try {
+    const p = await popup(f);
+    await p.getByRole('tab', { name: '查词', exact: true }).click();
+    await p.getByLabel('单词或短语', { exact: true }).fill('hola');
+    await chooseLanguage(p.getByLabel('源语言', { exact: true }), 'es');
     expect(f.count()).toBe(0);
     await f.settings.evaluate(() =>
       (globalThis as unknown as Chrome).chrome.runtime.sendMessage({
@@ -192,7 +206,7 @@ test('all seven explicit languages can speak without a model call and missing lo
     await p.getByRole('button', { name: /^按.+慢速朗读$/ }).click();
     await expect(p.getByText('设备没有匹配的本地声线，仍可查看释义。')).toBeVisible();
     await expect(p.getByLabel('单词或短语', { exact: true })).toHaveValue('hola');
-    expect((await speech(f)).spoken).toHaveLength(7);
+    expect((await speech(f)).spoken).toHaveLength(0);
   } finally {
     await f.close();
   }
