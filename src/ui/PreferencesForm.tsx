@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ConfigSnapshot } from '../storage/schema';
 import { LanguageField } from './LanguageField';
+import { applyAppearance } from './appearance';
 export function PreferencesForm({
   snapshot,
   busy,
@@ -15,12 +16,11 @@ export function PreferencesForm({
   const [preferences, setPreferences] = useState(snapshot.preferences);
   useEffect(() => {
     const root = document.documentElement;
-    const scheme = (theme: typeof preferences.theme) => (theme === 'system' ? 'light dark' : theme);
-    root.style.colorScheme = scheme(preferences.theme);
+    applyAppearance(root, preferences);
     return () => {
-      root.style.colorScheme = scheme(snapshot.preferences.theme);
+      applyAppearance(root, snapshot.preferences);
     };
-  }, [preferences.theme, snapshot.preferences.theme]);
+  }, [preferences, snapshot.preferences]);
   const change = (next: Partial<ConfigSnapshot['preferences']>) => {
     setPreferences({ ...preferences, ...next });
     onDirty();
@@ -84,9 +84,56 @@ export function PreferencesForm({
             }
           >
             <option value="system">跟随系统</option>
-            <option value="light">浅色</option>
-            <option value="dark">深色</option>
+            <option value="light">白天（浅色）</option>
+            <option value="dark">黑夜（深色）</option>
           </select>
+        </label>
+        <label>
+          界面配色
+          <select
+            value={preferences.palette}
+            onChange={(event) =>
+              change({ palette: event.target.value as typeof preferences.palette })
+            }
+          >
+            <option value="crystal">清蓝 · 晶透白</option>
+            <option value="pearl">珊瑚 · 柔白暖光</option>
+          </select>
+        </label>
+        <label>
+          浮窗材质
+          <select
+            value={preferences.panelMaterial}
+            onChange={(event) =>
+              change({ panelMaterial: event.target.value as typeof preferences.panelMaterial })
+            }
+          >
+            <option value="liquid">液态玻璃</option>
+            <option value="glass">磨砂玻璃</option>
+            <option value="transparent">半透明</option>
+            <option value="solid">实色</option>
+          </select>
+        </label>
+        <label>
+          浮窗背景染色浓度 ·{' '}
+          {preferences.panelMaterial === 'solid' ? 100 : preferences.panelOpacity}%
+          <input
+            aria-label="浮窗背景浓度"
+            type="range"
+            min="8"
+            max="100"
+            value={preferences.panelOpacity}
+            disabled={preferences.panelMaterial === 'solid'}
+            onChange={(event) => change({ panelOpacity: Number(event.target.value) })}
+          />
+        </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={preferences.readingProtection}
+            onChange={(event) => change({ readingProtection: event.target.checked })}
+          />
+          阅读保护：减少译文背后的网页干扰
         </label>
         <div className="form-footer">
           <button

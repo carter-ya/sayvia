@@ -4,6 +4,7 @@ import type { ConfigSnapshot } from '../storage/schema';
 import { settingsRequest } from './settings-client';
 import { ProviderForm } from './ProviderForm';
 import { PreferencesForm } from './PreferencesForm';
+import { applyAppearance } from './appearance';
 
 export function SettingsScreen() {
   const [snapshot, setSnapshot] = useState<ConfigSnapshot>();
@@ -63,11 +64,8 @@ export function SettingsScreen() {
     };
   }, []);
   useEffect(() => {
-    document.documentElement.style.colorScheme =
-      snapshot?.preferences.theme === 'system'
-        ? 'light dark'
-        : (snapshot?.preferences.theme ?? 'light dark');
-  }, [snapshot?.preferences.theme]);
+    if (snapshot) applyAppearance(document.documentElement, snapshot.preferences);
+  }, [snapshot]);
   useEffect(() => {
     if (!dirty) return;
     const leave = (event: BeforeUnloadEvent) => event.preventDefault();

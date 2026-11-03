@@ -13,6 +13,8 @@ vi.mock('wxt/browser', () => ({ browser: api }));
 import { handlePageMessage, openPage } from '../../src/background/page-router';
 import type { ConfigRepository } from '../../src/storage/repository';
 import type { MessageSender } from '../../src/background/task-router';
+import { emptyState } from '../../src/storage/schema';
+import { appearanceOf } from '../../src/ui/appearance';
 const popup: MessageSender = {
   id: 'self',
   origin: new URL('chrome-extension://self/').origin,
@@ -28,8 +30,10 @@ const page = {
 } as MessageSender;
 const repository = {
   snapshot: vi.fn(async () => ({
+    revision: 4,
     providers: [{ id: 'default', model: 'test-model' }],
     preferences: {
+      ...emptyState().preferences,
       quickReplace: false,
       readTarget: 'zh-Hans',
       writeTarget: 'en',
@@ -123,6 +127,8 @@ describe('explicit page translation entry', () => {
         readTarget: 'zh-Hans',
         writeTarget: 'en',
         theme: 'dark',
+        appearance: { ...appearanceOf(emptyState().preferences), theme: 'dark' },
+        revision: 4,
         model: 'test-model',
         quickReplace: false,
       },
@@ -147,6 +153,40 @@ describe('explicit page translation entry', () => {
       error: 'UNSUPPORTED',
     });
     expect(api.scripting.executeScript).not.toHaveBeenCalled();
+  });
+  it('only lets the verified top-frame controller change the panel appearance allowlist', async () => {
+    const change = vi.fn(async () => ({ ...(await repository.snapshot()), revision: 5 }));
+    const repo = { ...repository, panelAppearance: change } as unknown as ConfigRepository;
+    const request = {
+      protocolVersion: 1,
+      requestId: crypto.randomUUID(),
+      type: 'page.appearance',
+      payload: { panelOpacity: 28 },
+    };
+    const reply = await handlePageMessage(request, page, repo);
+    expect(reply).toMatchObject({ ok: true, data: { revision: 5 } });
+    expect(change).toHaveBeenCalledWith({ panelOpacity: 28 });
+    expect(JSON.stringify(reply)).not.toContain('SECRET_NEVER_PROJECT');
+    expect(await handlePageMessage(request, { ...page, frameId: 1 }, repo)).toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+    expect(await handlePageMessage(request, popup, repo)).toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+    for (const payload of [
+      { quickReplace: true },
+      { palette: 'pearl' },
+      { apiKey: 'private' },
+      { panelOpacity: -1 },
+      {},
+    ])
+      expect(await handlePageMessage({ ...request, payload }, page, repo)).toEqual({
+        ok: false,
+        error: 'INVALID_REQUEST',
+      });
+    expect(change).toHaveBeenCalledTimes(1);
   });
 });
 

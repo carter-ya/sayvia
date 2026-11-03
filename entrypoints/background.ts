@@ -8,6 +8,7 @@ import { handleConnectionTest } from '../src/background/connection-test';
 import { handleSettings } from '../src/background/settings-router';
 import { chromeConfigStorage } from '../src/storage/chrome-storage';
 import { ConfigRepository } from '../src/storage/repository';
+import { notifyAppearance } from '../src/background/appearance';
 import { ExecutorHost } from '../src/background/executor-host';
 import { TaskBroker } from '../src/background/task-broker';
 import { taskStorage } from '../src/background/task-storage';
@@ -180,6 +181,10 @@ export default defineBackground(() => {
     }
     void handleSettings(message, repository, broker)
       .then(async (result) => {
+        if (result.ok && message.type === 'settings.preferences')
+          await notifyAppearance(result.data.preferences, result.data.revision).catch(
+            () => undefined,
+          );
         if (result.ok && message.type === 'settings.delete')
           await broker.cancelWhere((route) => route.providerId === message.payload.id);
         if (result.ok && message.type === 'settings.clear') {

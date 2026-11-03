@@ -1,13 +1,6 @@
 :root {
   color-scheme: light dark;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
-  --bg: light-dark(#f7f8f5, #141c18);
-  --surface: light-dark(#fff, #1c2821);
-  --ink: light-dark(#203a2e, #e6ede7);
-  --muted: light-dark(#6e7d73, #a6b6aa);
-  --line: light-dark(#e1e8df, #34483b);
-  --tint: light-dark(#edf3ec, #263c2f);
-  --accent: light-dark(#286947, #9bd5ad);
   color: var(--ink);
   background: var(--bg);
 }
@@ -27,8 +20,8 @@ button {
   border: 1px solid transparent;
   border-radius: 9px;
   padding: 11px 17px;
-  background: #286947;
-  color: #fff;
+  background: var(--accent);
+  color: var(--on-accent);
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
@@ -38,7 +31,7 @@ button {
 }
 button:hover:not(:disabled) {
   box-shadow: 0 2px 9px #183c2220;
-  background: #20583a;
+  background: color-mix(in srgb, var(--accent) 88%, var(--ink));
 }
 button:disabled {
   opacity: 0.5;
@@ -49,7 +42,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid #c79b5c;
+  outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
 input,
@@ -111,7 +104,7 @@ p {
   font-weight: 400;
 }
 .wordmark {
-  color: var(--accent);
+  color: var(--ink);
   font-size: 22px;
   font-weight: 750;
   text-decoration: none;
@@ -127,8 +120,9 @@ p {
   height: 34px;
   display: grid;
   place-items: center;
-  background: #286947;
-  color: white;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
   font:
     italic 25px Georgia,
     serif;
@@ -161,7 +155,7 @@ p {
   width: 16px;
   height: 16px;
   margin: 0;
-  accent-color: #286947;
+  accent-color: var(--accent);
   flex-shrink: 0;
 }
 .popup {
@@ -749,4 +743,9 @@ p {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+input[type='range'] {
+  padding: 0;
+  accent-color: var(--accent);
 }

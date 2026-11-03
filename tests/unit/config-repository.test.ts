@@ -62,6 +62,63 @@ describe('permanent configuration repository', () => {
     expect(Object.values((raw as StoredState).secrets)[0]?.apiKey).toBe(KEY);
   });
 
+  it('adds appearance defaults to existing v1 config without losing keys, models or revisions', async () => {
+    const initial = await new ConfigRepository(storage).save(input(0));
+    const oldPreferences = (raw as { preferences: Record<string, unknown> }).preferences;
+    for (const key of ['palette', 'panelMaterial', 'panelOpacity', 'readingProtection'])
+      delete oldPreferences[key];
+    oldPreferences.theme = 'dark';
+    const before = structuredClone(raw);
+    const upgraded = await new ConfigRepository(storage).snapshot();
+    expect(upgraded.revision).toBe(initial.revision);
+    expect(upgraded.providers).toEqual(initial.providers);
+    expect(upgraded.preferences).toMatchObject({
+      theme: 'dark',
+      palette: 'crystal',
+      panelMaterial: 'liquid',
+      panelOpacity: 14,
+      readingProtection: true,
+    });
+    expect(raw).toEqual(before);
+    expect(Object.values((raw as StoredState).secrets)[0]?.apiKey).toBe(KEY);
+  });
+
+  it('merges panel-only updates without resetting appearance or unrelated preferences', async () => {
+    const repo = new ConfigRepository(storage);
+    const initial = await repo.save(input(0));
+    await repo.preferences({
+      expectedRevision: initial.revision,
+      preferences: { ...initial.preferences, palette: 'pearl', theme: 'dark', readTarget: 'ja' },
+    });
+    await repo.panelAppearance({ panelMaterial: 'solid', readingProtection: false });
+    await repo.panelAppearance({ panelOpacity: 83 });
+    await Promise.all([
+      repo.panelAppearance({ panelOpacity: 72 }),
+      repo.panelAppearance({ readingProtection: true }),
+    ]);
+    const current = await repo.snapshot();
+    expect(current.preferences).toMatchObject({
+      palette: 'pearl',
+      theme: 'dark',
+      panelMaterial: 'solid',
+      panelOpacity: 72,
+      readingProtection: true,
+      readTarget: 'ja',
+    });
+    expect(current.providers).toEqual(initial.providers);
+    expect(Object.values((raw as StoredState).secrets)[0]?.apiKey).toBe(KEY);
+    for (const patch of [
+      {},
+      { panelOpacity: 7 },
+      { panelOpacity: 101 },
+      { panelOpacity: 2.5 },
+      { quickReplace: true },
+      { panelMaterial: 'unknown' },
+    ]) {
+      expect(() => repo.panelAppearance(patch as never)).toThrow();
+    }
+  });
+
   it('normalizes newly saved path prefixes while retaining old configuration and its permanent key', async () => {
     const first = await new ConfigRepository(storage).save(input(0));
     const state = raw as StoredState;

@@ -5,17 +5,17 @@ export { languageName } from './languages';
 const style = `
 .language-field { position: relative; min-width: 0; }
 .language-field .language-control { position: relative; margin-top: 3px; }
-.language-field .language-input { width: 100%; margin-top: 0; padding: 6px 24px 6px 8px; border: 1px solid light-dark(#c8d4cc,#667d6d); border-radius: 6px; color: var(--ink,light-dark(#273b32,#e6eee8)); background: var(--field,light-dark(#f5f7f4,#26362c)); font: inherit; font-size: 13px; line-height: 1.5; }
+.language-field .language-input { width: 100%; margin-top: 0; padding: 6px 24px 6px 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: var(--field); font: inherit; font-size: 13px; line-height: 1.5; }
 .language-field .language-control[data-disabled="true"] { cursor: not-allowed; opacity: .55; }
 .language-field .language-input:disabled { cursor: not-allowed; }
-.language-field .language-input:focus { outline: 2px solid #83b59a; outline-offset: 1px; }
-.language-field .language-chevron { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 12px; height: 12px; display: grid; place-items: center; pointer-events: none; color: var(--muted,#768178); }
-.language-field .language-list { position: fixed; inset: auto; margin: 0; padding: 4px; border: 1px solid light-dark(#c8d4cc,#667d6d); border-radius: 8px; color: light-dark(#273b32,#e6eee8); background: light-dark(#fff,#1d2822); box-shadow: 0 6px 24px #142b2530; overflow: auto; overscroll-behavior: contain; font: 13px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+.language-field .language-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.language-field .language-chevron { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 12px; height: 12px; display: grid; place-items: center; pointer-events: none; color: var(--muted); }
+.language-field .language-list { position: fixed; inset: auto; margin: 0; padding: 4px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); box-shadow: 0 6px 24px #142b2530; overflow: auto; overscroll-behavior: contain; font: 13px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
 .language-list [role='option'] { padding: 7px 9px; cursor: pointer; border-radius: 5px; }
-.language-list [data-active='true'] { background: light-dark(#e8f2ec,#344f3e); }
+.language-list [data-active='true'] { background: var(--tint); }
 .language-list [aria-selected='true'] { font-weight: 600; }
-.language-list small { display: block; color: light-dark(#62756a,#b0c2b7); font-size: 10px; margin-top: 2px; }
-.language-list .language-empty { padding: 10px; color: #768178; }
+.language-list small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+.language-list .language-empty { padding: 10px; color: var(--muted); }
 `;
 export function LanguageField({
   label,
