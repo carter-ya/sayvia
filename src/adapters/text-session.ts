@@ -1,7 +1,14 @@
 import { newId } from '../runtime/uuid';
 import { isEligible } from './detect';
 import { trackDocument } from './document-lifetime';
-import type { AdapterKind, ApplyResult, EditorSnapshot, RestoreRecord, TextControl } from './types';
+import type {
+  AdapterKind,
+  ApplyResult,
+  EditorSnapshot,
+  RestoreRecord,
+  RestoreResult,
+  TextControl,
+} from './types';
 
 export class TextEditorSession {
   readonly id = newId();
@@ -127,7 +134,7 @@ export class TextEditorSession {
     const next = snapshot.fullText.slice(0, start) + translation + snapshot.fullText.slice(end);
     const written = await this.write(next, start + translation.length);
     if (written.ok)
-      this.record = { before: snapshot.fullText, after: next, revision: this.revision };
+      this.record = { snapshot, before: snapshot.fullText, after: next, revision: this.revision };
     return written;
   }
 
@@ -147,7 +154,7 @@ export class TextEditorSession {
     );
   }
 
-  async restore(): Promise<ApplyResult> {
+  async restore(expectedSnapshot?: EditorSnapshot): Promise<RestoreResult> {
     if (this.writing) return { ok: false, reason: 'BUSY' };
     const reason = this.contextError();
     if (reason) return { ok: false, reason };
@@ -159,8 +166,18 @@ export class TextEditorSession {
     ) {
       return { ok: false, reason: 'SOURCE_CHANGED' };
     }
-    const result = await this.write(this.record.before, this.record.before.length);
-    if (result.ok) this.record = undefined;
+    const record = this.record;
+    const result = await this.write(record.before, record.before.length);
+    if (result.ok) {
+      this.record = undefined;
+      // Only a successful undo of this exact applied snapshot can renew its
+      // authorization. Keep the original scope/range, not the current caret.
+      if (expectedSnapshot === record.snapshot) {
+        const snapshot = Object.freeze({ ...record.snapshot, revision: this.revision });
+        this.captures.add(snapshot);
+        return { ok: true, snapshot };
+      }
+    }
     return result;
   }
 

@@ -454,12 +454,18 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         });
     },
     restore() {
-      const editor = current?.editor;
+      const draft = current;
+      const editor = draft?.editor;
       if (writing || !editor) return;
       writing = true;
       void editor
-        .restore()
+        .restore(draft.snapshot)
         .then((result) => {
+          if (result.ok && result.snapshot && current === draft) {
+            draft.snapshot = result.snapshot;
+            draft.eligible = true;
+            draft.applied = false;
+          }
           state.status = result.ok ? '已恢复原文。' : userError(result.reason);
           state.hasOriginal = editor.previousOriginal() !== undefined;
           refreshEligibility();
