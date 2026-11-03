@@ -423,8 +423,9 @@ git rebase --onto origin/main OLD_PARENT_TIP CHILD_BRANCH
 | 层 | 直接依赖 | 交付与验证门槛 |
 | --- | --- | --- |
 | L00 | main | [实现契约](LEARN_IMPLEMENTATION.md)、真实研究证据及独立审核；全部方案问题闭环 |
-| L01a | L00 | task/route/execution/result 联合与公共传输；旧任务和手动草稿兼容、来源校验、取消与恢复 |
-| L01b | L01a | lookup 提示、Worker schema、七语言真实格式与语义回归；无隐式二次请求 |
+| L01a.1 | L00 | 共用模型传输与有界查词／字幕协议；保留旧翻译行为，尚不开放学习任务入口 |
+| L01a.2 | L01a.1 | task/route/execution/result 联合接线；旧任务和手动草稿兼容、来源校验、取消与恢复 |
+| L01b | L01a.2 | lookup 提示、Worker schema、七语言真实格式与语义回归；无隐式二次请求 |
 | L02a | L01b | TTS ticket／租约、声音匹配、取消先于 start、旧回调、重启及存储失败 |
 | L02b | L02a | 页面／手动卡片、朗读入口、语言纠正、键盘和既有入口回归；A24/A25 |
 | L03 | L02b | YouTube 动态注册、响应捕获、JSON3／ASR、身份；人工／自动实站、新页／已有页／导航／撤销 |

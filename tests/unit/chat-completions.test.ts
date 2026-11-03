@@ -98,6 +98,16 @@ describe('single-request translation protocol', () => {
     expect(body.messages[0].content).not.toContain('你好');
   });
 
+  it.each(['segments', 'text'])(
+    'does not confuse JSON field names with a credential echo: %s',
+    async (apiKey) => {
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(completion()));
+      const result = await translate({ ...request(), config: { ...config, apiKey } }, fetcher);
+      expect(result.text).toBe('Hello');
+      expect(fetcher).toHaveBeenCalledOnce();
+    },
+  );
+
   it('does not return a successful compatible-server response that echoes its credential', async () => {
     const fetcher = vi
       .fn<typeof fetch>()
