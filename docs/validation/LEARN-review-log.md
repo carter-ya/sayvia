@@ -119,6 +119,8 @@ PR #51 head `e276dabe47c5c0a09313fc37c9873bb9f2936cdd` 的 [Codex 审核](https:
 
 PR #52 head `8e68ccff47a4a872ded3fb687927eecb1e64c8c3` 的 [Codex 审核](https://github.com/carter-ya/sayvia/pull/52#issuecomment-6610890598)无新问题，无需追加修复；CI 状态单独核对，未合并。
 
+首次 CI 的聚合语言测试超时，按[跟进记录](LEARN-lookup-ci.md)拆分后，最新 head `3f493f96bbc6ae1550fb5da70b247a2cc1cb29e4` 的 [Codex 复审](https://github.com/carter-ya/sayvia/pull/52#issuecomment-6611172340)无问题，完整 CI 成功。无需继续修复，未合并。
+
 ## L03a 字幕数据基础层（2026-11-04）
 
 经独立技术 agent 同意，将 L03 拆成纯数据基础 L03a 与网页捕获／授权 L03b，依赖顺序不变。L03a 不注册脚本、不获取网络、不授权模型、不隐藏原生字幕。身份保留视频、源语言、kind、name、tlang，格式及签名不进入轨键。平台翻译轨的阻止入口仍由 L03b 校验。
