@@ -1,13 +1,13 @@
 import { browserLaunchOptions } from './browser-options';
 import { chromium, expect, type BrowserContext, type Page } from '@playwright/test';
 import { createServer } from 'vite';
-import { cp, mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { browser } from 'wxt/browser';
 
 type ChromeGlobal = { chrome: typeof browser };
-export async function workflowFixture() {
+export async function workflowFixture(options: { speech?: boolean } = {}) {
   const temporary = await mkdtemp(join(tmpdir(), 'sayvia-workflow-'));
   let count = 0;
   let delay = 0;
@@ -74,36 +74,46 @@ export async function workflowFixture() {
                   return;
                 }
                 const payload = JSON.parse(JSON.parse(raw).messages[1].content);
-                const content = JSON.stringify({
-                  segments: payload.segments.map((segment: { id: string; text: string }) => ({
-                    id: segment.id,
-                    text: segment.text
-                      .replace(/中文|你好/g, 'English')
-                      .replace('Accept ', '接受 ')
-                      .replace(
-                        'DriverDSN keeps Oracle reconnections on the full authentication path. go-ora',
-                        'DriverDSN 让 Oracle 重连始终走完整认证流程。go-ora',
-                      )
-                      .replace(
-                        "v3.0.1's default fast-login cookie path fails on subsequent Oracle Free logins.",
-                        'v3.0.1 默认的快速登录 cookie 流程会在后续 Oracle Free 登录时失败。',
-                      )
-                      .replace(
-                        "An explicit driver option remains the operator's choice.",
-                        '显式指定驱动选项仍由操作者决定。',
-                      )
-                      .replace('Read ', '阅读 ')
-                      .replace(' first.', ' 优先。')
-                      .replace(
-                        'Probably I can use information_schema to find all columns than concat everything to single string for',
-                        '也许我可以使用 information_schema 查找所有列，然后把所有内容拼接成一个字符串，传给',
-                      )
-                      .replace(
-                        'JSON_OBJECT, and use prepare/execute inside trigger to get compiled result...',
-                        'JSON_OBJECT，再在触发器内使用 prepare/execute 来获得编译后的结果……',
-                      ),
-                  })),
-                });
+                const content = JSON.stringify(
+                  payload.text
+                    ? {
+                        detectedLanguage:
+                          payload.sourceLanguage === 'auto' ? 'en' : payload.sourceLanguage,
+                        meanings: [{ partOfSpeech: '名词', definition: `词语：${payload.text}` }],
+                        example: { text: `${payload.text} example`, translation: '对应的示例。' },
+                        note: null,
+                      }
+                    : {
+                        segments: payload.segments.map((segment: { id: string; text: string }) => ({
+                          id: segment.id,
+                          text: segment.text
+                            .replace(/中文|你好/g, 'English')
+                            .replace('Accept ', '接受 ')
+                            .replace(
+                              'DriverDSN keeps Oracle reconnections on the full authentication path. go-ora',
+                              'DriverDSN 让 Oracle 重连始终走完整认证流程。go-ora',
+                            )
+                            .replace(
+                              "v3.0.1's default fast-login cookie path fails on subsequent Oracle Free logins.",
+                              'v3.0.1 默认的快速登录 cookie 流程会在后续 Oracle Free 登录时失败。',
+                            )
+                            .replace(
+                              "An explicit driver option remains the operator's choice.",
+                              '显式指定驱动选项仍由操作者决定。',
+                            )
+                            .replace('Read ', '阅读 ')
+                            .replace(' first.', ' 优先。')
+                            .replace(
+                              'Probably I can use information_schema to find all columns than concat everything to single string for',
+                              '也许我可以使用 information_schema 查找所有列，然后把所有内容拼接成一个字符串，传给',
+                            )
+                            .replace(
+                              'JSON_OBJECT, and use prepare/execute inside trigger to get compiled result...',
+                              'JSON_OBJECT，再在触发器内使用 prepare/execute 来获得编译后的结果……',
+                            ),
+                        })),
+                      },
+                );
                 if (streaming) {
                   const { gap, end } = streaming;
                   response.writeHead(200, {
@@ -175,6 +185,23 @@ export async function workflowFixture() {
   const baseUrl = `http://127.0.0.1:${address.port}`;
   const extension = join(temporary, 'extension');
   await cp(resolve('.output/chrome-mv3'), extension, { recursive: true });
+  if (options.speech) {
+    const path = join(extension, 'background.js');
+    const source = await readFile(path, 'utf8');
+    await writeFile(
+      path,
+      `
+      const speechFixture = {spoken: [], stops: 0, mode: 'local'};
+      chrome.tts.getVoices = async () => speechFixture.mode === 'none' ? [] : ['zh-CN','en-US','ja-JP','ko-KR','fr-FR','de-DE','es-ES'].map(lang => ({voiceName:'Local '+lang, lang, remote:speechFixture.mode==='remote'}));
+      chrome.tts.speak = async (text, options) => {speechFixture.spoken.push({text,lang:options.lang,rate:options.rate});};
+      chrome.tts.stop = () => {speechFixture.stops++;};
+      chrome.runtime.onMessage.addListener((message, sender, reply) => {
+        if(message?.type === 'fixture.speech.inspect') reply(speechFixture);
+        if(message?.type === 'fixture.speech.mode') {speechFixture.mode=message.mode; reply({ok:true});}
+      });
+    ` + source,
+    );
+  }
   const context: BrowserContext = await chromium.launchPersistentContext(
     join(temporary, 'profile'),
     {

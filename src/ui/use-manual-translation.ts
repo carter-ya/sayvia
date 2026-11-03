@@ -5,8 +5,11 @@ import { applyAppearance } from './appearance';
 import type { ManualDraftView } from '../runtime/manual-draft';
 import type { TranslationProgress, ResultMetrics } from '../runtime/translation-progress';
 import { userError } from '../runtime/user-errors';
+import { LookupInputSchema, type LookupResult } from '../core/learning-contract';
 
 type Fields = {
+  purpose: 'translate' | 'lookup';
+  lookupResult: LookupResult | undefined;
   input: string;
   result: string;
   targetLanguage: string;
@@ -23,6 +26,8 @@ type Context = {
   sequence: number;
 };
 const initial: Fields = {
+  purpose: 'translate',
+  lookupResult: undefined,
   input: '',
   result: '',
   targetLanguage: 'en',
@@ -88,6 +93,8 @@ export function useManualTranslation() {
         context.current.sequence = 0;
       }
       const value = {
+        purpose: next.purpose ?? 'translate',
+        lookupResult: next.lookupResult,
         input: next.input,
         result: next.result ?? '',
         targetLanguage: next.targetLanguage ?? values.current.targetLanguage,
@@ -98,7 +105,13 @@ export function useManualTranslation() {
       setFields(value);
       setModel(next.task?.provider?.model ?? '');
       if (next.task?.error) setStatus(userError(next.task.error));
-      else if (active) setStatus('正在翻译，可以关闭弹窗，稍后回来查看。');
+      else if (active)
+        setStatus(
+          next.purpose === 'lookup'
+            ? '正在查词，可以关闭弹窗，稍后回来查看。'
+            : '正在翻译，可以关闭弹窗，稍后回来查看。',
+        );
+      else if (next.lookupResult) setStatus('AI 释义已就绪，可能存在错误。');
       else if (next.result)
         setStatus(
           next.result === next.input
@@ -247,17 +260,21 @@ export function useManualTranslation() {
       patch.input !== undefined ||
       patch.targetLanguage !== undefined ||
       patch.sourceLanguage !== undefined ||
-      patch.providerId !== undefined
-    )
+      patch.providerId !== undefined ||
+      patch.purpose !== undefined
+    ) {
       next.result = '';
+      next.lookupResult = undefined;
+    }
     values.current = next;
     setFields(next);
     setProgress(undefined);
     setMetrics(undefined);
     if (patch.result === undefined) setModel('');
     setStatus('草稿仅保存在本次浏览器会话，可继续翻译或复制。');
-    if ([...next.input].length > 12_000) {
-      setStatus('原文超过 12,000 字符，超出部分尚未保存，请缩小范围。');
+    const limit = next.purpose === 'lookup' ? 80 : 12_000;
+    if ([...next.input].length > limit) {
+      setStatus(`原文超过 ${limit.toLocaleString()} 字符，当前修改尚未保存，请缩小范围。`);
       return;
     }
     const ctx = context.current;
@@ -268,11 +285,11 @@ export function useManualTranslation() {
     // Dispatch every change now: popup closure cannot strand a debounce or a JS save queue.
     const operation = browser.runtime
       .sendMessage(
-        message('translation.manual.save', {
+        message(next.purpose === 'lookup' ? 'learning.manual.save' : 'translation.manual.save', {
           generation: ctx.generation,
           tabId: ctx.tabId,
           input: next.input,
-          result: next.result,
+          ...(next.purpose === 'lookup' ? { purpose: 'lookup' } : { result: next.result }),
           targetLanguage: next.targetLanguage,
           sourceLanguage: next.sourceLanguage,
           ...(next.providerId ? { providerId: next.providerId } : {}),
@@ -301,6 +318,17 @@ export function useManualTranslation() {
   async function translate() {
     const ctx = context.current;
     if (!ready || !ctx || running.current || dispatching.current || locked.current) return;
+    if (
+      values.current.purpose === 'lookup' &&
+      !LookupInputSchema.safeParse({
+        text: values.current.input,
+        sourceLanguage: values.current.sourceLanguage,
+        explanationLanguage: values.current.targetLanguage,
+      }).success
+    ) {
+      setStatus('查词需输入 1～80 字符，并选择有效的源语言和释义语言。');
+      return;
+    }
     const attempt: StartingTask = {
       clientTaskId: crypto.randomUUID(),
       documentNonce: crypto.randomUUID(),
@@ -313,7 +341,7 @@ export function useManualTranslation() {
     setStartedAt(Date.now());
     setProgress(undefined);
     setMetrics(undefined);
-    setStatus('正在翻译…');
+    setStatus(values.current.purpose === 'lookup' ? '正在查词…' : '正在翻译…');
     const currentEpoch = epoch.current;
     let accepted = false;
     try {
@@ -326,19 +354,36 @@ export function useManualTranslation() {
       )
         return;
       const value = values.current;
-      await send('translation.start', {
+      const base = {
         tabId: ctx.tabId,
         clientTaskId: attempt.clientTaskId,
         documentNonce: attempt.documentNonce,
-        mode: 'manual',
-        scope: 'full',
-        source: { kind: 'plain-text', text: value.input },
-        sourceLanguage: value.sourceLanguage,
-        targetLanguage: value.targetLanguage,
         ...(value.providerId ? { providerId: value.providerId } : {}),
         manualRevision: ctx.revision,
         manualGeneration: ctx.generation,
-      });
+      };
+      await send(
+        value.purpose === 'lookup' ? 'learning.start' : 'translation.start',
+        value.purpose === 'lookup'
+          ? {
+              ...base,
+              purpose: 'lookup',
+              origin: 'manual',
+              input: {
+                text: value.input,
+                sourceLanguage: value.sourceLanguage,
+                explanationLanguage: value.targetLanguage,
+              },
+            }
+          : {
+              ...base,
+              mode: 'manual',
+              scope: 'full',
+              source: { kind: 'plain-text', text: value.input },
+              sourceLanguage: value.sourceLanguage,
+              targetLanguage: value.targetLanguage,
+            },
+      );
       if (attempt.canceled) return;
       const saved = await send('translation.manual.read', { tabId: ctx.tabId });
       if (!attempt.canceled && mounted.current && currentEpoch === epoch.current) {

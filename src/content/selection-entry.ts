@@ -4,11 +4,13 @@ import { appearanceStyle, applyAppearance, type Appearance } from '../ui/appeara
 export class SelectionEntry {
   private readonly host = document.createElement('div');
   private readonly button = document.createElement('button');
+  private lookupButton: HTMLButtonElement | undefined;
   private anchor?: { x: number; y: number };
   constructor(
     activate: () => void,
     label = '使用 Sayvia 翻译选中文字',
     kind: 'reading' | 'writing' | 'editor' = 'reading',
+    lookup?: () => void,
   ) {
     if (kind === 'reading') this.host.dataset.sayviaEntry = '';
     else if (kind === 'writing') this.host.dataset.sayviaEditorSelectionEntry = '';
@@ -31,7 +33,25 @@ export class SelectionEntry {
     this.button.addEventListener('click', (event) => {
       if (event.isTrusted) activate();
     });
-    shadow.append(style, this.button);
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;gap:4px;width:max-content';
+    actions.append(this.button);
+    if (lookup) {
+      this.lookupButton = document.createElement('button');
+      this.lookupButton.type = 'button';
+      this.lookupButton.setAttribute('aria-label', '使用 Sayvia 查词');
+      this.lookupButton.title = '查词';
+      this.lookupButton.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 5c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V4c-3-1-6-1-9 1Zm0 0v15"/></svg>';
+      this.lookupButton.addEventListener('pointerdown', (event) => {
+        if (event.isTrusted) event.preventDefault();
+      });
+      this.lookupButton.addEventListener('click', (event) => {
+        if (event.isTrusted) lookup();
+      });
+      actions.append(this.lookupButton);
+    }
+    shadow.append(style, actions);
     document.documentElement.append(this.host);
     window.addEventListener('resize', this.position);
     window.addEventListener('scroll', this.hide, true);
@@ -41,6 +61,9 @@ export class SelectionEntry {
   }
   setAppearance(appearance: Appearance) {
     applyAppearance(this.host, appearance);
+  }
+  setLookupAvailable(available: boolean) {
+    if (this.lookupButton) this.lookupButton.style.display = available ? '' : 'none';
   }
   show(range: Range, pointer?: { x: number; y: number }) {
     const rects = range.getClientRects();
@@ -61,7 +84,13 @@ export class SelectionEntry {
   }
   private position = () => {
     if (!this.anchor) return;
-    const left = Math.max(6, Math.min(this.anchor.x, window.innerWidth - 32));
+    const left = Math.max(
+      6,
+      Math.min(
+        this.anchor.x,
+        window.innerWidth - Math.max(32, this.host.getBoundingClientRect().width + 6),
+      ),
+    );
     const top = Math.max(6, Math.min(this.anchor.y, window.innerHeight - 32));
     this.host.style.setProperty('left', `${left}px`, 'important');
     this.host.style.setProperty('top', `${top}px`, 'important');

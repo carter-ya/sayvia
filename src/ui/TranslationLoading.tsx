@@ -4,9 +4,9 @@ const style = `
 @keyframes sayvia-loading { to { transform: rotate(360deg); } }
 @media(prefers-reduced-motion: reduce) { .translation-loading .loading-spinner { animation: none; } }
 `;
-export function TranslationLoading() {
+export function TranslationLoading({ label = '正在翻译' }: { label?: string }) {
   return (
-    <div className="translation-loading" role="progressbar" aria-label="正在翻译">
+    <div className="translation-loading" role="progressbar" aria-label={label}>
       <style>{style}</style>
       <span className="loading-spinner" aria-hidden="true" />
     </div>
