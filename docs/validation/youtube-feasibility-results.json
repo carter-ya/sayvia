@@ -1,0 +1,1070 @@
+{
+  "date": "2026-11-03",
+  "scope": "Public HTTP caption probes and six real-model calls; not extension end-to-end",
+  "initialHttpProbe": {
+    "videoId": "eIho2S0ZahI",
+    "signedIn": false,
+    "transport": "public HTTP, not extension",
+    "watchPage": {
+      "status": 200,
+      "bytes": 1511435,
+      "durationMs": 1465,
+      "contentType": "text/html; charset=utf-8"
+    },
+    "playability": "OK",
+    "tracks": [
+      {
+        "language": "ar",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "hy",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "bg",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "my",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "ca",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "ckb",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "zh-CN",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "zh-TW",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "hr",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "cs",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "da",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "nl",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "en",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "en",
+        "kind": "asr",
+        "translatable": true
+      },
+      {
+        "language": "fi",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "fr",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "gl",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "de",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "el",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "iw",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "hi",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "hu",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "id",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "it",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "ja",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "ko",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "ku",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "lv",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "lt",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "ms",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "mn",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "no",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "fa",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "pl",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "pt-BR",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "pt-PT",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "ro",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "ru",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "sr",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "sk",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "sl",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "es",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "sv",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "th",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "tr",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "uk",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "ur",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "uz",
+        "kind": "manual",
+        "translatable": true
+      },
+      {
+        "language": "vi",
+        "kind": "manual",
+        "translatable": true
+      }
+    ],
+    "fetches": [
+      {
+        "language": "en",
+        "kind": "manual",
+        "response": {
+          "status": 200,
+          "bytes": 0,
+          "durationMs": 281,
+          "contentType": "text/html; charset=UTF-8"
+        },
+        "outcome": "empty-body"
+      },
+      {
+        "language": "en",
+        "kind": "asr",
+        "response": {
+          "status": 200,
+          "bytes": 0,
+          "durationMs": 1237,
+          "contentType": "text/html; charset=UTF-8"
+        },
+        "outcome": "empty-body"
+      }
+    ]
+  },
+  "finalHttpProbes": [
+    {
+      "videoId": "eIho2S0ZahI",
+      "signedIn": false,
+      "transport": "public HTTP, not extension",
+      "watchPage": {
+        "status": 200,
+        "bytes": 1440723,
+        "durationMs": 1001,
+        "contentType": "text/html; charset=utf-8"
+      },
+      "playability": "OK",
+      "tracks": [
+        {
+          "language": "ar",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "hy",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "bg",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "my",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ca",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ckb",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "zh-CN",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "zh-TW",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "hr",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "cs",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "da",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "nl",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "en",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "en",
+          "kind": "asr",
+          "translatable": true
+        },
+        {
+          "language": "fi",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "fr",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "gl",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "de",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "el",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "iw",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "hi",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "hu",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "id",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "it",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ja",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ko",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ku",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "lv",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "lt",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ms",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "mn",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "no",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "fa",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "pl",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "pt-BR",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "pt-PT",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ro",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ru",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "sr",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "sk",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "sl",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "es",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "sv",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "th",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "tr",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "uk",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ur",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "uz",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "vi",
+          "kind": "manual",
+          "translatable": true
+        }
+      ],
+      "fetches": [
+        {
+          "language": "en",
+          "kind": "manual",
+          "response": {
+            "status": 200,
+            "bytes": 0,
+            "durationMs": 600,
+            "contentType": "text/html; charset=UTF-8"
+          },
+          "outcome": "empty-body",
+          "unmodifiedUrlResponse": {
+            "status": 200,
+            "bytes": 0,
+            "durationMs": 237,
+            "contentType": "text/html; charset=UTF-8"
+          },
+          "unmodifiedUrlEmpty": true
+        },
+        {
+          "language": "en",
+          "kind": "asr",
+          "response": {
+            "status": 200,
+            "bytes": 0,
+            "durationMs": 277,
+            "contentType": "text/html; charset=UTF-8"
+          },
+          "outcome": "empty-body",
+          "unmodifiedUrlResponse": {
+            "status": 200,
+            "bytes": 0,
+            "durationMs": 420,
+            "contentType": "text/html; charset=UTF-8"
+          },
+          "unmodifiedUrlEmpty": true
+        }
+      ]
+    },
+    {
+      "videoId": "arj7oStGLkU",
+      "signedIn": false,
+      "transport": "public HTTP, not extension",
+      "watchPage": {
+        "status": 200,
+        "bytes": 1394011,
+        "durationMs": 1935,
+        "contentType": "text/html; charset=utf-8"
+      },
+      "playability": "OK",
+      "tracks": [
+        {
+          "language": "ar",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "hy",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "bg",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "my",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ca",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ckb",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "zh-CN",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "zh-TW",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "hr",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "cs",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "da",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "nl",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "en",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "en",
+          "kind": "asr",
+          "translatable": true
+        },
+        {
+          "language": "et",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "fi",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "fr",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "fr-CA",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "gl",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "de",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "el",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "iw",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "hi",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "hu",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "id",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "it",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ja",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ko",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ku",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "lv",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "lt",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "mr",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "mn",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ne",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "fa",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "pl",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "pt-BR",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "pt-PT",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ro",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ru",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "sr",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "sl",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "es",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "sv",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "th",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "tr",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "uk",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "ur",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "uz",
+          "kind": "manual",
+          "translatable": true
+        },
+        {
+          "language": "vi",
+          "kind": "manual",
+          "translatable": true
+        }
+      ],
+      "fetches": [
+        {
+          "language": "en",
+          "kind": "manual",
+          "response": {
+            "status": 200,
+            "bytes": 0,
+            "durationMs": 213,
+            "contentType": "text/html; charset=UTF-8"
+          },
+          "outcome": "empty-body",
+          "unmodifiedUrlResponse": {
+            "status": 200,
+            "bytes": 0,
+            "durationMs": 753,
+            "contentType": "text/html; charset=UTF-8"
+          },
+          "unmodifiedUrlEmpty": true
+        },
+        {
+          "language": "en",
+          "kind": "asr",
+          "response": {
+            "status": 200,
+            "bytes": 0,
+            "durationMs": 428,
+            "contentType": "text/html; charset=UTF-8"
+          },
+          "outcome": "empty-body",
+          "unmodifiedUrlResponse": {
+            "status": 200,
+            "bytes": 0,
+            "durationMs": 512,
+            "contentType": "text/html; charset=UTF-8"
+          },
+          "unmodifiedUrlEmpty": true
+        }
+      ]
+    }
+  ],
+  "modelTiming": {
+    "date": "2026-11-03",
+    "startedAt": "2026-11-03T12:09:39.119Z",
+    "sourceRevision": "5d69f9cfc057cd4a7d9dad6a08b75a25d8997c21",
+    "algorithmVersion": "segments-v2.4",
+    "corpus": "self-authored-caption-timing-v1",
+    "fixtureLines": [
+      "Today we will build a small application together.",
+      "First, decide which problem you want to solve.",
+      "Write down the simplest version of your idea.",
+      "You do not need every feature immediately.",
+      "Start with one screen and one useful action.",
+      "Make the first version easy for someone to understand.",
+      "Then ask a friend to try it without instructions.",
+      "Watch where they hesitate and listen to their questions.",
+      "Their confusion can reveal a problem in your design.",
+      "Do not assume that adding more buttons will help.",
+      "Sometimes removing a step makes the biggest difference.",
+      "Save your changes before trying a different approach.",
+      "A small experiment should be easy to undo.",
+      "When the connection fails, explain what happened clearly.",
+      "Keep the text that the person has already entered.",
+      "Let them choose when they want to try again.",
+      "Test the result on a slower device as well.",
+      "Measure the waiting time instead of guessing about it.",
+      "Finally, describe what works and what remains unfinished.",
+      "Useful software grows through careful observation and small improvements."
+    ],
+    "corpusSha256": "8b709ee0fed0562f6fd1d2bb61047801e26dc40972947deba232f5ed706651ff",
+    "realYouTubeCaptions": false,
+    "productionExtensionEndToEnd": false,
+    "timingBasis": "Synthetic cue duration: 3 seconds per line; not measured video speech.",
+    "maximumCalls": 6,
+    "automaticRetry": false,
+    "semanticReview": "pending",
+    "results": [
+      {
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "cueCount": 5,
+        "videoSeconds": 15,
+        "inputWords": 39,
+        "inputCharacters": 230,
+        "intendedPlaybackSecondsAt2x": 7.5,
+        "status": "ready",
+        "firstPreviewMs": 2747,
+        "completeMs": 3429,
+        "lineCountPreserved": true,
+        "translatedText": "今天我们将一起构建一个小型应用。\n首先，确定你想解决什么问题。\n写下你想法最简单的版本。\n你不需要立刻实现所有功能。\n从一个屏幕和一项实用功能开始。",
+        "usage": {
+          "inputTokens": 446,
+          "outputTokens": 99,
+          "totalTokens": 545,
+          "reasoningTokens": 0
+        },
+        "remainingPlaybackBudgetAt2xMs": 4071
+      },
+      {
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "cueCount": 10,
+        "videoSeconds": 30,
+        "inputWords": 84,
+        "inputCharacters": 495,
+        "intendedPlaybackSecondsAt2x": 15,
+        "status": "ready",
+        "firstPreviewMs": 2039,
+        "completeMs": 3711,
+        "lineCountPreserved": true,
+        "translatedText": "今天我们将一起构建一个小型应用。\n首先，确定你想解决什么问题。\n把你的想法用最简单的版本写下来。\n你不必一开始就实现所有功能。\n从一个屏幕和一个实用操作开始。\n让第一个版本易于理解。\n然后请一位朋友在没有说明的情况下试用。\n观察他们在哪些地方犹豫，并听听他们的问题。\n他们的困惑可能会揭示设计中的问题。\n不要以为添加更多按钮就会有帮助。",
+        "usage": {
+          "inputTokens": 536,
+          "outputTokens": 214,
+          "totalTokens": 750,
+          "reasoningTokens": 8
+        },
+        "remainingPlaybackBudgetAt2xMs": 11289
+      },
+      {
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "cueCount": 20,
+        "videoSeconds": 60,
+        "inputWords": 169,
+        "inputCharacters": 1033,
+        "intendedPlaybackSecondsAt2x": 30,
+        "status": "ready",
+        "firstPreviewMs": 1830,
+        "completeMs": 4652,
+        "lineCountPreserved": true,
+        "translatedText": "今天我们将一起构建一个小型应用。\n首先，确定你想解决什么问题。\n把你的想法用最简单的形式写下来。\n你不需要一开始就实现所有功能。\n从一个界面和一个实用操作开始。\n让第一个版本易于理解。\n然后请一位朋友在没有说明的情况下试用。\n观察他们在哪些地方犹豫，并倾听他们的问题。\n他们的困惑可能会暴露设计中的问题。\n不要想当然地认为增加更多按钮就会有帮助。\n有时，删去一个步骤带来的改变最大。\n尝试不同方案之前，请保存所做的更改。\n一个小实验应该很容易撤销。\n连接失败时，要清楚地说明发生了什么。\n保留用户已经输入的文本。\n让他们自行选择何时重试。\n也要在速度较慢的设备上测试结果。\n测量等待时间，而不是凭猜测判断。\n最后，说明哪些功能正常，哪些尚未完成。\n实用的软件通过仔细观察和不断改进而逐步完善。",
+        "usage": {
+          "inputTokens": 713,
+          "outputTokens": 396,
+          "totalTokens": 1109,
+          "reasoningTokens": 0
+        },
+        "remainingPlaybackBudgetAt2xMs": 25348
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepseek-flash",
+        "cueCount": 5,
+        "videoSeconds": 15,
+        "inputWords": 39,
+        "inputCharacters": 230,
+        "intendedPlaybackSecondsAt2x": 7.5,
+        "status": "ready",
+        "firstPreviewMs": 3092,
+        "completeMs": 3177,
+        "lineCountPreserved": true,
+        "translatedText": "今天我们将一起构建一个小型应用。\n首先，确定你想解决哪个问题。\n写下你想法的最简单版本。\n你不需要立即拥有所有功能。\n从一个屏幕和一个有用的操作开始。",
+        "usage": {
+          "inputTokens": 477,
+          "outputTokens": 321,
+          "totalTokens": 798,
+          "reasoningTokens": 237
+        },
+        "remainingPlaybackBudgetAt2xMs": 4323
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepseek-flash",
+        "cueCount": 10,
+        "videoSeconds": 30,
+        "inputWords": 84,
+        "inputCharacters": 495,
+        "intendedPlaybackSecondsAt2x": 15,
+        "status": "ready",
+        "firstPreviewMs": 1837,
+        "completeMs": 2278,
+        "lineCountPreserved": true,
+        "translatedText": "今天我们将一起构建一个小应用。\n首先，确定你想解决哪个问题。\n把你的想法写成最简单的版本。\n你不需要立即拥有所有功能。\n从一个屏幕和一个有用的操作开始。\n让第一版容易被他人理解。\n然后请一位朋友在不看说明的情况下试用它。\n观察他们在哪里犹豫，并倾听他们的问题。\n他们的困惑可以揭示你设计中的问题。\n不要以为增加更多按钮就会有帮助。",
+        "usage": {
+          "inputTokens": 567,
+          "outputTokens": 334,
+          "totalTokens": 901,
+          "reasoningTokens": 167
+        },
+        "remainingPlaybackBudgetAt2xMs": 12722
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepseek-flash",
+        "cueCount": 20,
+        "videoSeconds": 60,
+        "inputWords": 169,
+        "inputCharacters": 1033,
+        "intendedPlaybackSecondsAt2x": 30,
+        "status": "ready",
+        "firstPreviewMs": 2536,
+        "completeMs": 3419,
+        "lineCountPreserved": true,
+        "translatedText": "今天我们将一起构建一个小型应用。\n首先，确定你想解决哪个问题。\n写下你想法中最简单的版本。\n你不需要立刻拥有所有功能。\n从一个屏幕和一个有用的操作开始。\n让第一版容易被他人理解。\n然后请一位朋友在没有说明的情况下试用它。\n观察他们在哪里犹豫，并倾听他们的问题。\n他们的困惑可能揭示你设计中的问题。\n不要以为增加更多按钮会有帮助。\n有时去掉一个步骤会带来最大的不同。\n在尝试不同方法之前保存你的更改。\n小实验应该容易撤销。\n当连接失败时，清楚地解释发生了什么。\n保留用户已经输入的文本。\n让他们自己选择何时重试。\n也在较慢的设备上测试结果。\n测量等待时间，而不是凭空猜测。\n最后，描述哪些部分有效，哪些仍未完成。\n有用的软件通过仔细观察和小幅改进而成长。",
+        "usage": {
+          "inputTokens": 745,
+          "outputTokens": 821,
+          "totalTokens": 1566,
+          "reasoningTokens": 490
+        },
+        "remainingPlaybackBudgetAt2xMs": 26581
+      }
+    ]
+  },
+  "browserObservations": {
+    "signedIn": false,
+    "videos": [
+      "eIho2S0ZahI",
+      "arj7oStGLkU"
+    ],
+    "firstVideoManualCaptionDisplayed": true,
+    "firstVideoAutomaticCaptionDisplayed": true,
+    "firstVideoMediaState": {
+      "currentTime": 30.290238,
+      "duration": 598.061,
+      "paused": true,
+      "playbackRate": 1,
+      "textTracks": []
+    },
+    "transcriptPanel": "loading persisted for both samples; root cause not determined",
+    "actualFutureCuesRetrieved": false
+  }
+}

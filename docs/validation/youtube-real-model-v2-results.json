@@ -1,0 +1,415 @@
+{
+  "startedAt": "2026-11-03T15:47:00.846Z",
+  "realYouTubeCaptions": true,
+  "productionExtensionEndToEnd": false,
+  "maximumCalls": 12,
+  "automaticRetry": false,
+  "protocol": "caption-research-v2",
+  "promptSha256": "7c0a8b3c37f5c4c8db5555056fcb47858e87f31dfe688247d5c09450c9b54156",
+  "normalization": "Full-line display; shorten overlapping source rows at next row in same ASR window. Not karaoke.",
+  "semanticReview": "pending; output retained temporarily outside repository",
+  "results": [
+    {
+      "service": "openai",
+      "model": "gpt-6-luna",
+      "videoId": "eIho2S0ZahI",
+      "kind": "manual",
+      "anchorMs": 15000,
+      "cueCount": 13,
+      "sourceRangeMs": [
+        13960,
+        49108
+      ],
+      "inputCharacters": 595,
+      "sourceSha256": "cfd41a8f537fd65db2f38b42c7c3003107beac278033c8cdfdc50f53e2993156",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 4257,
+      "playbackBudgetAt2xMs": 17054,
+      "remainingBudgetAt2xMs": 12797,
+      "usage": {
+        "prompt_tokens": 415,
+        "completion_tokens": 254,
+        "total_tokens": 669,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "service": "deepseek",
+      "model": "deepseek-flash",
+      "videoId": "eIho2S0ZahI",
+      "kind": "manual",
+      "anchorMs": 15000,
+      "cueCount": 13,
+      "sourceRangeMs": [
+        13960,
+        49108
+      ],
+      "inputCharacters": 595,
+      "sourceSha256": "cfd41a8f537fd65db2f38b42c7c3003107beac278033c8cdfdc50f53e2993156",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 3425,
+      "playbackBudgetAt2xMs": 17054,
+      "remainingBudgetAt2xMs": 13629,
+      "usage": {
+        "prompt_tokens": 447,
+        "completion_tokens": 685,
+        "total_tokens": 1132,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 474
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 447
+      }
+    },
+    {
+      "service": "openai",
+      "model": "gpt-6-luna",
+      "videoId": "eIho2S0ZahI",
+      "kind": "manual",
+      "anchorMs": 120000,
+      "cueCount": 12,
+      "sourceRangeMs": [
+        117718,
+        151299
+      ],
+      "inputCharacters": 473,
+      "sourceSha256": "4683203430165b04cfe8ca6e5fc67e926bd9d5e429ced05b0b75cddd26829b72",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 2912,
+      "playbackBudgetAt2xMs": 15649.5,
+      "remainingBudgetAt2xMs": 12737.5,
+      "usage": {
+        "prompt_tokens": 384,
+        "completion_tokens": 235,
+        "total_tokens": 619,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "service": "deepseek",
+      "model": "deepseek-flash",
+      "videoId": "eIho2S0ZahI",
+      "kind": "manual",
+      "anchorMs": 120000,
+      "cueCount": 12,
+      "sourceRangeMs": [
+        117718,
+        151299
+      ],
+      "inputCharacters": 473,
+      "sourceSha256": "4683203430165b04cfe8ca6e5fc67e926bd9d5e429ced05b0b75cddd26829b72",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 3816,
+      "playbackBudgetAt2xMs": 15649.5,
+      "remainingBudgetAt2xMs": 11833.5,
+      "usage": {
+        "prompt_tokens": 407,
+        "completion_tokens": 653,
+        "total_tokens": 1060,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 451
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 407
+      }
+    },
+    {
+      "service": "openai",
+      "model": "gpt-6-luna",
+      "videoId": "eIho2S0ZahI",
+      "kind": "manual",
+      "anchorMs": 300000,
+      "cueCount": 14,
+      "sourceRangeMs": [
+        298985,
+        331341
+      ],
+      "inputCharacters": 433,
+      "sourceSha256": "ed68bd19d5df8552909886751ebb7959e49e886a722fb2552fe718d21fcc6dee",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 6997,
+      "playbackBudgetAt2xMs": 15670.5,
+      "remainingBudgetAt2xMs": 8673.5,
+      "usage": {
+        "prompt_tokens": 388,
+        "completion_tokens": 622,
+        "total_tokens": 1010,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 364,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "service": "deepseek",
+      "model": "deepseek-flash",
+      "videoId": "eIho2S0ZahI",
+      "kind": "manual",
+      "anchorMs": 300000,
+      "cueCount": 14,
+      "sourceRangeMs": [
+        298985,
+        331341
+      ],
+      "inputCharacters": 433,
+      "sourceSha256": "ed68bd19d5df8552909886751ebb7959e49e886a722fb2552fe718d21fcc6dee",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 4828,
+      "playbackBudgetAt2xMs": 15670.5,
+      "remainingBudgetAt2xMs": 10842.5,
+      "usage": {
+        "prompt_tokens": 419,
+        "completion_tokens": 859,
+        "total_tokens": 1278,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 648
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 419
+      }
+    },
+    {
+      "service": "openai",
+      "model": "gpt-6-luna",
+      "videoId": "arj7oStGLkU",
+      "kind": "asr",
+      "anchorMs": 15000,
+      "cueCount": 15,
+      "sourceRangeMs": [
+        14360,
+        47320
+      ],
+      "inputCharacters": 522,
+      "sourceSha256": "9d718e5dd7916340074bfd9097aa657215697df6e6b4bf466275157d96f6b73c",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 7576,
+      "playbackBudgetAt2xMs": 16160,
+      "remainingBudgetAt2xMs": 8584,
+      "usage": {
+        "prompt_tokens": 410,
+        "completion_tokens": 659,
+        "total_tokens": 1069,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 392,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "service": "deepseek",
+      "model": "deepseek-flash",
+      "videoId": "arj7oStGLkU",
+      "kind": "asr",
+      "anchorMs": 15000,
+      "cueCount": 15,
+      "sourceRangeMs": [
+        14360,
+        47320
+      ],
+      "inputCharacters": 522,
+      "sourceSha256": "9d718e5dd7916340074bfd9097aa657215697df6e6b4bf466275157d96f6b73c",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 12607,
+      "playbackBudgetAt2xMs": 16160,
+      "remainingBudgetAt2xMs": 3553,
+      "usage": {
+        "prompt_tokens": 450,
+        "completion_tokens": 2254,
+        "total_tokens": 2704,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2008
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 450
+      }
+    },
+    {
+      "service": "openai",
+      "model": "gpt-6-luna",
+      "videoId": "arj7oStGLkU",
+      "kind": "asr",
+      "anchorMs": 120000,
+      "cueCount": 13,
+      "sourceRangeMs": [
+        117680,
+        151200
+      ],
+      "inputCharacters": 426,
+      "sourceSha256": "b24620c590307c0acb3e92ce1a8f9b9bf12b5e3e6ad8fde692d2b64b5c26086f",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 12041,
+      "playbackBudgetAt2xMs": 15600,
+      "remainingBudgetAt2xMs": 3559,
+      "usage": {
+        "prompt_tokens": 383,
+        "completion_tokens": 1102,
+        "total_tokens": 1485,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 858,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "service": "deepseek",
+      "model": "deepseek-flash",
+      "videoId": "arj7oStGLkU",
+      "kind": "asr",
+      "anchorMs": 120000,
+      "cueCount": 13,
+      "sourceRangeMs": [
+        117680,
+        151200
+      ],
+      "inputCharacters": 426,
+      "sourceSha256": "b24620c590307c0acb3e92ce1a8f9b9bf12b5e3e6ad8fde692d2b64b5c26086f",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 10491,
+      "playbackBudgetAt2xMs": 15600,
+      "remainingBudgetAt2xMs": 5109,
+      "usage": {
+        "prompt_tokens": 424,
+        "completion_tokens": 1835,
+        "total_tokens": 2259,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1620
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 424
+      }
+    },
+    {
+      "service": "openai",
+      "model": "gpt-6-luna",
+      "videoId": "arj7oStGLkU",
+      "kind": "asr",
+      "anchorMs": 300000,
+      "cueCount": 13,
+      "sourceRangeMs": [
+        297479,
+        331960
+      ],
+      "inputCharacters": 456,
+      "sourceSha256": "1a32ea52d8cbcde71dff68a8f2e4835ce049549e19bbf714aa5d256fe9dafd9e",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 8507,
+      "playbackBudgetAt2xMs": 15980,
+      "remainingBudgetAt2xMs": 7473,
+      "usage": {
+        "prompt_tokens": 375,
+        "completion_tokens": 746,
+        "total_tokens": 1121,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 512,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "service": "deepseek",
+      "model": "deepseek-flash",
+      "videoId": "arj7oStGLkU",
+      "kind": "asr",
+      "anchorMs": 300000,
+      "cueCount": 13,
+      "sourceRangeMs": [
+        297479,
+        331960
+      ],
+      "inputCharacters": 456,
+      "sourceSha256": "1a32ea52d8cbcde71dff68a8f2e4835ce049549e19bbf714aa5d256fe9dafd9e",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 22998,
+      "playbackBudgetAt2xMs": 15980,
+      "remainingBudgetAt2xMs": -7018,
+      "usage": {
+        "prompt_tokens": 414,
+        "completion_tokens": 4185,
+        "total_tokens": 4599,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 3982
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 414
+      }
+    }
+  ]
+}

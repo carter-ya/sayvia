@@ -1,0 +1,109 @@
+{
+  "capturedAt": "2026-11-03T15:22:05.656Z",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+  "records": [
+    {
+      "meta": {
+        "v": "eIho2S0ZahI",
+        "lang": "zh-CN",
+        "kind": null,
+        "name": null,
+        "vssId": null,
+        "fmt": "json3",
+        "tlang": null
+      },
+      "transport": "xhr",
+      "status": 200,
+      "bytes": 32574,
+      "elapsedMs": 111,
+      "format": "json3",
+      "cueCount": 247,
+      "first": {
+        "id": 0,
+        "start": 0,
+        "end": 7000,
+        "append": false,
+        "windowId": null
+      },
+      "last": {
+        "id": 246,
+        "start": 591663,
+        "end": 592963,
+        "append": false,
+        "windowId": null
+      }
+    },
+    {
+      "meta": {
+        "v": "eIho2S0ZahI",
+        "lang": "en",
+        "kind": null,
+        "name": null,
+        "vssId": null,
+        "fmt": "json3",
+        "tlang": null
+      },
+      "transport": "xhr",
+      "status": 200,
+      "bytes": 31297,
+      "elapsedMs": 719,
+      "format": "json3",
+      "cueCount": 229,
+      "first": {
+        "id": 0,
+        "start": 13960,
+        "end": 16046,
+        "append": false,
+        "windowId": null
+      },
+      "last": {
+        "id": 228,
+        "start": 590411,
+        "end": 591933,
+        "append": false,
+        "windowId": null
+      }
+    },
+    {
+      "meta": {
+        "v": "eIho2S0ZahI",
+        "lang": "en",
+        "kind": "asr",
+        "name": null,
+        "vssId": null,
+        "fmt": "json3",
+        "tlang": null
+      },
+      "transport": "xhr",
+      "status": 200,
+      "bytes": 186824,
+      "elapsedMs": 578,
+      "format": "json3",
+      "cueCount": 284,
+      "first": {
+        "id": 1,
+        "start": 14080,
+        "end": 18480,
+        "append": false,
+        "windowId": 1
+      },
+      "last": {
+        "id": 567,
+        "start": 589970,
+        "end": 594129,
+        "append": false,
+        "windowId": 1
+      }
+    }
+  ],
+  "currentVideo": "eIho2S0ZahI",
+  "selected": {
+    "v": "eIho2S0ZahI",
+    "lang": "en",
+    "kind": "asr",
+    "name": null,
+    "vssId": null,
+    "fmt": "json3",
+    "tlang": null
+  }
+}
