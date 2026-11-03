@@ -115,6 +115,31 @@ test('local capture is off by default, follows real bundle registration and stop
   }
 });
 
+test('empty responses and unavailable tracks have distinct conservative guidance and cannot start translation', async () => {
+  const f = await workflowFixture();
+  try {
+    const { page } = await youtube(f, []);
+    await setting(f, true);
+    await expect.poll(async () => (await snapshot(f, page))?.capture?.reason).toBe('ready');
+    await load(page);
+    const panel = page.locator('[data-sayvia-caption-status]');
+    await panel.locator('summary').click();
+    await expect(panel.getByRole('status')).toHaveText(
+      '这次字幕响应没有可显示内容，请检查 YouTube 字幕菜单或选择其他视频。',
+    );
+    await expect(panel.getByRole('button', { name: '开启双语字幕', exact: true })).toBeDisabled();
+    await page.evaluate(() => {
+      (window as typeof window & { selected: null }).selected = null;
+    });
+    await expect(panel.getByRole('status')).toHaveText(
+      '当前未取得可用原文轨：可能尚未开启，或视频未提供字幕。请检查 YouTube 字幕菜单。',
+    );
+    expect(f.count()).toBe(0);
+  } finally {
+    await f.close();
+  }
+});
+
 test('caption word lookup keeps source language, preempts safely, speaks locally and follows fullscreen and source lifetime', async () => {
   const f = await workflowFixture({ speech: true });
   const speech = () =>
@@ -465,6 +490,8 @@ test('explicit player entry translates the current window, preserves native whil
     const native = page.locator('.ytp-caption-window-container');
     await expect(native).toHaveCSS('visibility', 'visible');
     await expect(page.locator('[data-sayvia-caption-overlay]')).toBeHidden();
+    await expect(panel.getByRole('status')).toHaveText('译文准备中，暂时显示原生字幕。');
+    await expect(panel.locator('summary')).toContainText('译文准备中');
     release();
     await expect(panel.getByRole('status')).toContainText('2 段已翻译');
     await panel.locator('summary').click();

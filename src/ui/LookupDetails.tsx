@@ -72,7 +72,7 @@ export function LookupDetails({
       {!language && <p className="field-help">请选择源语言后朗读；自动识别不能确定语言。</p>}
       <p className="field-help" role="status">
         {speech.state === 'unavailable'
-          ? '设备没有匹配的本地声线，仍可查看释义。'
+          ? '设备没有匹配的本地声线，仍可查看释义。请在系统设置安装对应语言的语音，再点击朗读重新检测。'
           : speech.state === 'failed'
             ? '系统朗读暂不可用，可重试或检查设备声线。'
             : speech.state === 'starting'
@@ -100,7 +100,9 @@ export function LookupDetails({
           {result.note && <p className="lookup-note">{result.note}</p>}
         </div>
       )}
-      <p className="field-help">AI 释义可能有误。系统朗读原词，不保证多义词每个义项的读音。</p>
+      <p className="field-help">
+        AI 释义可能有误。系统合成语音朗读原词，不保证多义词每个义项的读音。
+      </p>
     </div>
   );
 }

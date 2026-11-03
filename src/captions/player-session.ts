@@ -20,6 +20,7 @@ export type CaptionPlayerView = {
   starting: boolean;
   stopping: boolean;
   active: boolean;
+  waitingForTranslation: boolean;
   scheduler?: SchedulerView;
   error?: string;
 };
@@ -83,7 +84,7 @@ export class CaptionPlayerSession {
           view.session !== active.source.session ||
           view.capture !== active.source.capture)
       )
-        this.stop('字幕来源或授权已变化，请重新开启。', false);
+        this.stop(undefined, false);
       if (view.enabled && !this.configuration && !this.configRequest) void this.loadConfiguration();
       this.publish();
     });
@@ -100,6 +101,13 @@ export class CaptionPlayerSession {
       starting: this.starting,
       stopping: !!this.retiring,
       active: !!this.active,
+      waitingForTranslation:
+        !!this.active &&
+        ['running', 'waiting'].includes(this.active.scheduler.snapshot().state) &&
+        this.mode === 'translation' &&
+        this.active.scheduler
+          .visible(this.active.video.currentTime * 1000)
+          .some((row) => !row.translation),
       ...(this.active ? { scheduler: this.active.scheduler.snapshot() } : {}),
       ...(this.error ? { error: this.error } : {}),
     };

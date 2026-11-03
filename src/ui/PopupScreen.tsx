@@ -206,7 +206,7 @@ export function PopupScreen() {
             <textarea
               aria-label={fields.purpose === 'lookup' ? '单词或短语' : '待翻译文本'}
               rows={2}
-              maxLength={fields.purpose === 'lookup' ? 160 : 24_000}
+              maxLength={fields.purpose === 'lookup' ? undefined : 24_000}
               value={fields.input}
               disabled={!ready || busy}
               placeholder="在这里输入或粘贴文本…"

@@ -204,9 +204,36 @@ test('missing local voices do not erase the word or use a remote voice', async (
       }),
     );
     await p.getByRole('button', { name: /^按.+慢速朗读$/ }).click();
-    await expect(p.getByText('设备没有匹配的本地声线，仍可查看释义。')).toBeVisible();
+    await expect(
+      p.getByText(
+        '设备没有匹配的本地声线，仍可查看释义。请在系统设置安装对应语言的语音，再点击朗读重新检测。',
+      ),
+    ).toBeVisible();
     await expect(p.getByLabel('单词或短语', { exact: true })).toHaveValue('hola');
     expect((await speech(f)).spoken).toHaveLength(0);
+  } finally {
+    await f.close();
+  }
+});
+
+test('manual lookup preserves an oversized Unicode paste and offers ordinary translation without a lookup request', async () => {
+  const f = await workflowFixture();
+  try {
+    const p = await popup(f);
+    await p.getByRole('tab', { name: '查词', exact: true }).click();
+    const text = '𠮷'.repeat(81) + ' original tail';
+    const input = p.getByLabel('单词或短语', { exact: true });
+    await input.focus();
+    await p.keyboard.insertText(text);
+    await expect(input).toHaveValue(text);
+    await expect(p.getByRole('button', { name: '查词', exact: true })).toBeDisabled();
+    await expect(p.getByRole('status').filter({ hasText: '已保留完整输入' })).toContainText(
+      '手动翻译',
+    );
+    expect(f.count()).toBe(0);
+    await p.getByRole('tab', { name: '手动翻译', exact: true }).click();
+    await expect(p.getByLabel('待翻译文本', { exact: true })).toHaveValue(text);
+    expect(f.count()).toBe(0);
   } finally {
     await f.close();
   }
