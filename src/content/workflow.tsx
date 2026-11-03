@@ -8,6 +8,8 @@ import { previewEditor } from '../adapters/preview-editor';
 import { isTextControl, detectAdapter } from '../adapters/detect';
 import { EditorRegistry } from '../adapters/registry';
 import { ReadingSelectionCache } from '../adapters/selection-cache';
+import { captureReadingSnapshot, type ReadingSnapshot } from '../adapters/reading-snapshot';
+import { ReadingControls, type ReadingEntry } from './reading-controls';
 import type { TextEditorSession } from '../adapters/text-session';
 import type { TextControl, EditorSnapshot } from '../adapters/types';
 import { parseSourceInput, type SourceInput } from '../core/source-input';
@@ -35,6 +37,9 @@ type Draft = {
   backendAllows: boolean;
   applied: boolean;
   quickReplace?: boolean;
+  reading?: ReadingSnapshot;
+  readingEntry?: ReadingEntry;
+  readingReady?: boolean;
 };
 export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const registry = new EditorRegistry();
@@ -100,6 +105,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     entry.setAppearance(state.appearance);
     writeEntry.setAppearance(state.appearance);
     focusedEntry.setAppearance(state.appearance);
+    readingControls.setAppearance(state.appearance);
     if (visible) render();
   }
   const entry = new SelectionEntry(() => {
@@ -151,12 +157,17 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     },
     (element) => Boolean(editorEntries.anchorFor(element)),
   );
+  const readingControls = new ReadingControls(state.appearance, showReadingEntry, () => {
+    refreshEligibility();
+    render();
+  });
   const owns = (event: Event) =>
     event.composedPath().includes(host) ||
     entry.owns(event) ||
     writeEntry.owns(event) ||
     editorEntries.owns(event) ||
-    focusedEntry.owns(event);
+    focusedEntry.owns(event) ||
+    readingControls.owns(event);
   const render = () => {
     if (!disposed) {
       host.style.setProperty(
@@ -201,9 +212,27 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     }
   };
   const capture = () => {
+    releaseReading();
     if (state.mode === 'read') {
       const source = selection.read(document);
-      current = { source, baseline: '', eligible: false, backendAllows: false, applied: false };
+      const range = selection.readRange(document);
+      const existing = readingControls.overlapping(range);
+      if (existing) throw new Error('READING_ALREADY_APPLIED');
+      const reading = captureReadingSnapshot(range, source);
+      current = {
+        source,
+        baseline: '',
+        eligible: false,
+        backendAllows: false,
+        applied: false,
+        ...(reading ? { reading } : {}),
+      };
+      reading?.subscribe(() => {
+        if (current?.reading === reading && state.candidate)
+          state.status = '网页内容已更新，请重新选择并翻译。';
+        refreshEligibility();
+        render();
+      });
     } else if (lastPreview && previewEditor(lastPreview)) {
       let range = previewRange;
       if (
@@ -240,7 +269,11 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       current.source.kind === 'dom-selection' ? selection.readText(document) : current.source.text;
     state.hasOriginal = current.editor?.previousOriginal() !== undefined;
     state.canRestore = current.editor?.canRestore() ?? false;
+    state.canShowInPage = false;
   };
+  function releaseReading() {
+    if (current?.reading && !current.readingEntry) current.reading.dispose();
+  }
   const refreshEligibility = () => {
     const draft = current;
     if (!draft) return;
@@ -260,6 +293,13 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       ),
     );
     state.canRestore = draft.editor?.canRestore() ?? false;
+    state.canShowInPage = Boolean(
+      state.mode === 'read' &&
+      draft.readingReady &&
+      state.candidate &&
+      validateEditedTranslation('markdown', draft.baseline, state.candidate) &&
+      draft.reading?.canApply(state.candidate),
+    );
   };
   const cancel = () => {
     const id = current?.clientTaskId;
@@ -268,6 +308,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     state.progress = undefined;
     state.metrics = undefined;
     state.canReplace = false;
+    state.canShowInPage = false;
+    if (current) current.readingReady = false;
     if (current) current.backendAllows = false;
     if (id) {
       try {
@@ -295,11 +337,14 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         throw new Error('SOURCE_CHANGED');
       if (
         draft.source.kind === 'dom-selection' &&
+        !draft.readingEntry &&
         JSON.stringify(selection.read(document)) !== JSON.stringify(draft.source)
       )
         throw new Error('SELECTION_LOST');
       clientTaskId = newId();
+      if (draft.reading && !draft.reading.isValid()) throw new Error('SELECTION_LOST');
       draft.clientTaskId = clientTaskId;
+      draft.readingReady = false;
       draft.quickReplace = false;
       state.candidate = '';
       state.busy = true;
@@ -307,6 +352,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       state.progress = undefined;
       state.metrics = undefined;
       state.canReplace = false;
+      state.canShowInPage = false;
       state.status = '正在翻译…';
       render();
       if (state.mode === 'write') {
@@ -384,6 +430,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       pendingAppearance = { ...pendingAppearance, ...patch };
       state.appearance = { ...state.appearance, ...patch };
       applyAppearance(host, state.appearance);
+      readingControls.setAppearance(state.appearance);
       render();
       appearanceQueue = appearanceQueue
         .then(async () => {
@@ -491,6 +538,40 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         },
       );
     },
+    showInPage() {
+      if (writing || state.busy) return;
+      refreshEligibility();
+      const draft = current;
+      if (!state.canShowInPage || !draft?.reading || draft.source.kind !== 'dom-selection') {
+        state.status = '原文或译文结构已变化，仅可预览与复制。';
+        render();
+        return;
+      }
+      const readingEntry: ReadingEntry = {
+        snapshot: draft.reading,
+        source: draft.source,
+        originalText: state.source,
+        candidate: state.candidate,
+        target: state.target,
+        model: state.model,
+      };
+      if (!draft.reading.show(state.candidate)) {
+        refreshEligibility();
+        render();
+        return;
+      }
+      const mounted = readingControls.add(readingEntry);
+      if (!mounted) {
+        draft.reading.show(null);
+        state.status = '无法在此位置显示，请复制译文。';
+        render();
+        return;
+      }
+      draft.readingEntry = mounted;
+      draft.applied = true;
+      draft.baseline = state.candidate;
+      actions.close();
+    },
     replace() {
       if (writing || state.busy) return;
       refreshEligibility();
@@ -544,12 +625,14 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     close() {
       if (writing || !discard()) return;
       cancel();
+      releaseReading();
       current = undefined;
       state.source = '';
       state.candidate = '';
       openSequence += 1;
       visible = false;
       anchoredPanel.detach();
+      if (shadow.activeElement instanceof HTMLElement) shadow.activeElement.blur();
       host.style.setProperty('display', 'none', 'important');
       if (focusTarget?.isConnected) focusTarget.focus();
       render();
@@ -613,6 +696,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     if (event.type === 'translation.result') {
       state.metrics = event.result;
       current.baseline = event.result.text;
+      current.readingReady = event.result.requested;
       current.backendAllows = event.canApply;
       state.candidate = event.result.requested ? event.result.text : '';
       if (!event.result.requested) current.backendAllows = false;
@@ -626,10 +710,14 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
             ? '此编辑器提供预览与复制，请复制译文后粘贴。'
             : state.mode === 'write' && !state.canReplace
               ? '原稿已变化或翻译已恢复，仅可复制译文。'
-              : '译文已就绪，请预览后操作。';
+              : state.mode === 'read' && !state.canShowInPage
+                ? '此选区结构暂不支持原位显示，可预览与复制。'
+                : '译文已就绪，请预览后操作。';
     } else {
       current.backendAllows = false;
+      current.readingReady = false;
       state.canReplace = false;
+      state.canShowInPage = false;
       state.status = userError(event.error ?? 'CONTEXT_LOST');
     }
     render();
@@ -770,6 +858,16 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       return;
     }
     if (!discard()) return;
+    if (mode === 'read') {
+      const live = window.getSelection();
+      if (live?.rangeCount === 1 && !live.isCollapsed) {
+        const existing = readingControls.overlapping(live.getRangeAt(0));
+        if (existing) {
+          showReadingEntry(existing);
+          return;
+        }
+      }
+    }
     cancel();
     entry.hide();
     writeEntry.hide();
@@ -797,6 +895,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     state.quickReplace = false;
     state.hasOriginal = false;
     state.canRestore = false;
+    state.canShowInPage = false;
     if (mode === 'read' && !inline) {
       const live = window.getSelection();
       if (autoTranslate && (!live || live.isCollapsed || live.rangeCount !== 1)) selection.clear();
@@ -887,6 +986,11 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     automaticEpoch += 1;
     automatic = enabled;
     if (!enabled) {
+      readingControls.clear();
+      releaseReading();
+      refreshEligibility();
+    }
+    if (!enabled) {
       writeEntry.hide();
       selectedEditor = undefined;
     }
@@ -902,9 +1006,50 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     }
     if (!enabled && !visible) selection.clear();
   }
+  function showReadingEntry(readingEntry: ReadingEntry) {
+    if (writing || state.busy || !discard() || !readingEntry.snapshot.isValid()) return;
+    cancel();
+    releaseReading();
+    current = {
+      source: readingEntry.source,
+      baseline: readingEntry.candidate,
+      eligible: false,
+      backendAllows: false,
+      applied: true,
+      reading: readingEntry.snapshot,
+      readingEntry,
+      readingReady: true,
+    };
+    state.mode = 'read';
+    state.previewOnly = false;
+    state.source = readingEntry.originalText;
+    state.candidate = readingEntry.candidate;
+    state.target = readingEntry.target;
+    state.model = readingEntry.model;
+    state.sourceLanguage = 'auto';
+    state.ready = true;
+    state.busy = false;
+    state.hasOriginal = false;
+    state.canRestore = false;
+    state.canReplace = false;
+    state.metrics = undefined;
+    state.progress = undefined;
+    state.startedAt = undefined;
+    state.openSequence = ++openSequence;
+    state.status = '译文已就绪，请预览后操作。';
+    visible = true;
+    host.style.removeProperty('display');
+    anchoredPanel.attach(
+      () => readingEntry.snapshot.tail.parentElement?.getBoundingClientRect(),
+      true,
+    );
+    refreshEligibility();
+    render();
+  }
   function dispose() {
     if (disposed) return;
     cancel();
+    releaseReading();
     disposed = true;
     current = undefined;
     observer.disconnect();
@@ -926,6 +1071,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     selectedEditor = undefined;
     editorEntries.dispose();
     focusedEntry.dispose();
+    readingControls.dispose();
     anchoredPanel.dispose();
     registry.dispose();
     selection.clear();

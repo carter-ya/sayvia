@@ -116,6 +116,11 @@ export class ReadingSelectionCache {
     return this.captured!.plainText;
   }
 
+  readRange(document: Document) {
+    this.read(document);
+    return this.captured!.range.cloneRange();
+  }
+
   clear() {
     this.captured = undefined;
     this.error = undefined;

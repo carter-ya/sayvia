@@ -25,6 +25,7 @@ export interface PanelState {
   ready: boolean;
   quickReplace: boolean;
   canReplace: boolean;
+  canShowInPage?: boolean;
   canRestore: boolean;
   hasOriginal: boolean;
   status: string;
@@ -39,6 +40,7 @@ export interface PanelActions {
   refresh(): void;
   cancel(): void;
   replace(): void;
+  showInPage(): void;
   restore(): void;
   copy(original?: boolean): void;
   close(): void;
@@ -274,13 +276,22 @@ export function TranslationPanel({ state, actions }: { state: PanelState; action
         )}
         <button
           type="button"
-          className={state.mode === 'read' || state.previewOnly ? 'primary-action' : ''}
+          className={state.previewOnly ? 'primary-action' : ''}
           disabled={!state.candidate || state.busy}
           onClick={trusted(() => actions.copy())}
         >
           <Icon name="copy" />
           复制译文
         </button>
+        {state.mode === 'read' && state.candidate && (
+          <button
+            type="button"
+            disabled={!state.canShowInPage || state.busy}
+            onClick={trusted(actions.showInPage)}
+          >
+            在网页中显示
+          </button>
+        )}
         {state.mode === 'write' && !state.previewOnly && (
           <button
             type="button"

@@ -102,6 +102,7 @@ export function captureDomRange(
   range: Range,
   expectedDocument: Document = document,
   links?: Map<Element, ReadingLink>,
+  onText?: (node: Text, start: number, end: number) => void,
 ): DomSource {
   if (range.collapsed) throw new SourceError('EMPTY_SOURCE');
   if (
@@ -196,6 +197,7 @@ export function captureDomRange(
           : style?.whiteSpace === 'pre-line'
             ? 'pre-line'
             : 'normal';
+      onText?.(text, start, end);
       const span = builder.append(
         text.data.slice(start, end),
         codeKind(node.parentElement),
