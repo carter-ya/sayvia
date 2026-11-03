@@ -80,6 +80,18 @@ export async function workflowFixture() {
                     text: segment.text
                       .replace(/中文|你好/g, 'English')
                       .replace('Accept ', '接受 ')
+                      .replace(
+                        'DriverDSN keeps Oracle reconnections on the full authentication path. go-ora',
+                        'DriverDSN 让 Oracle 重连始终走完整认证流程。go-ora',
+                      )
+                      .replace(
+                        "v3.0.1's default fast-login cookie path fails on subsequent Oracle Free logins.",
+                        'v3.0.1 默认的快速登录 cookie 流程会在后续 Oracle Free 登录时失败。',
+                      )
+                      .replace(
+                        "An explicit driver option remains the operator's choice.",
+                        '显式指定驱动选项仍由操作者决定。',
+                      )
                       .replace('Read ', '阅读 ')
                       .replace(' first.', ' 优先。')
                       .replace(

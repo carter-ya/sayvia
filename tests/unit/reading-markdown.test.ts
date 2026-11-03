@@ -10,6 +10,7 @@ import {
 } from '../../src/core/translation-plan';
 import { parseMarkdown } from '../../src/core/markdown';
 import { planResponse } from '../fixtures/plan-response';
+import { readingMarkdown, type ReadingLink } from '../../src/adapters/reading-markdown';
 import { parseSourceInput } from '../../src/core/source-input';
 
 function capture(html: string) {
@@ -195,7 +196,10 @@ describe('formatted reading selections', () => {
     expect(JSON.stringify(tree).match(/https:\/\/example.test\/guide/g)).toHaveLength(2);
   });
   it.each(['CODE_LINE\n', 'CODE_LINE\n\n'])('preserves trailing code newlines: %j', (value) => {
-    const { source } = capture(`<pre><code>${value}</code></pre>`);
+    document.body.innerHTML = `<pre><code>${value}</code></pre>`;
+    const range = document.createRange();
+    range.selectNodeContents(document.body);
+    const source = readingMarkdown(captureDomRange(range), []);
     const node = parseMarkdown(source.text).children.find((node) => node.type === 'code');
     expect(node && 'value' in node ? node.value : undefined).toBe(value);
   });
@@ -220,7 +224,7 @@ describe('formatted reading selections', () => {
       /BOUND_SECRET|BOUND_VALUE/,
     );
   });
-  it('retains opaque code content across adjacent, nested and multiline link layouts', () => {
+  it('serializes protected code pieces across adjacent, nested and multiline link layouts', () => {
     const bodies = [
       'CODESECRET',
       ' CODESECRET ',
@@ -243,10 +247,12 @@ describe('formatted reading selections', () => {
     ];
     for (const body of bodies)
       for (const layout of layouts) {
-        const { source } = capture(layout(body));
+        document.body.innerHTML = layout(body);
         const range = document.createRange();
         range.selectNodeContents(document.body);
-        const flat = captureDomRange(range);
+        const links = new Map<Element, ReadingLink>();
+        const flat = captureDomRange(range, document, links);
+        const source = readingMarkdown(flat, [...links.values()]);
         const expected = flat.protectedRanges
           .map((span) => flat.text.slice(span.start, span.end))
           .join('');

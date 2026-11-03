@@ -543,12 +543,14 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       state.model = event.provider.model;
       refreshEligibility();
       state.status = !event.result.requested
-        ? '未执行翻译：所选内容全部被识别为代码或格式，未发送给模型。'
-        : state.previewOnly
-          ? '此编辑器提供预览与复制，请复制译文后粘贴。'
-          : state.mode === 'write' && !state.canReplace
-            ? '原稿已变化或翻译已恢复，仅可复制译文。'
-            : '译文已就绪，请预览后操作。';
+        ? '未执行翻译：所选内容仅含需原样保留的链接或格式片段，未发送给模型。'
+        : event.result.text === current.source.text
+          ? '结果与原文相同，已原样保留。'
+          : state.previewOnly
+            ? '此编辑器提供预览与复制，请复制译文后粘贴。'
+            : state.mode === 'write' && !state.canReplace
+              ? '原稿已变化或翻译已恢复，仅可复制译文。'
+              : '译文已就绪，请预览后操作。';
     } else {
       current.backendAllows = false;
       state.canReplace = false;

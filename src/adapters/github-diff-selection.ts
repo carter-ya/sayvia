@@ -1,7 +1,7 @@
 import { captureDomRange } from './dom-selection';
 import { readingMarkdown } from './reading-markdown';
 import { markdownTextIntervals } from '../core/markdown';
-import { createTranslationPlan, protectedTokens } from '../core/translation-plan';
+import { createTranslationPlan, needsTranslation, protectedTokens } from '../core/translation-plan';
 import { parseSourceInput, SourceError, type DomSource } from '../core/source-input';
 
 const INNER = 'td > code.diff-text > .diff-text-inner';
@@ -64,12 +64,82 @@ function hasMarkdownProse(inner: Element, document: Document) {
   return false;
 }
 
-// GitHub's source diff wraps Markdown prose in <code> as well as real code.
-// Interpret that wrapper only inside a named Markdown diff on github.com.
-export function captureGithubMarkdownDiff(
+// The baseline is selected visible text, not a filename/language allowlist.
+// Only selected rows of the selected side are read; controls and opposite cells
+// never become source. Markdown context is an optional enhancement below.
+export function captureGithubDiff(
   range: Range,
   document: Document,
 ): { source: DomSource; plainText: string } | undefined {
+  if (new URL(document.URL).hostname !== 'github.com') return;
+  const start = parent(range.startContainer)?.closest(INNER);
+  const end = parent(range.endContainer)?.closest(INNER);
+  if (!start || !end) return;
+  const table = start.closest('table[role="grid"][data-diff-anchor]');
+  if (!table || end.closest('table') !== table) throw new SourceError('UNSUPPORTED_SELECTION');
+  const first = cellInfo(start, table),
+    last = cellInfo(end, table);
+  if (!first || !last || first.side !== last.side) throw new SourceError('UNSUPPORTED_SELECTION');
+  const startRow = start.closest('tr')!,
+    endRow = end.closest('tr')!;
+  if (startRow.parentElement !== endRow.parentElement)
+    throw new SourceError('UNSUPPORTED_SELECTION');
+  const lines: string[] = [];
+  let visited = 0,
+    found = false;
+  for (let row: Element | null = startRow; row; row = row.nextElementSibling) {
+    if (++visited > MAX_ROWS) throw new SourceError('SELECTION_TOO_COMPLEX');
+    const candidates = [...row.querySelectorAll(INNER)].filter(
+      (node) => node.closest('table') === table,
+    );
+    if (candidates.some((node) => !cellInfo(node, table)))
+      throw new SourceError('UNSUPPORTED_SELECTION');
+    const inner = candidates.find((node) => cellInfo(node, table)?.side === first.side);
+    if (inner) {
+      const clipped = document.createRange();
+      clipped.selectNodeContents(inner);
+      if (inner === start) clipped.setStart(range.startContainer, range.startOffset);
+      if (inner === end) clipped.setEnd(range.endContainer, range.endOffset);
+      try {
+        lines.push(captureDomRange(clipped, document).text);
+      } catch (error) {
+        if (error instanceof SourceError && error.code === 'EMPTY_SOURCE') lines.push('');
+        else throw error;
+      }
+    }
+    if (row === endRow) {
+      found = true;
+      break;
+    }
+  }
+  if (!found) throw new SourceError('UNSUPPORTED_SELECTION');
+  const plainText = lines.join('\n');
+  const source = readingMarkdown(
+    { kind: 'dom-selection', text: plainText, protectedRanges: [], marks: [] },
+    [],
+  );
+  const baseline = { source, plainText };
+  // A recognized format may preserve inline markup and destinations. Failure
+  // or excessive surrounding context must not remove the baseline capability.
+  if (!/^Diff for: .+\.(?:md|markdown|mdown)$/i.test(table.getAttribute('aria-label') ?? ''))
+    return baseline;
+  try {
+    const enhanced = captureGithubMarkdownDiff(range, document);
+    if (!enhanced || enhanced.plainText !== baseline.plainText) return baseline;
+    if (enhanced.codeContainer && !needsTranslation(createTranslationPlan(enhanced.source)))
+      return baseline;
+    return enhanced;
+  } catch {
+    return baseline;
+  }
+}
+
+// GitHub's source diff wraps Markdown prose in <code> as well as real code.
+// Interpret that wrapper only inside a named Markdown diff on github.com.
+function captureGithubMarkdownDiff(
+  range: Range,
+  document: Document,
+): { source: DomSource; plainText: string; codeContainer?: boolean } | undefined {
   const url = new URL(document.URL);
   if (url.hostname !== 'github.com') return;
   const start = parent(range.startContainer)?.closest(INNER);
@@ -172,6 +242,7 @@ export function captureGithubMarkdownDiff(
       markdownOffset = fenceEnd;
     else {
       return {
+        codeContainer: true,
         plainText: selectedText,
         source: readingMarkdown(
           {
@@ -318,6 +389,10 @@ export function captureGithubMarkdownDiff(
   }
   output += context.slice(cursor, selectedEnd);
   return {
+    codeContainer: parsed.codeBlocks.some(
+      (span) =>
+        span.start + markdownOffset < selectedEnd! && span.end + markdownOffset > selectedStart!,
+    ),
     plainText: context.slice(selectedStart, selectedEnd),
     source: parseSourceInput({
       kind: 'dom-selection',

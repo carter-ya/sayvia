@@ -144,7 +144,7 @@ test('a simulated Chrome site-access restriction cancels pending work and blocks
     await f.close();
   }
 });
-test('code-only selections and editing fields cannot leak to a model through the reading entry', async () => {
+test('explicit code-only selections use the model while editing fields keep their separate writing entry', async () => {
   const f = await enabled();
   try {
     await f.page.locator('#article').evaluate((p) => {
@@ -153,18 +153,16 @@ test('code-only selections and editing fields cannot leak to a model through the
     const icon = await select(f);
     await icon.click();
     const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' });
-    await expect(panel.getByRole('region', { name: '译文预览' })).not.toContainText(
-      'secret-code-only',
-    );
-    await expect(panel.getByRole('status')).toContainText('未执行翻译');
-    await expect(panel.getByRole('button', { name: '复制译文' })).toBeDisabled();
-    expect(f.count()).toBe(0);
+    await expect(panel.getByRole('region', { name: '译文预览' })).toHaveText('secret-code-only');
+    await expect(panel.getByRole('status')).toContainText('结果与原文相同');
+    await expect(panel.getByRole('button', { name: '复制译文' })).toBeEnabled();
+    expect(f.count()).toBe(1);
     await panel.getByRole('button', { name: '关闭翻译面板' }).click();
     await f.page.locator('#editor').focus();
     await f.page.keyboard.press('ControlOrMeta+A');
     await f.page.keyboard.press('Shift');
     await expect(icon).toBeHidden();
-    expect(f.count()).toBe(0);
+    expect(f.count()).toBe(1);
   } finally {
     await f.close();
   }

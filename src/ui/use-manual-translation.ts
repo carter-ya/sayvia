@@ -98,7 +98,12 @@ export function useManualTranslation() {
       setModel(next.task?.provider?.model ?? '');
       if (next.task?.error) setStatus(userError(next.task.error));
       else if (active) setStatus('正在翻译，可以关闭弹窗，稍后回来查看。');
-      else if (next.result) setStatus('译文已就绪，可编辑或复制。');
+      else if (next.result)
+        setStatus(
+          next.result === next.input
+            ? '结果与原文相同，已原样保留。'
+            : '译文已就绪，可编辑或复制。',
+        );
     }
   }
   useEffect(() => {

@@ -1,6 +1,7 @@
-import { captureGithubMarkdownDiff } from './github-diff-selection';
+import { captureGithubDiff } from './github-diff-selection';
 import { readingMarkdown, type ReadingLink } from './reading-markdown';
 import { captureDomRange, captureDomSelection } from './dom-selection';
+import { createTranslationPlan, needsTranslation } from '../core/translation-plan';
 import { SourceError, type SourceErrorCode, type DomSource } from '../core/source-input';
 
 interface CapturedSelection {
@@ -14,10 +15,30 @@ interface CapturedSelection {
 export class ReadingSelectionCache {
   constructor(private readonly formatted = false) {}
   private rangeSource(range: Range, document: Document) {
-    const diff = this.formatted ? captureGithubMarkdownDiff(range, document) : undefined;
+    const diff = this.formatted ? captureGithubDiff(range, document) : undefined;
     const links = this.formatted && !diff ? new Map<Element, ReadingLink>() : undefined;
     const flat = diff ? undefined : captureDomRange(range, document, links);
-    const source = diff?.source ?? (links ? readingMarkdown(flat!, [...links.values()]) : flat!);
+    let source = diff?.source ?? (links ? readingMarkdown(flat!, [...links.values()]) : flat!);
+    // Inline code can remain a protected piece inside prose. If code markup
+    // swallows the entire explicit selection, translate that selection literally
+    // rather than treating its container as a reason to skip the user's action.
+    if (
+      links &&
+      flat!.protectedRanges.some(
+        (span) => span.kind === 'inline-code' || span.kind === 'code-block',
+      ) &&
+      !needsTranslation(createTranslationPlan(source))
+    ) {
+      source = readingMarkdown(
+        {
+          ...flat!,
+          protectedRanges: flat!.protectedRanges.filter(
+            (span) => span.kind !== 'inline-code' && span.kind !== 'code-block',
+          ),
+        },
+        [...links.values()],
+      );
+    }
     return {
       source,
       plainText: diff?.plainText ?? flat!.text,

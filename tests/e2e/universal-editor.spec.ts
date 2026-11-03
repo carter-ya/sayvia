@@ -289,7 +289,10 @@ test('the exact CHANGELOG commit selection reaches the model while code and the 
   }
 });
 test('an opaque selection is explicitly not translated and does not masquerade as a result', async () => {
-  const f = await fixture(undefined, '<p><code id=code>const n = 1;</code></p>');
+  const f = await fixture(
+    undefined,
+    '<p><a id=code href="https://example.test/only-url">https://example.test/only-url</a></p>',
+  );
   try {
     await f.page.evaluate(() => {
       const r = document.createRange();
@@ -303,7 +306,9 @@ test('an opaque selection is explicitly not translated and does not masquerade a
     const panel = f.page.getByRole('dialog', panelName);
     await expect(panel.getByRole('status')).toContainText('未执行翻译');
     await expect(panel.getByRole('button', { name: '复制译文' })).toBeDisabled();
-    await expect(panel.getByRole('region', { name: '译文预览' })).not.toContainText('const n');
+    await expect(panel.getByRole('region', { name: '译文预览' })).not.toContainText(
+      'https://example.test/only-url',
+    );
     expect(f.count()).toBe(0);
   } finally {
     await f.close();
