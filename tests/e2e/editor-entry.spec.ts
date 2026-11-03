@@ -171,6 +171,70 @@ test('writing popover opens next to the toolbar trigger rather than the viewport
   }
 });
 
+test('inline review focus changes keep the same toolbar anchor while GitHub hides its accessibility subtree', async () => {
+  const f = await githubFixture();
+  try {
+    await f.page.setViewportSize({ width: 1100, height: 1200 });
+    const editor = f.page.locator('#comment-one');
+    await editor.fill('你好 comment about returning RowsAffected unchanged. '.repeat(7));
+    await f.page
+      .locator('form')
+      .first()
+      .evaluate((form) => {
+        form.style.marginTop = '220px';
+      });
+    await f.page.getByRole('button', { name: '使用 Sayvia 翻译这份评论' }).click();
+    const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' });
+    const result = panel.getByLabel('译文', { exact: true });
+    await expect(result).toHaveValue(/English/);
+    await editor.focus();
+    // GitHub's inline comment view toggles aria-hidden when focus leaves the
+    // composer. It remains painted, but its toolbar entry is no longer eligible.
+    await f.page
+      .locator('form')
+      .first()
+      .evaluate((form) => {
+        form.addEventListener('focusin', () => form.setAttribute('aria-hidden', 'false'));
+        form.addEventListener('focusout', (event) => {
+          if (
+            event instanceof FocusEvent &&
+            (!(event.relatedTarget instanceof Node) || !form.contains(event.relatedTarget))
+          )
+            form.setAttribute('aria-hidden', 'true');
+        });
+      });
+    const initial = (await panel.boundingBox())!;
+    for (let cycle = 0; cycle < 3; cycle++) {
+      await result.focus();
+      await expect(f.page.locator('[data-sayvia-write-entry]')).toHaveCount(0);
+      await expect
+        .poll(async () => Math.abs((await panel.boundingBox())!.y - initial.y))
+        .toBeLessThanOrEqual(2);
+      // The hidden-but-painted composer is still reachable by mouse in GitHub.
+      expect(Math.abs((await panel.boundingBox())!.x - initial.x)).toBeLessThanOrEqual(2);
+      await editor.focus();
+      await expect(f.page.locator('[data-sayvia-write-entry]')).toHaveCount(1);
+      await expect
+        .poll(async () => Math.abs((await panel.boundingBox())!.y - initial.y))
+        .toBeLessThanOrEqual(2);
+    }
+    await result.focus();
+    await expect(f.page.locator('[data-sayvia-write-entry]')).toHaveCount(0);
+    await f.page.evaluate(() => {
+      const spacer = document.createElement('div');
+      spacer.style.height = '30px';
+      document.body.prepend(spacer);
+    });
+    await expect
+      .poll(async () => Math.abs((await panel.boundingBox())!.y - initial.y - 30))
+      .toBeLessThanOrEqual(2);
+    expect(f.count()).toBe(1);
+    await expect(f.page.locator('#submitted')).toHaveText('0');
+  } finally {
+    await f.close();
+  }
+});
+
 test('toolbar discovery supports modern forms, delayed remounts and multiple editors without crossing drafts', async () => {
   const f = await githubFixture();
   try {

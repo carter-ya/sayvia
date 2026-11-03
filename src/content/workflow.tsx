@@ -759,11 +759,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     render();
     if (inline && mode === 'read') anchoredPanel.attach(() => entry.panelAnchor(), true);
     if (inline && mode === 'write' && editorTarget)
-      anchoredPanel.attach(
-        () =>
-          editorEntries.anchorFor(editorTarget) ??
-          (editorTarget.isConnected ? editorTarget.getBoundingClientRect() : undefined),
-      );
+      anchoredPanel.attach(editorEntries.panelAnchorFor(editorTarget));
     const target = state.target;
     void browser.runtime
       .sendMessage({ protocolVersion: 1, type: 'page.preferences', requestId: newId() })

@@ -57,6 +57,37 @@ export class EditorEntries {
   anchorFor(element: Element) {
     return this.entries.get(element as HTMLTextAreaElement)?.shadowRoot?.querySelector('button');
   }
+  panelAnchorFor(element: Element) {
+    let offset: { top: number; right: number; width: number; height: number } | undefined;
+    const anchor = () => {
+      if (!element.isConnected) return;
+      const editor = element.getBoundingClientRect();
+      const button = this.anchorFor(element);
+      if (button?.isConnected) {
+        const rect = button.getBoundingClientRect();
+        offset = {
+          top: rect.top - editor.top,
+          right: rect.right - editor.right,
+          width: rect.width,
+          height: rect.height,
+        };
+        return button;
+      }
+      // GitHub hides the inline composer's accessibility subtree on blur. Its
+      // entry must disappear, but the open panel must keep the toolbar geometry
+      // rather than switching to the bottom of the textarea on every focus change.
+      return offset
+        ? new DOMRect(
+            editor.right + offset.right - offset.width,
+            editor.top + offset.top,
+            offset.width,
+            offset.height,
+          )
+        : editor;
+    };
+    anchor();
+    return anchor;
+  }
   owns(event: Event) {
     return [...this.entries.values()].some((host) => event.composedPath().includes(host));
   }
