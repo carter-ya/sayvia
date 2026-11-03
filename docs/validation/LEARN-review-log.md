@@ -88,3 +88,19 @@ v2 提示增加“只解释源语言原词，不迁移翻译词义、不重复�
 558 项单元测试、类型检查、lint、生产构建通过。真实扩展局部验证通过：两类任务使用打包 Worker，页面查词只读、重复启动去重、取消中止网络、手动查词跨弹窗恢复。使用本机模拟模型响应，未追加真实模型请求；不把这一层当成 UI、声音或 YouTube 连续双语显示已验收。
 
 PR #50 首次 head b02b5bc 的 Codex 审核提出有效 P2：显式抢占先发送 cancel 再保存占位，若 cancel 和后续 query 连续失败，route 仍会变成 interrupted 并提前释放。修复为先持久化取消占位，再发 cancel；字幕查询失败／超时同样进入取消确认路径。增加“取消丢回执→reconcile 失联→再次查词仍拒绝”和直接查询失联回归。原始 head 的 154 项浏览器回归通过；修复 head 的审核与 CI 另行核对。
+
+修复 head `24e97615228bd687a3110c3b50ed268aba37b6b5` 的 [Codex 复审](https://github.com/carter-ya/sayvia/pull/50#issuecomment-6610151332)无新问题，CI 通过，原 finding 已回复并解决。无需追加修复，未合并。
+
+## L02a 本地朗读验证（2026-11-04）
+
+生产后台接入本地声线筛选、短文本／显式语言协议、随机播放身份、幂等票据、会话租约、专用 alarm、导航／关闭取消和重启清理。声线必须 remote=false、无扩展引擎、名称无冲突；zh-HK／zh-MO／yue 与其他 zh／cmn 分组，避免粤语和普通话相互回退。没有声线时不播放，也不改变模型卡片。
+
+独立 agent `technical_review` 实测发现两项 P2：调用方 clientSpeechId 被复用导致旧 alarm 停掉新播放；被新请求抢占的排队 start 返回 canceled 却仍保存 starting。已改为后台随机 speechId、保留终态幂等记录，并同步更新被抢占状态；28 项语音生命周期／声线测试包含这些回归，最终独立代码复审无剩余 P1/P2。
+
+真实扩展 fixture 仅替换 OS 语音引擎，生产消息路由、存储、alarm、SpeechService 仍真实运行。验证只读播放、重复请求不重播、设置页伪造拒绝、关闭目标 tab 清理，以及通过 CDP 实际终止后台后重新唤醒：旧租约先 stop、旧 epoch 拒绝、无自动重播。此 fixture 不证明真实发音质量。
+
+[真实系统探针](speech-native-probe.ts)在独立 Chrome 156.0.8078.4 临时配置运行生产服务、原生 chrome.tts 和默认音量。[两次事件记录](speech-native-initial-results.json)及[补充声线记录](speech-native-results.json)均为七语言原生播放，各自全部产生 speaking→ended，无超时。初次 getVoices 返回空列表，随后生产有限重查成功；后一次探针把声线快照改在 start 后采集，看到 180 个本地声线。表中的 availableMatchingVoiceAfterStart 是该时刻匹配候选，不声称是底层引擎的独立选声回执。样音为固定问候词，未调用付费模型或云端语音。
+
+真实事件完成不等于听感或词义对应读音正确。人工音质／母语评分未完成，仍是发布验收边界；Chrome 116 alarm 最小间隔的兼容性也不由 Chrome 156 短计时表现替代。本层暂未开放产品卡片入口，下一层接入。
+
+本层检查：类型、lint、format、生产构建、588 项单元测试、155 项浏览器测试通过。实际终止后台的新增步骤另行定向复跑通过；没有额外模型调用。

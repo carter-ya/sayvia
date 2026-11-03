@@ -1,0 +1,152 @@
+{
+  "recordedAt": "2026-11-03T16:58:00.049Z",
+  "browser": "156.0.8078.4",
+  "mode": "production-speech-service/native-OS-voices/volume-default",
+  "acousticReview": false,
+  "humanPronunciationReview": false,
+  "initialVoiceCount": 0,
+  "voiceCount": 180,
+  "localVoiceCount": 180,
+  "results": [
+    {
+      "language": "zh-CN",
+      "text": "你好",
+      "availableMatchingVoiceAfterStart": {
+        "voiceName": "婷婷",
+        "lang": "zh-CN"
+      },
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 2234
+    },
+    {
+      "language": "en-US",
+      "text": "hello",
+      "availableMatchingVoiceAfterStart": {
+        "voiceName": "Albert",
+        "lang": "en-US"
+      },
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 879
+    },
+    {
+      "language": "ja-JP",
+      "text": "こんにちは",
+      "availableMatchingVoiceAfterStart": {
+        "voiceName": "Eddy (日语（日本）)",
+        "lang": "ja-JP"
+      },
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 1048
+    },
+    {
+      "language": "ko-KR",
+      "text": "안녕하세요",
+      "availableMatchingVoiceAfterStart": {
+        "voiceName": "Eddy (韩语（韩国）)",
+        "lang": "ko-KR"
+      },
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 1629
+    },
+    {
+      "language": "fr-FR",
+      "text": "bonjour",
+      "availableMatchingVoiceAfterStart": {
+        "voiceName": "Eddy (法语（法国）)",
+        "lang": "fr-FR"
+      },
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 1098
+    },
+    {
+      "language": "de-DE",
+      "text": "hallo",
+      "availableMatchingVoiceAfterStart": {
+        "voiceName": "Anna",
+        "lang": "de-DE"
+      },
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 951
+    },
+    {
+      "language": "es-ES",
+      "text": "hola",
+      "availableMatchingVoiceAfterStart": {
+        "voiceName": "Eddy (西班牙语（西班牙）)",
+        "lang": "es-ES"
+      },
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 713
+    }
+  ]
+}
