@@ -80,4 +80,6 @@ S00 至 S12 及补充层 S10b、S10c、S12b 是实施层号。M1 自动技术与
 
 阅读入口：直接选中文字，点击鼠标附近的页面图标。工具栏为备用入口。右键菜单或 Ctrl+Shift+Y（macOS：Command+Shift+Y）也可翻译正文选区；快捷键可在 `chrome://extensions/shortcuts` 修改。写作快捷键默认不绑定，避免抢占其他扩展组合键。
 
+阅读结果就绪后，支持的正文选区可点击“在网页中显示”，在当前位置阅读译文；文末“译文／原文 ···”提供切换、复制与查看，切换不会重复调用模型。网站内容变化后旧快照失效；复杂结构和源码 diff 继续提供预览与复制。只改变当前浏览器显示，刷新后恢复网站内容。行为边界与验证见 [READ01](docs/validation/READ01.md)。
+
 发布样例评估可使用 `pnpm evaluate --provider openai --model gpt-6-luna --suite release --out NEW_FILE.jsonl`；Key 由本机 `SAYVIA_API_KEY` 环境变量提供，不写入命令参数或报告。每模型运行 30 条公开样例，报告中的人工语义与可用性保持待评。当前版本仍是预览，正式发布需完成检查单。
