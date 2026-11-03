@@ -234,3 +234,29 @@ it('does not pass unregister until a slow persistent registration has actually c
   expect(registered.size).toBe(0);
   expect(access.status().desiredEnabled).toBe(false);
 });
+
+it('restoring permission reinjects existing documents instead of stopping them under a stale error', async () => {
+  api.permissions.contains.mockResolvedValue(false);
+  await access.setEnabled(true);
+  expect(access.status().error).toBe(true);
+  api.permissions.contains.mockResolvedValue(true);
+  api.tabs.query.mockResolvedValue([{ id: 1 }]);
+  api.scripting.executeScript.mockImplementation(async (details?: unknown) => {
+    const value = details as { files?: string[]; world?: string };
+    return [
+      {
+        documentId: 'doc',
+        frameId: 0,
+        result: value.files ? undefined : value.world === 'MAIN' ? true : 'https://www.youtube.com',
+      },
+    ];
+  });
+  await access.reconcile();
+  expect(api.scripting.executeScript).toHaveBeenCalledWith(
+    expect.objectContaining({ files: ['/content-scripts/youtube-capture.js'] }),
+  );
+  expect(api.scripting.executeScript).toHaveBeenCalledWith(
+    expect.objectContaining({ files: ['/content-scripts/youtube-controller.js'] }),
+  );
+  expect(access.status()).toMatchObject({ registered: true, error: false });
+});

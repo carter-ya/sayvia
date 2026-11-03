@@ -194,3 +194,33 @@ it('recovers a startup registration failure through a successful reconcile', asy
   const session = await recovering.grant(owner, track, generation);
   expect(await recovering.authorized(owner, session)).toBe(true);
 });
+
+it.each(['tab', 'owner'] as const)(
+  'an unrelated %s revocation does not cancel an explicit pending video grant',
+  async (scope) => {
+    await access.setEnabled(true);
+    const pending = deferred<string>();
+    vi.mocked(platform.current).mockImplementationOnce(() => pending.promise);
+    const granted = access.grant(owner, track, generation);
+    await vi.waitFor(() => expect(platform.current).toHaveBeenCalled());
+    if (scope === 'tab') await access.revokeTab(99);
+    else await access.revoke({ ...owner, tabId: 99, documentId: 'other' });
+    pending.resolve('example');
+    expect(await granted).toMatchObject({ videoId: 'example' });
+  },
+);
+it('publishes recovered readiness before injecting existing document controllers', async () => {
+  vi.mocked(platform.read).mockResolvedValue(true);
+  vi.mocked(platform.register).mockRejectedValueOnce(new Error('permission absent'));
+  const recovering = new CaptionAccess(platform);
+  await recovering.ready;
+  vi.mocked(platform.cleanup).mockImplementation(async (enabled) => {
+    if (enabled) {
+      expect(recovering.status().error).toBe(false);
+      expect(await recovering.enabledFor(owner)).toBe(true);
+    }
+    return 0;
+  });
+  await recovering.reconcile();
+  expect(platform.cleanup).toHaveBeenCalledWith(true);
+});

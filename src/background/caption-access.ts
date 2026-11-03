@@ -47,6 +47,7 @@ export class CaptionAccess {
   private revocation = 0;
   private disableVersion = 0;
   private cleanedVersion = 0;
+  private readonly grants = new Set<{ owner: CaptionOwner; revoked: boolean }>();
   private readonly sessions = new Map<number, { owner: CaptionOwner; session: CaptionSession }>();
   constructor(private readonly platform: CaptionAccessPlatform) {
     this.ready = this.initialize();
@@ -134,9 +135,11 @@ export class CaptionAccess {
         await this.stopPending();
         await this.platform.register(wanted);
         this.registered = wanted && intent === this.intent;
-        this.unconfirmed = await this.platform.cleanup(this.registered);
+        // Existing documents consult this state while cleanup injects their
+        // controllers. Publish recovery before they perform their handshake.
         this.issue = false;
         this.initialized = true;
+        this.unconfirmed = await this.platform.cleanup(this.registered);
       } catch {
         this.registered = false;
         this.issue = true;
@@ -181,6 +184,9 @@ export class CaptionAccess {
     captureGeneration: string,
     previousSessionId?: string,
   ): Promise<CaptionSession> {
+    if (this.grants.size >= 64) return Promise.reject(new Error('CAPTION_LIMIT'));
+    const grant = { owner, revoked: false };
+    this.grants.add(grant);
     const revocation = this.revocation;
     return this.serial(async () => {
       const intent = this.intent;
@@ -190,6 +196,7 @@ export class CaptionAccess {
         !this.registered ||
         this.issue ||
         revocation !== this.revocation ||
+        grant.revoked ||
         track.tlang ||
         owner.siteOrigin !== YOUTUBE_ORIGIN
       )
@@ -210,6 +217,7 @@ export class CaptionAccess {
       if (
         intent !== this.intent ||
         revocation !== this.revocation ||
+        grant.revoked ||
         !this.desired ||
         !this.registered ||
         currentVideo !== track.videoId
@@ -224,19 +232,21 @@ export class CaptionAccess {
       };
       this.sessions.set(owner.tabId, { owner, session });
       return { ...session };
-    });
+    }).finally(() => this.grants.delete(grant));
   }
   revoke(owner?: CaptionOwner): Promise<void> {
-    this.revocation++;
-    if (!owner) this.sessions.clear();
-    else {
+    if (!owner) {
+      this.revocation++;
+      this.sessions.clear();
+    } else {
+      for (const grant of this.grants) if (sameOwner(grant.owner, owner)) grant.revoked = true;
       const current = this.sessions.get(owner.tabId);
       if (current && sameOwner(current.owner, owner)) this.sessions.delete(owner.tabId);
     }
     return this.platform.cancel(owner);
   }
   revokeTab(tabId: number) {
-    this.revocation++;
+    for (const grant of this.grants) if (grant.owner.tabId === tabId) grant.revoked = true;
     const current = this.sessions.get(tabId);
     if (!current) return Promise.resolve();
     this.sessions.delete(tabId);
