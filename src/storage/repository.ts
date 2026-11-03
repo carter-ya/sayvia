@@ -4,6 +4,8 @@ import {
   SaveSchema,
   emptyState,
   PreferencesInputSchema,
+  PanelAppearancePatch,
+  type PanelAppearanceInput,
   type PreferencesInput,
   SnapshotSchema,
   StateSchema,
@@ -116,6 +118,13 @@ export class ConfigRepository {
       const id = checked.preferences.defaultProviderId;
       if (id && !state.providers[id]) throw new Error('NOT_FOUND');
       state.preferences = structuredClone(checked.preferences);
+    });
+  }
+
+  panelAppearance(input: PanelAppearanceInput) {
+    const patch = PanelAppearancePatch.parse(input);
+    return this.mutate(undefined, (state) => {
+      Object.assign(state.preferences, patch);
     });
   }
 

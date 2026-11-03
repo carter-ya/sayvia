@@ -1,6 +1,7 @@
 import { detectAdapter } from '../adapters/detect';
 import { previewEditor } from '../adapters/preview-editor';
 import { SelectionEntry } from './selection-entry';
+import type { Appearance } from '../ui/appearance';
 
 // One contextual action for the focused editor, regardless of website. Discovery
 // does not read drafts. A site toolbar takes priority when one is available.
@@ -30,6 +31,9 @@ export class FocusedEditorEntry {
   }
   owns(event: Event) {
     return this.entry.owns(event);
+  }
+  setAppearance(appearance: Appearance) {
+    this.entry.setAppearance(appearance);
   }
   setEnabled(enabled: boolean) {
     this.stop();

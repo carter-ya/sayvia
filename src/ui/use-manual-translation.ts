@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
-import { SnapshotSchema, type ConfigSnapshot } from '../storage/schema';
+import { AppearanceSchema, SnapshotSchema, type ConfigSnapshot } from '../storage/schema';
+import { applyAppearance } from './appearance';
 import type { ManualDraftView } from '../runtime/manual-draft';
 import type { TranslationProgress, ResultMetrics } from '../runtime/translation-progress';
 import { userError } from '../runtime/user-errors';
@@ -137,8 +138,7 @@ export function useManualTranslation() {
         const snapshot = SnapshotSchema.parse(reply.data);
         setConfig(snapshot);
         setSiteEnabled(reply.siteEnabled === true);
-        document.documentElement.style.colorScheme =
-          snapshot.preferences.theme === 'system' ? 'light dark' : snapshot.preferences.theme;
+        applyAppearance(document.documentElement, snapshot.preferences);
         const defaults = {
           ...initial,
           targetLanguage: snapshot.preferences.writeTarget,
@@ -172,10 +172,22 @@ export function useManualTranslation() {
     ) => {
       if (
         sender.id !== browser.runtime.id ||
-        sender.url !== browser.runtime.getURL('/background.js') ||
-        message?.type !== 'app.data-cleared'
+        sender.url !== browser.runtime.getURL('/background.js')
       )
         return;
+      if (message?.type === 'app.appearance-changed') {
+        const appearance = AppearanceSchema.safeParse(message.appearance);
+        if (appearance.success) {
+          applyAppearance(document.documentElement, appearance.data);
+          setConfig((previous) =>
+            previous
+              ? { ...previous, preferences: { ...previous.preferences, ...appearance.data } }
+              : previous,
+          );
+        }
+        return;
+      }
+      if (message?.type !== 'app.data-cleared') return;
       values.current = initial;
       setFields(initial);
       draft.current = null;

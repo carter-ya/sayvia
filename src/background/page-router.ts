@@ -4,6 +4,9 @@ import { z } from 'zod';
 import type { SiteAccess } from './site-access';
 import type { ConfigRepository } from '../storage/repository';
 import { pageOwner, type MessageSender } from './task-router';
+import { PanelAppearancePatch } from '../storage/schema';
+import { appearanceOf } from '../ui/appearance';
+import { notifyAppearance } from './appearance';
 
 const Envelope = { protocolVersion: z.literal(1), requestId: z.uuid() };
 const Request = z.discriminatedUnion('type', [
@@ -15,6 +18,9 @@ const Request = z.discriminatedUnion('type', [
     })
     .strict(),
   z.object({ ...Envelope, type: z.literal('page.preferences') }).strict(),
+  z
+    .object({ ...Envelope, type: z.literal('page.appearance'), payload: PanelAppearancePatch })
+    .strict(),
   z.object({ ...Envelope, type: z.literal('page.automatic-status') }).strict(),
 ]);
 export async function handlePageMessage(
@@ -27,6 +33,16 @@ export async function handlePageMessage(
   if (!parsed.success) return { ok: false, error: 'INVALID_REQUEST' };
   try {
     const request = parsed.data;
+    if (request.type === 'page.appearance') {
+      if (!pageOwner(sender, crypto.randomUUID(), browser.runtime.id))
+        return { ok: false, error: 'FORBIDDEN' };
+      const snapshot = await repository.panelAppearance(request.payload);
+      await notifyAppearance(snapshot.preferences, snapshot.revision).catch(() => undefined);
+      return {
+        ok: true,
+        data: { appearance: appearanceOf(snapshot.preferences), revision: snapshot.revision },
+      };
+    }
     if (request.type === 'page.automatic-status') {
       const owner = pageOwner(sender, crypto.randomUUID(), browser.runtime.id);
       if (!owner?.siteOrigin || !sites) return { ok: false, error: 'FORBIDDEN' };
@@ -41,6 +57,8 @@ export async function handlePageMessage(
         data: {
           quickReplace: snapshot.preferences.quickReplace,
           theme: snapshot.preferences.theme,
+          appearance: appearanceOf(snapshot.preferences),
+          revision: snapshot.revision,
           model: snapshot.providers.find(
             (provider) => provider.id === snapshot.preferences.defaultProviderId,
           )?.model,

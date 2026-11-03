@@ -3,6 +3,7 @@ import type { ConfigRepository } from '../../src/storage/repository';
 import type { TaskBroker } from '../../src/background/task-broker';
 import type { MessageSender } from '../../src/background/task-router';
 import type { ConnectionIdentity } from '../../src/runtime/connection-test';
+import { emptyState } from '../../src/storage/schema';
 vi.mock('wxt/browser', () => ({
   browser: {
     runtime: {
@@ -38,6 +39,7 @@ function fixture() {
     snapshot: vi.fn<ConfigRepository['snapshot']>().mockResolvedValue({
       revision: 4,
       preferences: {
+        ...emptyState().preferences,
         readTarget: 'zh-Hans',
         writeTarget: 'en',
         quickReplace: false,

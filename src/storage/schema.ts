@@ -42,8 +42,40 @@ export const Preferences = z
     writeTarget: z.string().trim().min(1).max(40),
     quickReplace: z.boolean(),
     theme: z.enum(['system', 'light', 'dark']),
+    palette: z.enum(['crystal', 'pearl']).default('crystal'),
+    panelMaterial: z.enum(['liquid', 'glass', 'transparent', 'solid']).default('liquid'),
+    panelOpacity: z.int().min(8).max(100).default(14),
+    readingProtection: z.boolean().default(true),
   })
   .strict();
+
+type PanelAppearanceFields = Pick<
+  z.infer<typeof Preferences>,
+  'panelMaterial' | 'panelOpacity' | 'readingProtection'
+>;
+export const PanelAppearancePatch = z
+  .object({
+    panelMaterial: z.enum(['liquid', 'glass', 'transparent', 'solid']).optional(),
+    panelOpacity: z.int().min(8).max(100).optional(),
+    readingProtection: z.boolean().optional(),
+  })
+  .strict()
+  .refine((patch) => Object.values(patch).some((value) => value !== undefined))
+  .transform((patch): Partial<PanelAppearanceFields> => {
+    const result: Partial<PanelAppearanceFields> = {};
+    if (patch.panelMaterial !== undefined) result.panelMaterial = patch.panelMaterial;
+    if (patch.panelOpacity !== undefined) result.panelOpacity = patch.panelOpacity;
+    if (patch.readingProtection !== undefined) result.readingProtection = patch.readingProtection;
+    return result;
+  });
+export type PanelAppearanceInput = z.infer<typeof PanelAppearancePatch>;
+export const AppearanceSchema = Preferences.pick({
+  theme: true,
+  palette: true,
+  panelMaterial: true,
+  panelOpacity: true,
+  readingProtection: true,
+});
 
 export const StateSchema = z
   .object({
@@ -137,6 +169,11 @@ export function emptyState(): StoredState {
     providers: {},
     secrets: {},
     allowedSites: [],
-    preferences: { readTarget: 'zh-Hans', writeTarget: 'en', quickReplace: false, theme: 'system' },
+    preferences: Preferences.parse({
+      readTarget: 'zh-Hans',
+      writeTarget: 'en',
+      quickReplace: false,
+      theme: 'system',
+    }),
   };
 }

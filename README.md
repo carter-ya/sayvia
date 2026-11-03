@@ -20,7 +20,9 @@ pnpm build 生成 .output/chrome-mv3。在 Chrome 扩展管理页打开开发者
 
 开发包的固定 ID 为 `cjahocldgaicopmfhphamjnhbfaookam`，由 [固定公钥](config/extension-identity.ts) 写入 manifest.key，不因解压目录改变而重新生成。公钥不是模型 API Key，也不是 CRX 签名私钥。首次从未固定 ID 的旧包切换时，Chrome 会按新 ID 隔离数据，需在新扩展中重新配置模型和 Key；旧 ID 下的配置不会自动迁移。后续在同一浏览器配置中直接更新即可保留数据；卸载扩展或清除数据仍会删除配置。正式上架前应改为商店分配的公钥并核对 ID，不承诺与当前开发 ID 一致。[Chrome 官方说明](https://developer.chrome.com/docs/extensions/reference/manifest/key)
 
-当前体验修正与验证见 [UX01](docs/validation/UX01.md)；旧验证记录均对应其注明的源提交。
+权限与入口修正见 [UX01](docs/validation/UX01.md)，玻璃外观与可移动浮窗见 [UX09](docs/validation/UX09.md)；旧验证记录均对应其注明的源提交。
+
+在设置的“更多设置”中，可独立选择清蓝／珊瑚配色及白天／黑夜／跟随系统，默认清蓝、跟随系统。页面浮窗默认使用液态玻璃；标题栏的“浮窗外观”可切换磨砂、半透明或实色、调整背景染色浓度及阅读保护，并自动保存。拖动标题栏可避开原文，聚焦移动按钮后可用方向键微调，也可收起或恢复位置。原文与可编辑译文使用独立实底，调低玻璃背景浓度不会淡化文字，深色模式会自动增强底色以保持可读性。
 
 ## 检查与打包
 

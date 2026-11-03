@@ -1,3 +1,5 @@
+import { appearanceStyle, applyAppearance, type Appearance } from '../ui/appearance';
+
 // A small independent host keeps the entry available while the dialog is closed.
 export class SelectionEntry {
   private readonly host = document.createElement('div');
@@ -13,10 +15,11 @@ export class SelectionEntry {
     else this.host.dataset.sayviaEditorFocusEntry = '';
     const shadow = this.host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
-    style.textContent = `:host { all: initial; position: fixed; z-index: 2147483647; display: none; }
-      button { display: grid; place-items: center; width: 26px; height: 26px; padding: 4px; border: 1px solid #d9e2dc; border-radius: 7px; background: #fff; color: #286947; box-shadow: 0 2px 8px #142f3426; cursor: pointer; }
-      svg { width: 17px; height: 17px; } button:hover { background: #edf4ef; } button:focus-visible { outline: 2px solid #8fbda8; outline-offset: 2px; }
-      @media (prefers-color-scheme: dark) { button { background: #25342c; color: #b0d8bc; border-color: #48604f; } button:hover { background: #304438; } }`;
+    style.textContent =
+      appearanceStyle +
+      `:host { all: initial; position: fixed; z-index: 2147483647; display: none; color-scheme: light dark; }
+      button { display: grid; place-items: center; width: 26px; height: 26px; padding: 4px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--accent); box-shadow: 0 2px 8px #142f3426; cursor: pointer; }
+      svg { width: 17px; height: 17px; } button:hover { background: var(--tint); } button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }`;
     this.button.type = 'button';
     this.button.innerHTML =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h12M9 2v3M12 5c-1 6-4 9-8 11M6 8c1 3 3 5 6 7M13 21l4-11 4 11M14.5 17h5"/></svg>';
@@ -35,6 +38,9 @@ export class SelectionEntry {
   }
   owns(event: Event) {
     return event.composedPath().includes(this.host);
+  }
+  setAppearance(appearance: Appearance) {
+    applyAppearance(this.host, appearance);
   }
   show(range: Range, pointer?: { x: number; y: number }) {
     const rects = range.getClientRects();

@@ -18,6 +18,12 @@ import { TranslationPanel, type PanelActions, type PanelState } from '../ui/Tran
 import { SelectionEntry } from './selection-entry';
 import { EditorEntries } from './editor-entry';
 import { panelStyle } from './panel-style';
+import {
+  AppearanceSchema,
+  PanelAppearancePatch,
+  type PanelAppearanceInput,
+} from '../storage/schema';
+import { applyAppearance, defaultAppearance } from '../ui/appearance';
 
 type Draft = {
   source: SourceInput;
@@ -59,6 +65,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   document.documentElement.append(host);
   const root = createRoot(container);
   const state: PanelState = {
+    appearance: { ...defaultAppearance },
     mode: 'write',
     openSequence: 0,
     source: '',
@@ -76,6 +83,25 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     hasOriginal: false,
     status: '',
   };
+  applyAppearance(host, state.appearance);
+  let appearanceRevision = -1;
+  let savedAppearance = { ...defaultAppearance };
+  let appearanceVersion = 0;
+  let pendingAppearance: PanelAppearanceInput = {};
+  let appearanceQueue: Promise<void> = Promise.resolve();
+  function receiveAppearance(value: unknown, revision: number) {
+    if (disposed || revision < appearanceRevision) return;
+    const appearance = AppearanceSchema.safeParse(value);
+    if (!appearance.success) return;
+    appearanceRevision = revision;
+    savedAppearance = appearance.data;
+    state.appearance = { ...appearance.data, ...pendingAppearance };
+    applyAppearance(host, state.appearance);
+    entry.setAppearance(state.appearance);
+    writeEntry.setAppearance(state.appearance);
+    focusedEntry.setAppearance(state.appearance);
+    if (visible) render();
+  }
   const entry = new SelectionEntry(() => {
     if (automatic) {
       const preview = selectedPreview;
@@ -135,7 +161,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     if (!disposed) {
       host.style.setProperty(
         '--panel-width',
-        state.mode === 'read' && state.source.length > 280 ? '520px' : '340px',
+        state.mode === 'read' && state.source.length > 280 ? '520px' : '420px',
       );
       root.render(<TranslationPanel state={{ ...state }} actions={actions} />);
     }
@@ -345,6 +371,46 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     }
   };
   const actions: PanelActions = {
+    resetPosition: anchoredPanel.resetPosition,
+    appearance(input) {
+      const patch = PanelAppearancePatch.parse(input);
+      if (
+        Object.entries(patch).every(
+          ([key, value]) => state.appearance[key as keyof typeof patch] === value,
+        )
+      )
+        return;
+      const version = ++appearanceVersion;
+      pendingAppearance = { ...pendingAppearance, ...patch };
+      state.appearance = { ...state.appearance, ...patch };
+      applyAppearance(host, state.appearance);
+      render();
+      appearanceQueue = appearanceQueue
+        .then(async () => {
+          const reply = (await browser.runtime.sendMessage({
+            protocolVersion: 1,
+            requestId: newId(),
+            type: 'page.appearance',
+            payload: patch,
+          })) as { ok?: boolean; data?: { appearance: unknown; revision: number } };
+          if (!reply.ok || !reply.data) throw new Error();
+          if (version === appearanceVersion) {
+            pendingAppearance = {};
+            if (state.status === '外观尚未保存，请稍后重试。') state.status = '';
+          }
+          receiveAppearance(reply.data.appearance, reply.data.revision);
+        })
+        .catch(() => {
+          if (version === appearanceVersion) {
+            pendingAppearance = {};
+            receiveAppearance(savedAppearance, appearanceRevision);
+          }
+          if (!disposed) {
+            state.status = '外观尚未保存，请稍后重试。';
+            render();
+          }
+        });
+    },
     refresh() {
       if (writing || state.busy || !discard()) return;
       cancel();
@@ -496,6 +562,10 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   ) => {
     if (sender.id !== browser.runtime.id || sender.url !== browser.runtime.getURL('/background.js'))
       return;
+    if (message?.type === 'app.appearance-changed' && Number.isInteger(message.revision)) {
+      receiveAppearance(message.appearance, message.revision);
+      return;
+    }
     if (message?.protocolVersion === 1 && message.type === 'page.reset') {
       dispose();
       sendResponse({ ok: true });
@@ -776,6 +846,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
             readTarget: string;
             writeTarget: string;
             theme: string;
+            appearance: unknown;
+            revision: number;
             model?: string;
             quickReplace: boolean;
           };
@@ -798,8 +870,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
             state.ready = true;
             state.quickReplace = response.data.quickReplace && !state.previewOnly;
             state.model = response.data.model ?? '';
-            host.style.colorScheme =
-              response.data.theme === 'system' ? 'light dark' : response.data.theme;
+            receiveAppearance(response.data.appearance, response.data.revision);
             render();
             if (autoTranslate && (!inline || automatic) && current) void begin();
           }
@@ -855,7 +926,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     selectedEditor = undefined;
     editorEntries.dispose();
     focusedEntry.dispose();
-    anchoredPanel.detach();
+    anchoredPanel.dispose();
     registry.dispose();
     selection.clear();
     root.unmount();
@@ -863,6 +934,12 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     onDisposed();
   }
   window.addEventListener('pagehide', dispose, { once: true });
+  void browser.runtime
+    .sendMessage({ protocolVersion: 1, type: 'page.preferences', requestId: newId() })
+    .then((reply: { ok?: boolean; data?: { appearance: unknown; revision: number } }) => {
+      if (reply.ok && reply.data) receiveAppearance(reply.data.appearance, reply.data.revision);
+    })
+    .catch(() => undefined);
   const initializationEpoch = automaticEpoch;
   void browser.runtime
     .sendMessage({
