@@ -12,6 +12,7 @@ import { ConfigRepository } from '../src/storage/repository';
 import { notifyAppearance } from '../src/background/appearance';
 import { ExecutorHost } from '../src/background/executor-host';
 import { TaskBroker } from '../src/background/task-broker';
+import { installCaptions } from '../src/background/captions';
 import { taskStorage } from '../src/background/task-storage';
 import {
   handleTaskMessage,
@@ -35,6 +36,7 @@ export default defineBackground(() => {
     void broker.reconcile(true).catch(() => undefined);
   });
   const broker = new TaskBroker(taskStorage, repository, host, {
+    captionAuthorized: (owner, identity) => captions.authorized(owner, identity),
     sitePermitted: (origin) => sites.permitted(origin),
     permitted: (baseUrl) => browser.permissions.contains({ origins: [permissionPattern(baseUrl)] }),
     async notify(route) {
@@ -110,6 +112,7 @@ export default defineBackground(() => {
       }
     },
   });
+  const captions = installCaptions(broker);
   void broker.ready.catch(() => undefined);
   browser.runtime.onConnect.addListener((port) => host.accept(port));
   browser.tabs.onRemoved.addListener((tabId) => {
@@ -202,6 +205,7 @@ export default defineBackground(() => {
         if (result.ok && message.type === 'settings.delete')
           await broker.cancelWhere((route) => route.providerId === message.payload.id);
         if (result.ok && message.type === 'settings.clear') {
+          const capture = await captions.setEnabled(false);
           await speech.cancelWhere(() => true);
           await sites.reconcile();
           const tabs = await browser.tabs.query({});
@@ -217,6 +221,7 @@ export default defineBackground(() => {
               ),
           );
           void browser.runtime.sendMessage({ type: 'app.data-cleared' }).catch(() => undefined);
+          if (capture.error || capture.unconfirmedDocuments) throw new Error('CLEAR_INCOMPLETE');
         }
         return result;
       })

@@ -13,7 +13,9 @@ const terminal = /[.!?。！？][”’"')\]]*\s*$/u;
 export async function groupCaptions(
   track: CaptionTrack,
   source: readonly CaptionCue[],
+  signal?: AbortSignal,
 ): Promise<CaptionGroup[]> {
+  signal?.throwIfAborted();
   if (
     source.length > CAPTION_LIMITS.cues ||
     bytes(JSON.stringify(source)) > CAPTION_LIMITS.responseBytes
@@ -64,6 +66,7 @@ export async function groupCaptions(
   const result: CaptionGroup[] = [];
   // Serial hashing bounds simultaneous allocations even for 20,000 independent rows.
   for (const group of groups) {
+    signal?.throwIfAborted();
     const first = group[0]!;
     const last = group.at(-1)!;
     const sources = group.map((cue) => ({ id: cue.id, revision: cue.revision }));
