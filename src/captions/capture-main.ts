@@ -20,7 +20,7 @@ import {
   watchVideoId,
 } from './player';
 
-const VERSION = 'capture-v2';
+const VERSION = 'capture-v3';
 type Controller = { version: string; active(): boolean; stop(): void };
 type CaptureWindow = Window & typeof globalThis & { __sayviaCapture?: Controller };
 type RequestScope = {

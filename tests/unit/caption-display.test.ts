@@ -19,6 +19,7 @@ function message(type = 'renew', owner = overlay.owner, fields = {}) {
         type,
         owner,
         generation: scope.generation,
+        requestId: crypto.randomUUID(),
         trackKey: scope.trackKey,
         ...fields,
       }),

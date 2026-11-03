@@ -24,6 +24,19 @@ export class ConfigRepository {
   readonly ready: Promise<void>;
   private state!: StoredState;
   private queue: Promise<void> = Promise.resolve();
+  private readonly captionListeners = new Set<() => void>();
+
+  onCaptionConfigurationChange(listener: () => void) {
+    this.captionListeners.add(listener);
+    return () => {
+      this.captionListeners.delete(listener);
+    };
+  }
+  private captionIdentity(state: StoredState) {
+    const id = state.preferences.defaultProviderId;
+    const selected = id ? state.providers[id] : undefined;
+    return JSON.stringify([id, selected?.revision, selected?.model, state.preferences.readTarget]);
+  }
 
   constructor(private readonly storage: ConfigStorage) {
     this.ready = this.initialize();
@@ -107,7 +120,18 @@ export class ConfigRepository {
       next.revision += 1;
       const checked = StateSchema.parse(next);
       await this.storage.write(checked);
+      const captionsChanged = this.captionIdentity(this.state) !== this.captionIdentity(checked);
       this.state = checked;
+      // Synchronous invalidation only. Listeners must not await broker work or
+      // re-enter this mutation queue; notifications run independently afterward.
+      if (captionsChanged)
+        for (const listener of this.captionListeners) {
+          try {
+            listener();
+          } catch {
+            /* A notification must not roll back saved configuration. */
+          }
+        }
       return this.project();
     });
     this.queue = operation.then(

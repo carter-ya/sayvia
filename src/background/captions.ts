@@ -26,7 +26,7 @@ async function bounded<T>(promise: Promise<T>): Promise<T> {
 }
 export function installCaptions(
   broker: Pick<TaskBroker, 'cancelWhere'>,
-  repository: Pick<ConfigRepository, 'snapshot'>,
+  repository: Pick<ConfigRepository, 'snapshot' | 'onCaptionConfigurationChange'>,
 ) {
   const known = new Map<number, string>();
   const ensuring = new Map<string, Promise<boolean>>();
@@ -297,6 +297,19 @@ export function installCaptions(
   });
   browser.permissions.onAdded.addListener(() => {
     void access.reconcile();
+  });
+  repository.onCaptionConfigurationChange(() => {
+    // revoke invalidates authorization synchronously, before its broker RPC.
+    void access.revoke().catch(() => undefined);
+    for (const [tabId, documentId] of known) {
+      void browser.tabs
+        .sendMessage(
+          tabId,
+          { protocolVersion: 1, type: 'captions.configuration-changed' },
+          { documentId, frameId: 0 },
+        )
+        .catch(() => undefined);
+    }
   });
   return access;
 }

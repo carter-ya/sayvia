@@ -22,7 +22,10 @@ player.getVideoData=()=>({video_id:new URL(location.href).searchParams.get('v')}
 player.getOption=()=>window.selected;
 window.siteLoad=()=>new Promise(resolve=>{ const xhr=new XMLHttpRequest(); const video=new URL(location.href).searchParams.get('v'); xhr.open('GET','/api/timedtext?v='+video+'&lang=en'+(window.selected.kind?'&kind='+window.selected.kind:'')); xhr.onload=()=>resolve(xhr.responseText); xhr.send(); });
 </script></body></html>`;
-async function youtube(f: Fixture) {
+async function youtube(
+  f: Fixture,
+  events?: Array<{ tStartMs: number; dDurationMs: number; segs: Array<{ utf8: string }> }>,
+) {
   let loads = 0;
   await f.context.route('https://www.youtube.com/**', async (route) => {
     const url = new URL(route.request().url());
@@ -32,7 +35,7 @@ async function youtube(f: Fixture) {
         contentType: 'application/json',
         body: JSON.stringify({
           wireMagic: 'pb3',
-          events: [
+          events: events ?? [
             {
               tStartMs: 0,
               dDurationMs: 1000,
@@ -174,6 +177,7 @@ test('production MAIN display lease hides only native appearance and restores af
       const full = document.createElement('button');
       full.id = 'fixture-fullscreen';
       full.textContent = 'Player fullscreen';
+      full.style.cssText = 'position:absolute;right:0;bottom:0';
       full.onclick = () => {
         void player.requestFullscreen();
       };
@@ -181,6 +185,7 @@ test('production MAIN display lease hides only native appearance and restores af
       const videoFull = document.createElement('button');
       videoFull.id = 'fixture-video-fullscreen';
       videoFull.textContent = 'Video fullscreen';
+      videoFull.style.cssText = 'position:absolute;right:0;bottom:30px';
       videoFull.onclick = () => {
         void player.querySelector('video')!.requestFullscreen();
       };
@@ -192,6 +197,7 @@ test('production MAIN display lease hides only native appearance and restores af
         ({ owner, generation }) => {
           const overlay = document.querySelector('[data-sayvia-caption-overlay]')!;
           overlay.setAttribute('data-sayvia-caption-overlay', owner);
+          const requestId = crypto.randomUUID();
           return new Promise<boolean | undefined>((resolve) => {
             const finish = (value?: boolean) => {
               clearTimeout(timer);
@@ -205,7 +211,8 @@ test('production MAIN display lease hides only native appearance and restores af
                 if (
                   reply.channel === 'sayvia.caption.display.status.v1' &&
                   reply.owner === owner &&
-                  reply.generation === generation
+                  reply.generation === generation &&
+                  reply.requestId === requestId
                 )
                   finish(reply.active);
               } catch {
@@ -218,6 +225,7 @@ test('production MAIN display lease hides only native appearance and restores af
               JSON.stringify({
                 channel: 'sayvia.caption.display.v1',
                 type: 'renew',
+                requestId,
                 owner,
                 generation,
                 trackKey: JSON.stringify(['example', 'en', null, null, null]),
@@ -277,6 +285,95 @@ test('production MAIN display lease hides only native appearance and restores af
     await renew(second);
     await expect(native).toHaveCSS('visibility', 'visible');
     expect(f.count()).toBe(0);
+  } finally {
+    await f.close();
+  }
+});
+
+test('explicit player entry translates the current window, preserves native while waiting and restores on stop or config change', async () => {
+  const f = await workflowFixture();
+  try {
+    const { page } = await youtube(
+      f,
+      [0, 300_000, 320_000, 600_000].map((time) => ({
+        tStartMs: time,
+        dDurationMs: 5000,
+        segs: [{ utf8: `Caption at ${time}` }],
+      })),
+    );
+    await setting(f, true);
+    await expect.poll(async () => (await snapshot(f, page))?.capture?.reason).toBe('ready');
+    await load(page);
+    await expect.poll(async () => (await snapshot(f, page))?.groups.length).toBe(4);
+    // Controlled media clock, not evidence of real YouTube playback timing.
+    await page.evaluate(() => {
+      const player = document.getElementById('movie_player')!;
+      player.style.cssText =
+        'position:relative;width:960px;height:640px;overflow:hidden;background:#333';
+      const video = player.querySelector('video')!;
+      video.style.cssText = 'width:100%;height:100%';
+      video.currentTime = 300;
+      const native = document.createElement('div');
+      native.className = 'ytp-caption-window-container';
+      native.style.cssText = 'position:absolute;bottom:20px;color:white';
+      native.textContent = 'Native subtitle';
+      player.append(native);
+    });
+    const panel = page.locator('[data-sayvia-caption-status]');
+    await panel.locator('summary').click();
+    await expect(panel.getByText('当前模型：fixture-model', { exact: true })).toBeVisible();
+    await expect(panel.getByRole('button', { name: '开启双语字幕', exact: true })).toBeEnabled();
+    expect(f.count()).toBe(0);
+    await panel.getByRole('radio', { name: '仅译文', exact: true }).check();
+    const release = f.hold();
+    await panel.getByRole('button', { name: '开启双语字幕', exact: true }).click();
+    await expect.poll(() => f.count()).toBe(1);
+    const payload = JSON.parse(JSON.parse(f.requestBodies[0]!).messages[1].content);
+    expect(payload.cues.map((cue: { text: string }) => cue.text)).toEqual([
+      'Caption at 300000',
+      'Caption at 320000',
+    ]);
+    const native = page.locator('.ytp-caption-window-container');
+    await expect(native).toHaveCSS('visibility', 'visible');
+    await expect(page.locator('[data-sayvia-caption-overlay]')).toBeHidden();
+    release();
+    await expect(panel.getByRole('status')).toContainText('2 段已翻译');
+    await panel.locator('summary').click();
+    await expect(native).toHaveCSS('visibility', 'hidden');
+    await expect(page.locator('[data-sayvia-caption-overlay]')).toBeVisible();
+    await page.evaluate(() => {
+      const v = document.querySelector('video')!;
+      v.currentTime = 310;
+      v.dispatchEvent(new Event('seeked'));
+    });
+    await expect(native).toHaveCSS('visibility', 'visible');
+    await page.evaluate(() => {
+      const v = document.querySelector('video')!;
+      v.currentTime = 320;
+      v.dispatchEvent(new Event('seeked'));
+    });
+    await expect(native).toHaveCSS('visibility', 'hidden');
+    expect(f.count()).toBe(1);
+    await panel.locator('summary').click();
+    await panel.getByRole('button', { name: '停止翻译', exact: true }).click();
+    await expect(native).toHaveCSS('visibility', 'visible');
+    await expect(panel.getByRole('button', { name: '开启双语字幕', exact: true })).toBeEnabled();
+    expect(f.count()).toBe(1);
+    await panel.getByRole('button', { name: '开启双语字幕', exact: true }).click();
+    await expect.poll(() => f.count()).toBe(2);
+    await expect(native).toHaveCSS('visibility', 'hidden');
+    await f.settings.getByRole('button', { name: '返回模型设置', exact: true }).click();
+    await f.settings.getByLabel('模型名称').fill('changed-model');
+    await f.settings.getByRole('button', { name: '保存配置' }).click();
+    await expect(f.settings.getByRole('status')).toHaveText('已保存配置。');
+    await expect(native).toHaveCSS('visibility', 'visible');
+    await expect(panel.getByText('当前模型：changed-model', { exact: true })).toBeVisible();
+    await expect(panel.getByRole('button', { name: '开启双语字幕', exact: true })).toBeEnabled();
+    expect(f.count()).toBe(2);
+    await page.evaluate(() => history.pushState({}, '', '/watch?v=second'));
+    await expect.poll(async () => (await snapshot(f, page))?.capture?.videoId).toBe('second');
+    expect((await snapshot(f, page))?.session).toBeUndefined();
+    await expect(panel.getByRole('button', { name: '开启双语字幕', exact: true })).toBeDisabled();
   } finally {
     await f.close();
   }

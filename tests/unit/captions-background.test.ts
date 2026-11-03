@@ -42,6 +42,9 @@ import type { MessageSender } from '../../src/background/task-router';
 let access: ReturnType<typeof installCaptions>;
 const cancelWhere = vi.fn(async () => {});
 const snapshot = vi.fn<ConfigRepository['snapshot']>();
+const onCaptionConfigurationChange = vi.fn<ConfigRepository['onCaptionConfigurationChange']>(
+  () => () => {},
+);
 const options = {
   id: 'self',
   url: 'chrome-extension://self/options.html',
@@ -77,7 +80,7 @@ beforeEach(async () => {
   ]);
   api.tabs.sendMessage.mockResolvedValue({ ok: true });
   snapshot.mockResolvedValue({ revision: 0, providers: [], preferences: emptyState().preferences });
-  access = installCaptions({ cancelWhere }, { snapshot });
+  access = installCaptions({ cancelWhere }, { snapshot, onCaptionConfigurationChange });
   await access.ready;
 });
 it('only trusts the settings document to persist and register separate MAIN/ISOLATED document-start scripts', async () => {
@@ -312,4 +315,24 @@ it('does not fall back to another provider when the current default is unconfigu
     ok: false,
     error: 'CONFIG_REQUIRED',
   });
+});
+
+it('configuration changes revoke current video consent before sending a document-scoped notification', async () => {
+  await access.setEnabled(true);
+  const reply = await send('captions.grant', owner, {
+    documentNonce: nonce,
+    track: { videoId: 'example', lang: 'en', kind: null, name: null, tlang: null },
+    captureGeneration: crypto.randomUUID(),
+  });
+  expect(reply.ok).toBe(true);
+  const change = onCaptionConfigurationChange.mock.calls[0]![0];
+  change();
+  expect(api.tabs.sendMessage).toHaveBeenCalledWith(
+    1,
+    { protocolVersion: 1, type: 'captions.configuration-changed' },
+    { documentId: 'doc', frameId: 0 },
+  );
+  expect(
+    await send('captions.check', owner, { documentNonce: nonce, session: reply.session }),
+  ).toMatchObject({ authorized: false, enabled: true });
 });
