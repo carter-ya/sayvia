@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { WorkerProcessor } from '../../src/executor/worker-processor';
+import { LearningWorkerProcessor } from '../../src/executor/learning-worker-processor';
 
 class WorkerFixture extends EventTarget {
   terminate = vi.fn();
@@ -16,6 +17,31 @@ const setup = () => {
 };
 
 describe('per-task worker lifecycle', () => {
+  it('routes learning validation through its Worker and releases it on cancellation', async () => {
+    const worker = new WorkerFixture();
+    const processor = new LearningWorkerProcessor(() => worker as unknown as Worker);
+    const controller = new AbortController();
+    const input = {
+      purpose: 'lookup' as const,
+      input: { text: 'hello', sourceLanguage: 'en', explanationLanguage: 'fr' },
+    };
+    const preparing = processor.prepare(input, controller.signal);
+    const message = worker.postMessage.mock.calls[0]![0];
+    expect(message).toMatchObject({ type: 'learning.prepare', value: input });
+    worker.reply(message.id, {
+      instruction: 'trusted',
+      payload: input.input,
+      algorithmVersion: 'lookup-v3',
+    });
+    await expect(preparing).resolves.toMatchObject({ algorithmVersion: 'lookup-v3' });
+    const finishing = processor.finish('{}', controller.signal);
+    const assertion = expect(finishing).rejects.toThrow('CANCELED');
+    expect(worker.postMessage.mock.calls[1]![0].type).toBe('learning.finish');
+    controller.abort();
+    await assertion;
+    processor.dispose();
+    expect(worker.terminate).toHaveBeenCalledOnce();
+  });
   it('rejects oversized reconstruction before posting, rather than waiting for a deadline', async () => {
     const { worker, processor, signal } = setup();
     await expect(processor.reconstruct('x'.repeat(192_001), signal.signal)).rejects.toThrow(
