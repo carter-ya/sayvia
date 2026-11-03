@@ -253,3 +253,62 @@ test('ambiguous rich formatting stays in preview and unsafe edited output cannot
     await f.close();
   }
 });
+
+test('an invalid reading snapshot reports recovery guidance before spending another request', async () => {
+  const f = await workflowFixture();
+  try {
+    await f.page.evaluate(() => {
+      const p = document.createElement('p');
+      p.id = 'reading';
+      p.textContent = 'Read first.';
+      document.body.prepend(p);
+      const range = document.createRange();
+      range.selectNodeContents(p);
+      window.getSelection()!.removeAllRanges();
+      window.getSelection()!.addRange(range);
+    });
+    const panel = await f.open('read');
+    await expect(panel.getByRole('button', { name: '翻译', exact: true })).toBeEnabled();
+    await f.page.evaluate(() => document.body.classList.add('theme-changed'));
+    for (let index = 0; index < 2; index++) {
+      await panel.getByRole('button', { name: '翻译', exact: true }).click();
+      await expect(panel.getByRole('status')).toHaveText('选区已变化，请重新选择原文。');
+    }
+    expect(f.count()).toBe(0);
+  } finally {
+    await f.close();
+  }
+});
+
+test('tail controls for linked code do not invoke the original link', async () => {
+  const f = await workflowFixture();
+  try {
+    await f.page.evaluate(() => {
+      const p = document.createElement('p');
+      p.id = 'reading';
+      p.innerHTML = 'Read <a href="https://example.test/guide"><code>CONST</code></a>';
+      document.body.prepend(p);
+      Object.assign(window, { readingLinkClicks: 0 });
+      p.querySelector('a')!.addEventListener('click', (event) => {
+        event.preventDefault();
+        const state = window as unknown as { readingLinkClicks: number };
+        state.readingLinkClicks += 1;
+      });
+    });
+    const panel = await select(f, 'reading');
+    await expect(panel.getByRole('button', { name: '在网页中显示' })).toBeEnabled();
+    await panel.getByRole('button', { name: '在网页中显示' }).click();
+    await f.page.getByRole('button', { name: 'Sayvia 翻译操作' }).click();
+    await expect(f.page.getByRole('toolbar', { name: '译文快捷操作' })).toBeVisible();
+    expect(
+      await f.page.evaluate(
+        () => (window as unknown as { readingLinkClicks: number }).readingLinkClicks,
+      ),
+    ).toBe(0);
+    expect(
+      await f.page.locator('[data-sayvia-reading]').evaluate((element) => element.closest('a')),
+    ).toBeNull();
+  } finally {
+    await f.close();
+  }
+});

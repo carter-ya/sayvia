@@ -119,7 +119,7 @@ export class ReadingControls {
       unsubscribe: () => undefined,
     };
     const tail = input.snapshot.tail;
-    const anchor = tail.parentElement?.closest('a,code') ?? tail;
+    const anchor = tail.parentElement?.closest('a') ?? tail.parentElement?.closest('code') ?? tail;
     anchor.parentNode?.insertBefore(host, anchor.nextSibling);
     if (!host.isConnected) {
       entry.root.unmount();

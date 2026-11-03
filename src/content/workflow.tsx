@@ -341,8 +341,8 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         JSON.stringify(selection.read(document)) !== JSON.stringify(draft.source)
       )
         throw new Error('SELECTION_LOST');
-      clientTaskId = newId();
       if (draft.reading && !draft.reading.isValid()) throw new Error('SELECTION_LOST');
+      clientTaskId = newId();
       draft.clientTaskId = clientTaskId;
       draft.readingReady = false;
       draft.quickReplace = false;
