@@ -545,7 +545,7 @@ GitHub 编辑器检测和工具栏发现共用评论框选择器，覆盖 commen
 
 可见 contenteditable 的全文或选区通过只读 DOM Range 抓取，冻结原范围并沿用 ReadingSelectionCache 的内容签名校验。界面使用写作目标语言，但后台走只读任务，不生成 editorSessionId 或开启快速替换；展示预览与复制提示并隐藏替换按钮，不操作富文本内部 DOM。
 
-GitHub Markdown diff 识别依赖 github.com、具名 Markdown 文件表格及明确单元格元数据，不依赖 PR 路径。PR 的 data-diff-side／data-line-number 和 commit 的 data-line-anchor 两种结构归一为 side／line；锚点须属于当前表格，冲突、缺失及跨列选区明确拒绝。仍只提交原选区内的可译正文，行内代码与链接目标在本机保护。无需翻译的结果清空候选，明确显示未执行翻译。
+GitHub diff 基础提取依赖 github.com、diff 表格及明确单元格元数据，不依赖文件名、编程语言或 PR 路径。基础提取只遍历选区对应的同侧行；Markdown 文件名只是格式增强线索，增强失败或周围上下文超限时保留基础结果。PR 的 data-diff-side／data-line-number 和 commit 的 data-line-anchor 两种结构归一为 side／line；锚点须属于当前表格，冲突、缺失及跨列选区明确拒绝。仍只提交原选区内的可译正文，行内代码与链接目标在本机保护。仅由代码容器造成整段不透明的 DOM 阅读选区回退为字面可译文字；混合正文内的代码片段及链接目标继续保护。模型实际返回原文时保留结果并提示相同，未请求模型时仍显示未执行翻译。写作 Markdown 回写的代码保护策略不变。
 
 GitHub 写作入口优先通过 markdown-toolbar 的 for 或工具栏 aria-controls 精确关联 textarea；现代编辑器使用同一表单／编辑器容器内的唯一工具栏关联。多个候选或编辑框不明确时保留已有手动入口，避免关联到另一份草稿。按钮置于原生工具栏，使用中性色小图标与局部样式隔离，保留可信操作判断和原编辑框绑定。[GitHub 工具栏组件](https://github.com/github/markdown-toolbar-element)
 
@@ -664,3 +664,5 @@ Product Hunt 增加独立网站适配器和实站验收集；块级阅读翻译�
 | 后台全局变量消失或消息乱序 | 无正文任务索引、幂等 taskId、执行环境查询和迟到结果丢弃 |
 
 不在本次方案中引入云端网关、平台密钥、计费、同步或远程适配脚本。未来新增这些能力时需补充独立数据流与技术设计。
+
+阅读与写作的代码策略分离：ReadingSelectionCache 先按用户 Range 提取可见文字，格式序列化后的整个选区若仅因 code 语义没有可译片段，则释放该容器级代码保护并重新序列化字面文字。GitHub diff 先生成任何文件都可用的同侧选中行结果，再尝试 Markdown 增强；增强只可在原始选中文字不变时替换基础结果。链接目标与明确的上下文内行内代码仍保持本机保护。读取只限原选区；返回文字与原文相同时在页面和手动弹窗提示，不再次请求模型。segments-v2.4 增加源码注释翻译及技术名称／语法保持指令，模型仍只返回现有分组协议。

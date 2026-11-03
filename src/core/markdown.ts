@@ -30,11 +30,13 @@ export function markdownTextIntervals(text: string) {
   const boundaries: FormatBoundary[] = [];
   const scopes: Interval[] = [];
   const opaque: Interval[] = [];
+  const codeBlocks: Interval[] = [];
   let visited = 0;
   const walk = (node: TreeNode, base: number, depth: number, context = htmlContexts[0]!) => {
     if (++visited > 4096 || depth > 128) throw new PlanError('PLAN_TOO_COMPLEX');
     const span = interval(node, base);
     if (node.type === 'text') eligible.push(span);
+    if (node.type === 'code') codeBlocks.push(span);
     if (node.type === 'html') context.nodes.push(span);
     if (node.type === 'code' || node.type === 'inlineCode' || node.type === 'html')
       opaque.push(span);
@@ -90,6 +92,7 @@ export function markdownTextIntervals(text: string) {
     tree,
     scopes,
     opaque,
+    codeBlocks,
     boundaries: boundaries.sort((a, b) => a.start - b.start || a.end - b.end),
   };
 }

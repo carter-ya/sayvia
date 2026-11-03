@@ -190,19 +190,19 @@ describe('GitHub Markdown source diff reading', () => {
     expect(needsTranslation(capture(0, 0, begin, begin + 7).plan)).toBe(false);
   });
   it.each(['```', '~~~', '> ```'])(
-    'retains code protection for an ambiguous first closing fence %s',
+    'uses literal selected text when a code fence cannot establish a useful format: %s',
     (fence) => {
       fixture(['PRIVATE_CODE', fence, 'Read first.']);
       const { plan } = capture(0);
-      expect(needsTranslation(plan)).toBe(false);
-      expect(JSON.stringify(translationPayload(plan))).not.toContain('PRIVATE_CODE');
-      expect(needsTranslation(capture(2).plan)).toBe(false);
+      expect(needsTranslation(plan)).toBe(true);
+      expect(JSON.stringify(translationPayload(plan))).toContain('PRIVATE_CODE');
+      expect(needsTranslation(capture(2).plan)).toBe(true);
     },
   );
   it('parses a bare opening fence when the rendered context starts at file line one', () => {
     fixture(['Read first.', '```', 'PRIVATE_CODE', '```'], 'README.md', 1);
     expect(needsTranslation(capture(0).plan)).toBe(true);
-    expect(needsTranslation(capture(2).plan)).toBe(false);
+    expect(needsTranslation(capture(2).plan)).toBe(true);
   });
   it('translates prose after a selected closing fence whose opener was not selected', () => {
     fixture(['```go', 'PRIVATE_CODE', '```', 'Read first.']);
@@ -235,9 +235,9 @@ describe('GitHub Markdown source diff reading', () => {
     expect(source.text).toContain('[guide](PRIVATE_TARGET)');
     expect(JSON.stringify(translationPayload(plan))).not.toMatch(/PRIVATE_CODE|PRIVATE_TARGET/);
   });
-  it('retains actual indented-code semantics outside a list', () => {
+  it('allows explicitly selected indented source text outside a list', () => {
     fixture(['Context.', '', '    PRIVATE_CODE']);
-    expect(needsTranslation(capture(2).plan)).toBe(false);
+    expect(needsTranslation(capture(2).plan)).toBe(true);
   });
   it('recognizes visible Markdown prose following the closing fence in public PR #15', () => {
     fixture(
@@ -275,7 +275,7 @@ describe('GitHub Markdown source diff reading', () => {
     expect(needsTranslation(plan)).toBe(true);
     expect(JSON.stringify(translationPayload(plan))).not.toMatch(/PRIVATE_CODE/);
   });
-  it('does not use hidden, raw-code or later-hunk tokens to disambiguate a fence', () => {
+  it('does not let missing or unrelated Markdown evidence disable literal selected text', () => {
     const hint =
       '<span class="pl-s">`</span><span class="pl-c1">x</span><span class="pl-s">`</span>';
     for (const text of [
@@ -284,10 +284,10 @@ describe('GitHub Markdown source diff reading', () => {
       `PRIVATE_CODE`,
     ]) {
       fixture(['```', text]);
-      expect(needsTranslation(capture(1).plan)).toBe(false);
+      expect(needsTranslation(capture(1).plan)).toBe(true);
     }
     fixture(['```', 'PRIVATE_CODE', '```', hint]);
-    expect(needsTranslation(capture(1).plan)).toBe(false);
+    expect(needsTranslation(capture(1).plan)).toBe(true);
   });
   it('invalidates a capture when the visible Markdown context evidence changes', () => {
     fixture([
@@ -311,11 +311,11 @@ describe('GitHub Markdown source diff reading', () => {
     expect(source.text).toBe('```go\nconst n = 1;\n```\nRead first.');
     expect(JSON.stringify(translationPayload(plan))).not.toContain('const n');
   });
-  it('invalidates cached prose if a preceding line changes it into a code fence', () => {
+  it('keeps unchanged selected prose available when an unselected line becomes a code fence', () => {
     fixture(['Context.', 'Read first.']);
     const { cache } = capture(1);
     document.getElementById('line-0')!.textContent = '```';
-    expect(() => cache.read(document)).toThrow('SELECTION_LOST');
+    expect(needsTranslation(createTranslationPlan(cache.read(document)))).toBe(true);
   });
   it('does not send any surrounding hunk text or opposite column', () => {
     fixture(['PRIVATE_BEFORE', 'Read first.', 'PRIVATE_AFTER']);
@@ -323,11 +323,11 @@ describe('GitHub Markdown source diff reading', () => {
     expect(source.text).toBe('Read first.');
     expect(JSON.stringify(translationPayload(plan))).not.toMatch(/PRIVATE_|LEFT_|CONTROL_/);
   });
-  it('keeps program source files protected even when their text is English', () => {
+  it('allows selected text in program source files', () => {
     fixture(['Read first.'], 'source.go');
-    expect(needsTranslation(capture().plan)).toBe(false);
+    expect(needsTranslation(capture().plan)).toBe(true);
   });
-  it('does not apply the adapter outside GitHub', () => {
+  it('uses the generic selected-text baseline outside GitHub', () => {
     fixture(['Read first.']);
     const outside = document.implementation.createHTMLDocument();
     outside.body.innerHTML = document.body.innerHTML;
@@ -339,7 +339,7 @@ describe('GitHub Markdown source diff reading', () => {
       rangeCount: 1,
       getRangeAt: () => range,
     } as unknown as Selection;
-    expect(needsTranslation(createTranslationPlan(source.capture(selected, outside)))).toBe(false);
+    expect(needsTranslation(createTranslationPlan(source.capture(selected, outside)))).toBe(true);
   });
   it('rejects selections between two diff columns', () => {
     fixture(['Read first.']);
