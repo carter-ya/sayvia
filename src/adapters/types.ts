@@ -19,7 +19,11 @@ export type ApplyResult =
         'SOURCE_CHANGED' | 'CONTEXT_LOST' | 'COMPOSING' | 'UNSUPPORTED' | 'WRITE_REJECTED' | 'BUSY';
     };
 
+export type RestoreResult =
+  { ok: true; snapshot?: EditorSnapshot } | Extract<ApplyResult, { ok: false }>;
+
 export interface RestoreRecord {
+  snapshot: EditorSnapshot;
   before: string;
   after: string;
   revision: number;

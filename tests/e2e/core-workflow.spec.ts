@@ -41,6 +41,48 @@ test('real writing flow previews, edits, copies, replaces controlled state and r
   }
 });
 
+for (const scope of ['selection', 'full'] as const) {
+  test(`restored ${scope} translations can be reapplied repeatedly without another model request`, async () => {
+    const f = await workflowFixture();
+    try {
+      const editor = f.page.locator('#editor');
+      await editor.focus();
+      await editor.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(3, 5));
+      const panel = await f.open('write');
+      if (scope === 'full') {
+        await panel.getByText('更多选项', { exact: true }).click();
+        await panel.getByRole('button', { name: '全文', exact: true }).click();
+      }
+      await panel.getByRole('button', { name: '翻译', exact: true }).click();
+      await expect(panel.getByLabel('译文', { exact: true })).toHaveValue(
+        scope === 'selection' ? 'English' : '前缀 English 后缀',
+      );
+      const replace = panel.getByRole('button', {
+        name: scope === 'selection' ? '替换选区' : '替换全文',
+        exact: true,
+      });
+      for (let cycle = 0; cycle < 3; cycle++) {
+        await replace.click();
+        await expect(editor).toHaveValue('前缀 English 后缀');
+        await panel.getByRole('button', { name: '恢复原文', exact: true }).click();
+        await expect(editor).toHaveValue('前缀 中文 后缀');
+        await expect(replace).toBeEnabled();
+        // Reapplying must use the original scope and range, even though restore
+        // collapses the caret and scripts can move the live selection afterwards.
+        await editor.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(0, 2));
+      }
+      await editor.fill('用户修改的新草稿');
+      await editor.fill('前缀 中文 后缀');
+      await expect(replace).toBeDisabled();
+      await expect(f.page.locator('#other')).toHaveValue('另一份草稿');
+      await expect(f.page.getByTestId('submitted')).toHaveText('');
+      expect(f.count()).toBe(1);
+    } finally {
+      await f.close();
+    }
+  });
+}
+
 test('editing then undoing the source during translation never revives replacement', async () => {
   const f = await workflowFixture();
   try {

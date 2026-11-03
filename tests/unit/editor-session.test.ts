@@ -52,6 +52,52 @@ describe('editor safety', () => {
     expect(element.value).toBe('前缀 中文 后缀');
   });
 
+  it.each(['selection', 'full'] as const)(
+    'renews only the successfully restored %s snapshot and preserves its frozen range',
+    async (scope) => {
+      const { element, session } = editor('前缀 中文 后缀');
+      element.setSelectionRange(3, 5);
+      let snapshot = session.capture(scope === 'full' ? 'full' : undefined);
+      const original = snapshot;
+      for (let cycle = 0; cycle < 3; cycle++) {
+        expect(
+          await session.apply(snapshot, scope === 'full' ? '前缀 English 后缀' : 'English'),
+        ).toEqual({ ok: true });
+        element.setSelectionRange(0, 2);
+        const result = await session.restore(snapshot);
+        expect(result.ok).toBe(true);
+        if (!result.ok || !result.snapshot) throw new Error('Expected restored snapshot');
+        expect(session.validate(snapshot)).toEqual({ ok: false, reason: 'SOURCE_CHANGED' });
+        expect(result.snapshot.revision).toBeGreaterThan(snapshot.revision);
+        expect(result.snapshot.range).toEqual(original.range);
+        expect(result.snapshot.scope).toBe(scope);
+        expect(Object.isFrozen(result.snapshot)).toBe(true);
+        expect(Object.isFrozen(result.snapshot.range)).toBe(true);
+        snapshot = result.snapshot;
+        expect(session.validate(snapshot)).toEqual({ ok: true });
+        expect(element.value).toBe(original.fullText);
+      }
+      // A later user edit/undo is still a new revision, even with identical text.
+      userInput(element, 'changed');
+      userInput(element, original.fullText);
+      expect(await session.apply(snapshot, 'English')).toEqual({
+        ok: false,
+        reason: 'SOURCE_CHANGED',
+      });
+    },
+  );
+
+  it('does not renew another capture when restoring an earlier replacement', async () => {
+    const { element, session } = editor();
+    const original = session.capture();
+    await session.apply(original, 'English');
+    const later = session.capture();
+    expect(await session.restore(later)).toEqual({ ok: true });
+    expect(element.value).toBe(original.fullText);
+    expect(session.validate(later)).toEqual({ ok: false, reason: 'SOURCE_CHANGED' });
+    expect(session.validate(original)).toEqual({ ok: false, reason: 'SOURCE_CHANGED' });
+  });
+
   it('binds to the original node even after another editor gains focus', async () => {
     const first = editor('第一份');
     const second = editor('第二份');
