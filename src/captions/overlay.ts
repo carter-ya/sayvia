@@ -5,6 +5,7 @@ import {
   restoreNativeCaptions,
   visibleCaptionBounds,
 } from './display-lease';
+import { captionWords } from './words';
 export type CaptionDisplayRow = {
   unitId: string;
   original: string;
@@ -18,20 +19,30 @@ export class CaptionOverlay {
   readonly host: HTMLDivElement;
   private readonly body: HTMLDivElement;
   private signature = '';
+  private readonly lines = new Map<
+    string,
+    { line: HTMLElement; original: string; translated: HTMLElement }
+  >();
   private disposed = false;
   constructor(
     readonly player: HTMLElement,
     readonly video: HTMLVideoElement,
+    private readonly lookup?: {
+      language: string;
+      open(text: string, anchor: DOMRect, focus: HTMLElement): void;
+    },
   ) {
     this.host = document.createElement('div');
     this.host.setAttribute(OVERLAY_ATTRIBUTE, this.owner);
     this.host.hidden = true;
-    const shadow = this.host.attachShadow({ mode: 'closed' });
+    const shadow = this.host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent =
       ':host{all:initial;position:absolute;left:5%;right:5%;bottom:var(--sayvia-caption-bottom,64px);z-index:60;pointer-events:none;display:flex;justify-content:center;color:#fff;font:var(--sayvia-caption-size,22px)/1.45 system-ui;text-align:center}:host([hidden]){display:none}.lines{max-width:100%;display:flex;flex-direction:column;gap:4px}.row{border-radius:5px;background:#000c;padding:3px 10px;overflow-wrap:anywhere;white-space:pre-line;text-shadow:0 1px 2px #000}.original{font-size:.9em}.translation{font-weight:600}.pending{font-size:.7em;color:#ddd}';
     this.body = document.createElement('div');
     this.body.className = 'lines';
+    style.textContent +=
+      '.word{all:unset;cursor:pointer;pointer-events:auto;border-radius:2px}.word:hover{background:#ffffff30}.word:focus-visible{outline:2px solid #a8d6ff;outline-offset:2px}';
     this.body.setAttribute('aria-label', 'Sayvia 双语字幕');
     shadow.append(style, this.body);
     player.append(this.host);
@@ -65,23 +76,59 @@ export class CaptionOverlay {
     const signature = JSON.stringify([mode, rows]);
     if (signature !== this.signature) {
       this.signature = signature;
-      const fragment = document.createDocumentFragment();
-      for (const row of rows) {
-        const line = document.createElement('div');
-        line.className = 'row';
-        if (mode === 'bilingual') {
-          const original = document.createElement('div');
-          original.className = 'original';
-          original.textContent = row.original;
-          line.append(original);
+      const keep = new Set(rows.map((row) => row.unitId));
+      for (const [id, nodes] of this.lines)
+        if (!keep.has(id)) {
+          nodes.line.remove();
+          this.lines.delete(id);
         }
-        const translated = document.createElement('div');
+      let index = 0;
+      for (const row of rows) {
+        let nodes = this.lines.get(row.unitId);
+        const originalSignature = JSON.stringify([mode, row.original]);
+        if (!nodes || nodes.original !== originalSignature) {
+          nodes?.line.remove();
+          const line = document.createElement('div');
+          line.className = 'row';
+          if (mode === 'bilingual') {
+            const original = document.createElement('div');
+            original.className = 'original';
+            original.dir = 'auto';
+            if (this.lookup) {
+              original.lang = this.lookup.language;
+              for (const part of captionWords(row.original, this.lookup.language)) {
+                if (!part.lookup) {
+                  original.append(document.createTextNode(part.text));
+                  continue;
+                }
+                const word = document.createElement('button');
+                word.type = 'button';
+                word.className = 'word';
+                word.textContent = part.text;
+                word.setAttribute('aria-label', `查词：${part.text}`);
+                word.addEventListener('keydown', (event) => event.stopPropagation());
+                word.addEventListener('keyup', (event) => event.stopPropagation());
+                word.addEventListener('click', (event) => {
+                  event.stopPropagation();
+                  if (event.isTrusted && word.isConnected && !this.host.hidden && !this.disposed)
+                    this.lookup?.open(part.text, word.getBoundingClientRect(), word);
+                });
+                original.append(word);
+              }
+            } else original.textContent = row.original;
+            line.append(original);
+          }
+          const translated = document.createElement('div');
+          line.append(translated);
+          nodes = { line, original: originalSignature, translated };
+          this.lines.set(row.unitId, nodes);
+        }
+        const { line, translated } = nodes;
         translated.className = row.translation ? 'translation' : 'pending';
         translated.textContent = row.translation ?? '翻译中…';
-        line.append(translated);
-        fragment.append(line);
+        const position = this.body.children[index++] ?? null;
+        if (line !== position) this.body.insertBefore(line, position);
       }
-      this.body.replaceChildren(fragment);
     }
     this.host.hidden = false;
     this.host.setAttribute(READY_ATTRIBUTE, 'true');
@@ -96,6 +143,7 @@ export class CaptionOverlay {
     this.host.removeAttribute(READY_ATTRIBUTE);
     this.host.hidden = true;
     this.body.replaceChildren();
+    this.lines.clear();
     this.signature = '';
   }
   dispose() {

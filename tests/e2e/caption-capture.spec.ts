@@ -115,6 +115,135 @@ test('local capture is off by default, follows real bundle registration and stop
   }
 });
 
+test('caption word lookup keeps source language, preempts safely, speaks locally and follows fullscreen and source lifetime', async () => {
+  const f = await workflowFixture({ speech: true });
+  const speech = () =>
+    f.settings.evaluate(() =>
+      (globalThis as unknown as Chrome).chrome.runtime.sendMessage({
+        type: 'fixture.speech.inspect',
+      }),
+    ) as Promise<{ spoken: Array<{ text: string; lang: string; rate: number }>; stops: number }>;
+  try {
+    const { page } = await youtube(f, [
+      { tStartMs: 0, dDurationMs: 5000, segs: [{ utf8: 'Hello PRIVATE_SENTENCE_CONTEXT.' }] },
+    ]);
+    await setting(f, true);
+    await expect.poll(async () => (await snapshot(f, page))?.capture?.reason).toBe('ready');
+    await load(page);
+    await expect.poll(async () => (await snapshot(f, page))?.groups.length).toBe(1);
+    // Keep the existing translator listener in the same document to exercise ACK coexistence.
+    await f.open('read', page);
+    await page.getByRole('button', { name: '关闭翻译面板', exact: true }).click();
+    await page.evaluate(() => {
+      const player = document.getElementById('movie_player')!;
+      player.style.cssText =
+        'position:relative;width:960px;height:640px;overflow:hidden;background:#333';
+      player.querySelector('video')!.style.cssText = 'width:100%;height:100%';
+      const full = document.createElement('button');
+      full.textContent = 'Fixture fullscreen';
+      full.style.cssText = 'position:absolute;right:0;top:0';
+      full.onclick = () => {
+        void player.requestFullscreen();
+      };
+      player.append(full);
+    });
+    const controls = page.locator('[data-sayvia-caption-status]');
+    await controls.locator('summary').click();
+    const release = f.hold();
+    await controls.getByRole('button', { name: '开启双语字幕', exact: true }).click();
+    await expect.poll(() => f.count()).toBe(1);
+    await controls.locator('summary').click();
+    const word = page.getByRole('button', { name: '查词：Hello', exact: true });
+    await expect(word).toBeVisible();
+    await word.evaluate((el) => (el as HTMLElement).click());
+    expect(f.count()).toBe(1);
+    await word.focus();
+    await word.press('Enter');
+    const card = page.getByRole('dialog', { name: '查词', exact: true });
+    await expect(card).toBeVisible();
+    await expect(card.getByLabel('源语言', { exact: true })).toBeDisabled();
+    expect(await card.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe('none');
+    expect(await card.evaluate((el) => getComputedStyle(el).backgroundColor)).toMatch(/^rgb\(/);
+    await expect.poll(() => f.count()).toBe(2);
+    const lookup = JSON.parse(JSON.parse(f.requestBodies[1]!).messages[1].content);
+    expect(lookup).toEqual({ text: 'Hello', sourceLanguage: 'en', explanationLanguage: 'zh-Hans' });
+    expect(f.requestBodies[1]).not.toContain('PRIVATE_SENTENCE_CONTEXT');
+    expect((await speech()).spoken).toHaveLength(0);
+    release();
+    await expect(card.getByLabel('AI 释义')).toContainText('词语：Hello');
+    await expect.poll(() => f.count()).toBe(3);
+    await expect(page.locator('[data-sayvia-caption-overlay] .translation')).toContainText(
+      '译文：Hello',
+    );
+    await expect(card).toBeVisible();
+    await card.getByRole('button', { name: '按英语慢速朗读', exact: true }).click();
+    await expect
+      .poll(async () => (await speech()).spoken)
+      .toEqual([{ text: 'Hello', lang: 'en-US', rate: 0.75 }]);
+    await page.evaluate(() => {
+      const v = document.querySelector('video')!;
+      v.currentTime = 10;
+      v.dispatchEvent(new Event('seeked'));
+    });
+    await expect(word).toHaveCount(0);
+    await expect(card.locator('.lookup-word')).toHaveText('Hello');
+    await card.getByRole('button', { name: '关闭查词', exact: true }).click();
+    await expect(controls.locator('summary')).toBeFocused();
+    await expect.poll(async () => (await speech()).stops).toBe(1);
+    await page.evaluate(() => {
+      const v = document.querySelector('video')!;
+      v.currentTime = 0;
+      v.dispatchEvent(new Event('seeked'));
+    });
+    await expect(word).toBeVisible();
+    await page.getByRole('button', { name: 'Fixture fullscreen', exact: true }).click();
+    await expect
+      .poll(() => page.evaluate(() => document.fullscreenElement?.id))
+      .toBe('movie_player');
+    await word.focus();
+    await word.press('Space');
+    await expect(card.getByLabel('AI 释义')).toContainText('词语：Hello');
+    expect(f.count()).toBe(4);
+    expect(
+      await page
+        .locator('[data-sayvia-lookup]')
+        .evaluate((el) => document.fullscreenElement?.contains(el)),
+    ).toBe(true);
+    await page.screenshot({ path: '/tmp/sayvia-caption-lookup-fullscreen.png' });
+    await card.getByRole('button', { name: '关闭查词', exact: true }).focus();
+    await card.press('Escape');
+    await expect(card).toHaveCount(0);
+    await expect(word).toBeFocused();
+    await page.evaluate(() => document.exitFullscreen());
+    await page.setViewportSize({ width: 375, height: 720 });
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.evaluate(() => {
+      document.getElementById('movie_player')!.style.width = '100%';
+    });
+    await word.click();
+    await expect(card.getByLabel('AI 释义')).toBeVisible();
+    expect(f.count()).toBe(5);
+    await expect
+      .poll(async () => {
+        const box = await card.boundingBox();
+        return !!box && box.x >= 0 && box.x + box.width <= 375;
+      })
+      .toBe(true);
+    await page.screenshot({ path: '/tmp/sayvia-caption-lookup-narrow.png' });
+    await card.getByRole('button', { name: '按英语朗读', exact: true }).click();
+    await expect.poll(async () => (await speech()).spoken.length).toBe(2);
+    await page.evaluate(() => {
+      (window as typeof window & { selected: object }).selected = { languageCode: 'fr' };
+    });
+    await expect(card).toHaveCount(0);
+    await expect.poll(async () => (await speech()).stops).toBe(2);
+    await expect(controls.locator('summary')).toBeFocused();
+    expect(f.count()).toBe(5);
+  } finally {
+    await f.close();
+  }
+});
+
 test('new documents, source switches and SPA video navigation retain only their exact current source', async () => {
   const f = await workflowFixture();
   try {

@@ -59,6 +59,16 @@ export class CaptionPlayerSession {
   constructor(
     readonly controller: CaptionController,
     private readonly request: (message: Record<string, unknown>) => Promise<unknown>,
+    private readonly lookup?: {
+      open(
+        text: string,
+        anchor: DOMRect,
+        language: string,
+        player: HTMLElement,
+        focus: HTMLElement,
+      ): void;
+      close(): void;
+    },
   ) {
     this.capture = controller.snapshot();
     this.unsubscribe = controller.subscribe((view) => {
@@ -246,7 +256,19 @@ export class CaptionPlayerSession {
         source: granted,
         player,
         video,
-        overlay: new CaptionOverlay(player, video),
+        overlay: new CaptionOverlay(
+          player,
+          video,
+          this.lookup
+            ? {
+                language: source.capture.track.lang,
+                open: (text, anchor, focus) => {
+                  if (this.active === active && active.wantsDisplay)
+                    this.lookup?.open(text, anchor, source.capture!.track!.lang, player, focus);
+                },
+              }
+            : undefined,
+        ),
         unsubscribe: () => {},
         lastRenew: 0,
         lastAck: 0,
@@ -337,6 +359,8 @@ export class CaptionPlayerSession {
       this.release(active);
       this.retiring = active.scheduler;
     }
+    // Remove obsolete word buttons first so closing returns to stable controls.
+    this.lookup?.close();
     this.error = error;
     if (revoke) void this.controller.disableTranslation().catch(() => undefined);
     void this.drain();
