@@ -304,10 +304,24 @@ describe('learning routes and permission lifetime', () => {
     await f.broker.handle(captions(who), who);
     f.host.task.mockRejectedValue(new Error('LOST_ACK'));
     const request = lookup(who);
-    for (let i = 0; i < 2; i++)
+    for (let i = 0; i < 2; i++) {
       expect(await f.broker.handle(request, who)).toMatchObject({ ok: false });
+      await f.broker.reconcile();
+    }
     expect(f.dispatches()).toBe(1);
-    expect(f.saved().routes[0]!.state).toBe('running');
+    expect(f.saved().routes[0]).toMatchObject({ state: 'canceled', cancelPending: true });
+    expect(SessionSchema.safeParse(f.saved()).success).toBe(true);
+  });
+
+  it('fences a caption query failure before allowing any same-tab task', async () => {
+    const f = await setup();
+    const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+    await f.broker.handle(captions(who), who);
+    f.host.task.mockRejectedValue(new Error('DISCONNECTED'));
+    await f.broker.reconcile();
+    expect(f.saved().routes[0]).toMatchObject({ state: 'canceled', cancelPending: true });
+    expect(await f.broker.handle(lookup(who), who)).toMatchObject({ ok: false });
+    expect(f.dispatches()).toBe(1);
   });
 
   it('cancels captions on background recovery without replay or result delivery', async () => {

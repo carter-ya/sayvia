@@ -223,15 +223,9 @@ export class TaskBroker {
         (route) =>
           route.tabId === owner.tabId && route.purpose === 'captions' && occupiesSlot(route),
       )) {
-        // Do not open a second paid request if cancel acknowledgement is lost.
-        const stopped = await this.host.task('cancel', route.taskId, route.epoch);
-        if (
-          stopped.taskId !== route.taskId ||
-          stopped.state === 'running' ||
-          stopped.state === 'ready'
-        )
-          throw new Error('EXECUTOR_UNAVAILABLE');
-        await this.cancelRoute(route, false);
+        // Persist the fence before the RPC: later query failures must not release it.
+        await this.cancelRoute(route);
+        if (route.cancelPending) throw new Error('EXECUTOR_UNAVAILABLE');
       }
     }
     const active = this.state.routes.filter(occupiesSlot);
@@ -348,6 +342,10 @@ export class TaskBroker {
       const outcome = await this.host.task('query', route.taskId, route.epoch);
       await this.applyOutcome(route, outcome);
     } catch {
+      if (route.purpose === 'captions') {
+        await this.cancelRoute(route);
+        if (route.cancelPending) return;
+      }
       route.state = 'interrupted';
       route.recovered = true;
       route.error = 'CONTEXT_LOST';
@@ -363,7 +361,10 @@ export class TaskBroker {
       return;
     }
     if (outcome.state === 'running' && Date.now() >= route.deadlineAt) {
-      await this.host.task('cancel', route.taskId, route.epoch).catch(() => undefined);
+      if (route.purpose === 'captions') {
+        await this.cancelRoute(route);
+        if (route.cancelPending) return;
+      } else await this.host.task('cancel', route.taskId, route.epoch).catch(() => undefined);
       route.state = 'timedOut';
       route.error = 'TIMEOUT';
       await this.notify(route);
