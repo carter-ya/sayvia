@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { TaskBroker, type TaskOwner } from '../../src/background/task-broker';
+import { TaskBroker, type TaskOwner, type TaskPlatform } from '../../src/background/task-broker';
 import type { ExecutionView } from '../../src/runtime/executor-protocol';
 import {
   SessionSchema,
@@ -46,7 +46,7 @@ function control(
     },
   };
 }
-async function setup(initial?: TaskSession) {
+async function setup(initial?: TaskSession, loseCancelAck = false) {
   let saved: TaskSession = structuredClone(
     initial ?? { version: 1, routes: [], canceled: [], manual: [] },
   );
@@ -89,6 +89,7 @@ async function setup(initial?: TaskSession) {
       },
     ),
     task: vi.fn(async (type: 'query' | 'cancel' | 'ack', taskId: string) => {
+      if (type === 'cancel' && loseCancelAck) throw new Error('EXECUTOR_UNAVAILABLE');
       const current = views.get(taskId);
       if (!current) return { taskId, state: 'missing' as const };
       if (type === 'cancel') {
@@ -104,9 +105,10 @@ async function setup(initial?: TaskSession) {
     closeIfIdle: vi.fn(async () => {}),
   };
   const platform = {
+    captionAuthorized: vi.fn<() => Promise<boolean>>().mockResolvedValue(true),
     sitePermitted: vi.fn<(origin: string) => Promise<boolean>>().mockResolvedValue(true),
     permitted: vi.fn<(baseUrl: string) => Promise<boolean>>().mockResolvedValue(true),
-    deliver: vi.fn(async () => true),
+    deliver: vi.fn<TaskPlatform['deliver']>().mockResolvedValue(true),
     progress: vi.fn(async () => {}),
   };
   const broker = new TaskBroker(storage, repository, host, platform);
@@ -128,6 +130,295 @@ const result = {
   durationMs: 10,
   algorithmVersion: 'segments-v2.1',
 };
+
+const lookupValue = {
+  detectedLanguage: 'en',
+  meanings: [{ partOfSpeech: '名词', definition: '银行' }],
+  example: null,
+  note: null,
+};
+const lookupResult = {
+  requested: true as const,
+  durationMs: 10,
+  algorithmVersion: 'lookup-v3',
+  data: { purpose: 'lookup' as const, value: lookupValue },
+};
+function lookup(who: TaskOwner): Extract<TaskMessage, { type: 'learning.start' }> {
+  return {
+    type: 'learning.start',
+    protocolVersion: 1,
+    requestId: crypto.randomUUID(),
+    payload: {
+      clientTaskId: crypto.randomUUID(),
+      documentNonce: who.documentNonce,
+      purpose: 'lookup',
+      origin: 'page',
+      input: { text: 'bank', sourceLanguage: 'en', explanationLanguage: 'zh' },
+    },
+  };
+}
+function captions(who: TaskOwner): Extract<TaskMessage, { type: 'learning.start' }> {
+  return {
+    ...lookup(who),
+    payload: {
+      clientTaskId: crypto.randomUUID(),
+      documentNonce: who.documentNonce,
+      purpose: 'captions',
+      origin: 'page',
+      input: {
+        sessionId: crypto.randomUUID(),
+        generation: 1,
+        videoId: 'public-video',
+        trackKey: 'en:manual',
+        batchId: crypto.randomUUID(),
+        sourceLanguage: 'en',
+        targetLanguage: 'zh',
+        units: [{ unitId: 'u0', revision: 1, text: 'Hello.' }],
+      },
+    },
+  };
+}
+
+describe('learning routes and permission lifetime', () => {
+  it('delivers page lookup without write rights, source persistence, or duplicate dispatch', async () => {
+    const f = await setup();
+    const who = { ...owner(), siteOrigin: 'https://example.test' };
+    const request = lookup(who);
+    expect(await f.broker.handle(request, who)).toMatchObject({
+      ok: true,
+      data: { purpose: 'lookup', canApply: false },
+    });
+    await f.broker.handle(request, who);
+    expect(f.dispatches()).toBe(1);
+    expect(JSON.stringify(f.saved())).not.toMatch(/bank|银行/);
+    const route = f.saved().routes[0]!;
+    f.views.set(route.taskId, {
+      taskId: route.taskId,
+      purpose: 'lookup',
+      state: 'ready',
+      result: lookupResult,
+    });
+    await f.broker.reconcile();
+    expect(f.platform.deliver).toHaveBeenCalledWith(
+      expect.objectContaining({ purpose: 'lookup' }),
+      lookupResult,
+      false,
+    );
+    expect(f.saved().routes[0]!.state).toBe('delivered');
+    expect(SessionSchema.safeParse(f.saved()).success).toBe(true);
+  });
+
+  it.each(['translate', 'lookup'] as const)(
+    'rejects a result of a different purpose for %s',
+    async (purpose) => {
+      const f = await setup();
+      const who = { ...owner(), siteOrigin: 'https://example.test' };
+      await f.broker.handle(purpose === 'lookup' ? lookup(who) : start(who), who);
+      const route = f.saved().routes[0]!;
+      f.views.set(route.taskId, {
+        taskId: route.taskId,
+        state: 'ready',
+        result: purpose === 'lookup' ? result : lookupResult,
+      });
+      await f.broker.reconcile();
+      expect(f.saved().routes[0]).toMatchObject({ state: 'failed', error: 'FORMAT_INVALID' });
+      expect(f.platform.deliver).not.toHaveBeenCalled();
+    },
+  );
+
+  it('checks caption authority both before preparing and immediately before dispatch', async () => {
+    const f = await setup();
+    const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+    f.platform.captionAuthorized.mockResolvedValueOnce(true).mockResolvedValue(false);
+    expect(await f.broker.handle(captions(who), who)).toEqual({ ok: false, error: 'FORBIDDEN' });
+    expect(f.dispatches()).toBe(0);
+    expect(f.saved().routes).toHaveLength(0);
+  });
+
+  it.each(['wrong-site', 'disabled-site', 'no-video-consent'])(
+    'denies captions at %s before executor creation',
+    async (scenario) => {
+      const f = await setup();
+      const who = {
+        ...owner(),
+        siteOrigin: scenario === 'wrong-site' ? 'https://example.test' : 'https://www.youtube.com',
+      };
+      if (scenario === 'disabled-site') f.platform.sitePermitted.mockResolvedValue(false);
+      if (scenario === 'no-video-consent') f.platform.captionAuthorized.mockResolvedValue(false);
+      expect(await f.broker.handle(captions(who), who)).toMatchObject({ ok: false });
+      expect(f.host.start).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['revoked', 'stale-batch', 'valid'])(
+    'gates completed captions against %s identity/authority',
+    async (scenario) => {
+      const f = await setup();
+      const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+      await f.broker.handle(captions(who), who);
+      const route = f.saved().routes[0]!;
+      const value = {
+        ...route.captionIdentity!,
+        units: [{ unitId: 'u0', revision: 1, text: '你好。' }],
+      };
+      if (scenario === 'revoked') f.platform.captionAuthorized.mockResolvedValue(false);
+      if (scenario === 'stale-batch') value.batchId = crypto.randomUUID();
+      f.views.set(route.taskId, {
+        taskId: route.taskId,
+        state: 'ready',
+        result: { ...lookupResult, data: { purpose: 'captions', value } },
+      });
+      await f.broker.reconcile();
+      expect(f.saved().routes[0]!.state).toBe(scenario === 'valid' ? 'delivered' : 'canceled');
+      expect(f.platform.deliver).toHaveBeenCalledTimes(scenario === 'valid' ? 1 : 0);
+      if (scenario === 'valid') expect(f.platform.deliver.mock.calls[0]?.[2]).toBe(false);
+    },
+  );
+
+  it('awaits caption cancellation before same-tab lookup and keeps other tabs independent', async () => {
+    const f = await setup();
+    const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+    await f.broker.handle(captions(who), who);
+    const route = f.saved().routes[0]!;
+    let release!: () => void;
+    const canceled = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const original = f.host.task.getMockImplementation()!;
+    f.host.task.mockImplementation(async (...args) => {
+      if (args[0] === 'cancel') await canceled;
+      return original(...args);
+    });
+    const next = f.broker.handle(lookup(who), who);
+    await vi.waitFor(() => expect(f.host.task).toHaveBeenCalledWith('cancel', route.taskId, epoch));
+    expect(f.dispatches()).toBe(1);
+    release();
+    expect(await next).toMatchObject({ ok: true, data: { purpose: 'lookup' } });
+    expect(f.dispatches()).toBe(2);
+    expect(f.saved().routes[0]!.state).toBe('canceled');
+  });
+
+  it('does not start another paid task after a lost cancellation acknowledgement, including retries', async () => {
+    const f = await setup();
+    const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+    await f.broker.handle(captions(who), who);
+    f.host.task.mockRejectedValue(new Error('LOST_ACK'));
+    const request = lookup(who);
+    for (let i = 0; i < 2; i++)
+      expect(await f.broker.handle(request, who)).toMatchObject({ ok: false });
+    expect(f.dispatches()).toBe(1);
+    expect(f.saved().routes[0]!.state).toBe('running');
+  });
+
+  it('cancels captions on background recovery without replay or result delivery', async () => {
+    const f = await setup();
+    const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+    await f.broker.handle(captions(who), who);
+    const restarted = await setup(f.saved());
+    expect(restarted.saved().routes[0]).toMatchObject({ state: 'canceled', recovered: true });
+    expect(restarted.host.start).not.toHaveBeenCalled();
+    expect(restarted.platform.deliver).not.toHaveBeenCalled();
+    expect(restarted.host.task).toHaveBeenCalledWith('cancel', f.saved().routes[0]!.taskId, epoch);
+  });
+
+  it('retains a cancel-pending slot after recovery failure until cancellation is confirmed', async () => {
+    const f = await setup();
+    const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+    await f.broker.handle(captions(who), who);
+    const restarted = await setup(f.saved(), true);
+    expect(restarted.saved().routes[0]).toMatchObject({ state: 'canceled', cancelPending: true });
+    expect(SessionSchema.safeParse(restarted.saved()).success).toBe(true);
+    expect(await restarted.broker.handle(lookup(who), who)).toMatchObject({ ok: false });
+    expect(restarted.dispatches()).toBe(0);
+    expect(restarted.platform.deliver).not.toHaveBeenCalled();
+    const route = restarted.saved().routes[0]!;
+    restarted.host.task.mockResolvedValue({ taskId: route.taskId, state: 'canceled' });
+    expect(await restarted.broker.handle(lookup(who), who)).toMatchObject({ ok: true });
+    expect(restarted.dispatches()).toBe(1);
+    expect(restarted.saved().routes[0]).not.toHaveProperty('cancelPending');
+  });
+
+  it('preserves pending caption cancellation after failed delivery and configuration clearing', async () => {
+    const f = await setup();
+    const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+    await f.broker.handle(captions(who), who);
+    const route = f.saved().routes[0]!;
+    const ready: ExecutionView = {
+      taskId: route.taskId,
+      state: 'ready',
+      result: {
+        ...lookupResult,
+        data: {
+          purpose: 'captions',
+          value: {
+            ...route.captionIdentity!,
+            units: [{ unitId: 'u0', revision: 1, text: '你好' }],
+          },
+        },
+      },
+    };
+    f.host.task.mockImplementation(async (type) => {
+      if (type === 'cancel') throw new Error('LOST_ACK');
+      return ready;
+    });
+    f.platform.deliver.mockResolvedValue(false);
+    await f.broker.reconcile();
+    expect(f.saved().routes[0]).toMatchObject({ state: 'canceled', cancelPending: true });
+    expect(SessionSchema.safeParse(f.saved()).success).toBe(true);
+    await f.broker.clearAll(async () => {});
+    expect(f.saved().routes[0]).toMatchObject({ state: 'canceled', cancelPending: true });
+    expect(f.saved().manual).toEqual([]);
+    expect(await f.broker.handle(lookup(who), who)).toMatchObject({ ok: false });
+    expect(f.dispatches()).toBe(1);
+  });
+
+  it('restores typed manual lookup and clears results on changed input or purpose', async () => {
+    const f = await setup();
+    const who = { ...owner(), kind: 'manual' as const };
+    const request = lookup(who);
+    if (request.payload.purpose !== 'lookup') throw new Error('fixture');
+    request.payload = {
+      ...request.payload,
+      origin: 'manual',
+      tabId: who.tabId,
+      manualRevision: 0,
+      manualGeneration: await f.broker.manualGeneration(),
+    };
+    await f.broker.handle(request, who);
+    const route = f.saved().routes[0]!;
+    f.views.set(route.taskId, { taskId: route.taskId, state: 'ready', result: lookupResult });
+    await f.broker.reconcile();
+    expect(await f.broker.readManual(who.tabId)).toMatchObject({
+      purpose: 'lookup',
+      input: 'bank',
+      lookupResult: lookupValue,
+    });
+    expect(f.saved().manual[0]).not.toHaveProperty('result');
+    const restarted = await setup(f.saved());
+    expect(await restarted.broker.readManual(who.tabId)).toMatchObject({
+      lookupResult: lookupValue,
+    });
+    const save = {
+      generation: await f.broker.manualGeneration(),
+      tabId: who.tabId,
+      expectedRevision: f.saved().manual[0]!.revision!,
+      editSession: crypto.randomUUID(),
+      sequence: 1,
+      input: 'bank',
+      sourceLanguage: 'en',
+      targetLanguage: 'zh',
+      purpose: 'lookup' as const,
+    };
+    await f.broker.saveManual(save);
+    expect(f.saved().manual[0]!.lookupResult).toEqual(lookupValue);
+    await f.broker.saveManual({ ...save, sequence: 2, input: 'river' });
+    expect(f.saved().manual[0]).not.toHaveProperty('lookupResult');
+    await f.broker.saveManual({ ...save, sequence: 3, purpose: 'translate', result: '' });
+    expect(f.saved().manual[0]!.clientTaskId).not.toBe(route.clientTaskId);
+    expect(f.saved().manual[0]).not.toHaveProperty('lookupResult');
+    expect(SessionSchema.safeParse(f.saved()).success).toBe(true);
+  });
+});
 
 describe('task ownership and durable dispatch', () => {
   it('holds dispatch while clearing, aborts active work and removes private session drafts', async () => {

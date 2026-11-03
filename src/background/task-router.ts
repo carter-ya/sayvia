@@ -52,7 +52,7 @@ export async function handleTaskMessage(
     typeof message === 'object' &&
     message !== null &&
     'type' in message &&
-    message.type === 'translation.manual.save'
+    (message.type === 'translation.manual.save' || message.type === 'learning.manual.save')
   ) {
     const parsed = ManualSave.safeParse(message);
     if (!parsed.success) return { ok: false, error: 'INVALID_REQUEST' };
@@ -90,6 +90,27 @@ export async function handleTaskMessage(
     } catch {
       return { ok: false, error: 'CONTEXT_LOST' };
     }
+  }
+  if (request.type === 'learning.start') {
+    const payload = request.payload;
+    if (payload.origin === 'manual') {
+      if (!popup || payload.purpose !== 'lookup') return { ok: false, error: 'FORBIDDEN' };
+      try {
+        await browser.tabs.get(payload.tabId);
+      } catch {
+        return { ok: false, error: 'CONTEXT_LOST' };
+      }
+      return broker.handle(request, {
+        tabId: payload.tabId,
+        frameId: 0,
+        documentNonce: payload.documentNonce,
+        kind: 'manual',
+      });
+    }
+    if (popup) return { ok: false, error: 'FORBIDDEN' };
+    const owner = pageOwner(sender, payload.documentNonce, browser.runtime.id);
+    if (!owner) return { ok: false, error: 'FORBIDDEN' };
+    return broker.handle(request, owner);
   }
   const payload = request.payload;
   if (popup) {

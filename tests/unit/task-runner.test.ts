@@ -1,13 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { localProcessor } from '../../src/core/translation-processor';
+import { localLearningProcessor } from '../../src/core/learning-processor';
 import { TaskRunner, RESULT_TTL_MS, DEDUP_TTL_MS } from '../../src/executor/task-runner';
 import {
   ExecutionSchema,
   ExecutorCommandSchema,
-  type Execution,
+  type TranslationExecution,
+  type LearningExecution,
 } from '../../src/runtime/executor-protocol';
 
-function input(): Execution {
+function input(): TranslationExecution {
   return {
     taskId: crypto.randomUUID(),
     deadlineAt: Date.now() + 60_000,
@@ -54,6 +56,82 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
   runners.splice(0).forEach((r) => r.dispose());
   vi.useRealTimers();
+});
+
+describe('learning task execution', () => {
+  function learningSetup(wait = false) {
+    const value = {
+      detectedLanguage: 'en',
+      meanings: [{ partOfSpeech: '名词', definition: '银行' }],
+      example: null,
+      note: null,
+    };
+    let finish!: (response: Response) => void;
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async () =>
+      wait
+        ? new Promise<Response>((resolve) => {
+            finish = resolve;
+          })
+        : response(),
+    );
+    const response = () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              index: 0,
+              finish_reason: 'stop',
+              message: { role: 'assistant', content: JSON.stringify(value) },
+            },
+          ],
+        }),
+      );
+    const legacy = vi.fn(localProcessor);
+    const learning = vi.fn(localLearningProcessor);
+    const runner = new TaskRunner(vi.fn(), legacy, fetcher, learning);
+    runners.push(runner);
+    const old = input();
+    const task: LearningExecution = {
+      taskId: old.taskId,
+      deadlineAt: old.deadlineAt,
+      config: old.config,
+      purpose: 'lookup',
+      input: { text: 'bank', sourceLanguage: 'en', explanationLanguage: 'zh' },
+    };
+    return { runner, fetcher, legacy, learning, task, value, finish: () => finish(response()) };
+  }
+  it('uses the learning processor and retains typed results only for their bounded lifetime', async () => {
+    const f = learningSetup();
+    f.runner.start(f.task);
+    f.runner.start(f.task);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.runner.query(f.task.taskId)).toMatchObject({
+      state: 'ready',
+      purpose: 'lookup',
+      result: { data: { purpose: 'lookup', value: f.value } },
+    });
+    expect(f.fetcher).toHaveBeenCalledOnce();
+    expect(f.legacy).not.toHaveBeenCalled();
+    expect(f.learning).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(RESULT_TTL_MS);
+    expect(f.runner.query(f.task.taskId)).toMatchObject({ state: 'expired', purpose: 'lookup' });
+    expect(f.runner.query(f.task.taskId)).not.toHaveProperty('result');
+    expect(f.runner.start(f.task).state).toBe('expired');
+    expect(f.fetcher).toHaveBeenCalledOnce();
+  });
+  it('aborts a learning request and rejects its late completion and duplicate start', async () => {
+    const f = learningSetup(true);
+    f.runner.start(f.task);
+    await vi.advanceTimersByTimeAsync(0);
+    const signal = f.fetcher.mock.calls[0]![1]!.signal!;
+    expect(f.runner.cancel(f.task.taskId).state).toBe('canceled');
+    expect(signal.aborted).toBe(true);
+    f.finish();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.runner.start(f.task)).toMatchObject({ state: 'canceled', purpose: 'lookup' });
+    expect(f.runner.query(f.task.taskId)).not.toHaveProperty('result');
+    expect(f.fetcher).toHaveBeenCalledOnce();
+  });
 });
 
 describe('bounded execution lifecycle', () => {
@@ -164,7 +242,7 @@ describe('bounded execution lifecycle', () => {
     runner.start(task);
     await vi.advanceTimersByTimeAsync(0);
     await vi.advanceTimersByTimeAsync(RESULT_TTL_MS - 1);
-    expect(runner.query(task.taskId).result?.text).toBe('Hello');
+    expect(runner.query(task.taskId).result).toMatchObject({ text: 'Hello' });
     await vi.advanceTimersByTimeAsync(1);
     expect(runner.query(task.taskId)).toEqual({ taskId: task.taskId, state: 'expired' });
     await vi.advanceTimersByTimeAsync(DEDUP_TTL_MS);

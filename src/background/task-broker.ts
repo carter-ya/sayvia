@@ -1,6 +1,7 @@
 import {
   ProgressSchema,
   ResultMetricsSchema,
+  TranslationResultSchema,
   type TranslationProgress,
 } from '../runtime/translation-progress';
 import type { ConfigRepository } from '../storage/repository';
@@ -10,9 +11,13 @@ import type { ExecutorHost } from './executor-host';
 import type { TaskStorage } from './task-storage';
 import type { ManualSavePayload } from '../runtime/manual-draft';
 import { matchesHostOrigin } from './permission-revocation';
+import { LearningResultSchema, type LearningStart } from '../runtime/learning-protocol';
+import { CaptionIdentitySchema } from '../core/learning-contract';
+import type { z } from 'zod';
 
 const DEDUP_MS = 300_000;
 const ACTIVE = new Set(['running', 'ready']);
+const occupiesSlot = (route: TaskRoute) => ACTIVE.has(route.state) || route.cancelPending === true;
 export interface TaskOwner {
   tabId: number;
   frameId: 0;
@@ -26,6 +31,10 @@ export interface TaskPlatform {
   progress?(route: TaskRoute, progress: TranslationProgress): Promise<void>;
   sitePermitted?(origin: string): Promise<boolean>;
   permitted(baseUrl: string): Promise<boolean>;
+  captionAuthorized?(
+    owner: TaskOwner,
+    identity: z.infer<typeof CaptionIdentitySchema>,
+  ): Promise<boolean>;
   deliver(
     route: TaskRoute,
     result: NonNullable<ExecutionView['result']>,
@@ -60,7 +69,11 @@ export class TaskBroker {
   private async initialize() {
     this.state = await this.storage.read();
     this.state.manualGeneration ??= crypto.randomUUID();
-    for (const route of this.state.routes) route.recovered = true;
+    for (const route of this.state.routes) {
+      route.recovered = true;
+      // A recovered background must not resume a page's continuous paid caption session.
+      if (route.purpose === 'captions' && occupiesSlot(route)) await this.cancelRoute(route);
+    }
     this.prune();
     await this.reconcileRoutes();
   }
@@ -81,7 +94,7 @@ export class TaskBroker {
       if (!this.state.routes.some((r) => r.taskId === id && r.state === 'running'))
         this.progress.delete(id);
     this.state.routes = this.state.routes.filter(
-      (route) => ACTIVE.has(route.state) || route.expiresAt > Date.now(),
+      (route) => occupiesSlot(route) || route.expiresAt > Date.now(),
     );
     this.state.canceled = this.state.canceled.filter((entry) => entry.expiresAt > Date.now());
   }
@@ -104,11 +117,16 @@ export class TaskBroker {
       clientTaskId: route.clientTaskId,
       documentNonce: route.documentNonce,
       state: route.state,
+      ...(route.purpose ? { purpose: route.purpose } : {}),
       startedAt: route.startedAt,
       ...(route.state === 'running' && this.progress.has(route.taskId)
         ? { progress: this.progress.get(route.taskId) }
         : {}),
-      canApply: route.mode === 'write' && !route.recovered && route.state === 'delivered',
+      canApply:
+        (route.purpose ?? 'translate') === 'translate' &&
+        route.mode === 'write' &&
+        !route.recovered &&
+        route.state === 'delivered',
       provider: { id: route.providerId, revision: route.providerRevision, model: route.model },
       ...(route.error ? { error: route.error } : {}),
     };
@@ -140,12 +158,12 @@ export class TaskBroker {
             data: route ? this.view(route) : { clientTaskId, state: 'canceled', canApply: false },
           };
         }
-        if (request.type === 'translation.start') {
+        if (request.type === 'translation.start' || request.type === 'learning.start') {
           if (route) return { ok: true, data: this.view(route) };
           if (this.state.canceled.some((entry) => entry.key === this.key(owner, clientTaskId)))
             return { ok: true, data: { clientTaskId, state: 'canceled', canApply: false } };
           route = await this.start(request.payload, owner, expectedProviderRevision);
-        } else if (route && ACTIVE.has(route.state)) await this.refresh(route);
+        } else if (route && occupiesSlot(route)) await this.refresh(route);
         if (!route) return { ok: false, error: 'NOT_FOUND' };
         await this.persist();
         await this.closeIdle();
@@ -162,17 +180,61 @@ export class TaskBroker {
       };
     }
   }
-  private async start(payload: StartPayload, owner: TaskOwner, expectedProviderRevision?: number) {
-    if ((owner.kind === 'manual') !== (payload.mode === 'manual')) throw new Error('FORBIDDEN');
+  private async start(
+    payload: StartPayload | LearningStart,
+    owner: TaskOwner,
+    expectedProviderRevision?: number,
+  ) {
+    const learning = 'purpose' in payload ? payload : undefined;
+    const legacy = 'mode' in payload ? payload : undefined;
+    const purpose = learning?.purpose ?? 'translate';
+    const mode = legacy?.mode ?? (learning?.origin === 'manual' ? 'manual' : 'read');
+    const entry = legacy?.entry ?? (learning?.origin === 'page' ? 'inline' : undefined);
+    const manualRevision = 'manualRevision' in payload ? payload.manualRevision : undefined;
+    const manualGeneration = 'manualGeneration' in payload ? payload.manualGeneration : undefined;
+    const captionIdentity =
+      learning?.purpose === 'captions'
+        ? CaptionIdentitySchema.parse({
+            sessionId: learning.input.sessionId,
+            generation: learning.input.generation,
+            videoId: learning.input.videoId,
+            trackKey: learning.input.trackKey,
+            batchId: learning.input.batchId,
+          })
+        : undefined;
+    if ((owner.kind === 'manual') !== (mode === 'manual')) throw new Error('FORBIDDEN');
     const checkSite = async () => {
       if (
-        payload.entry === 'inline' &&
+        entry === 'inline' &&
         (!owner.siteOrigin || !(await this.platform.sitePermitted?.(owner.siteOrigin)))
       )
         throw new Error('SITE_DISABLED');
+      if (
+        captionIdentity &&
+        (owner.kind !== 'page' ||
+          owner.siteOrigin !== 'https://www.youtube.com' ||
+          !(await this.platform.captionAuthorized?.(owner, captionIdentity)))
+      )
+        throw new Error('FORBIDDEN');
     };
     await checkSite();
-    const active = this.state.routes.filter((route) => ACTIVE.has(route.state));
+    if (purpose !== 'captions') {
+      for (const route of this.state.routes.filter(
+        (route) =>
+          route.tabId === owner.tabId && route.purpose === 'captions' && occupiesSlot(route),
+      )) {
+        // Do not open a second paid request if cancel acknowledgement is lost.
+        const stopped = await this.host.task('cancel', route.taskId, route.epoch);
+        if (
+          stopped.taskId !== route.taskId ||
+          stopped.state === 'running' ||
+          stopped.state === 'ready'
+        )
+          throw new Error('EXECUTOR_UNAVAILABLE');
+        await this.cancelRoute(route, false);
+      }
+    }
+    const active = this.state.routes.filter(occupiesSlot);
     if (
       this.state.routes.length >= 256 ||
       active.some((route) => route.tabId === owner.tabId) ||
@@ -181,10 +243,10 @@ export class TaskBroker {
       throw new Error('TASK_BUSY');
     const priorManual = this.state.manual.find((draft) => draft.tabId === owner.tabId);
     if (
-      payload.mode === 'manual' &&
-      payload.manualRevision !== undefined &&
-      (payload.manualRevision !== (priorManual?.revision ?? 0) ||
-        payload.manualGeneration !== this.state.manualGeneration)
+      mode === 'manual' &&
+      manualRevision !== undefined &&
+      (manualRevision !== (priorManual?.revision ?? 0) ||
+        manualGeneration !== this.state.manualGeneration)
     )
       throw new Error('CONFLICT');
     const provider = await this.repository.completionConfig(payload.providerId);
@@ -215,8 +277,10 @@ export class TaskBroker {
           tabId: owner.tabId,
           frameId: 0,
           ...(owner.documentId ? { documentId: owner.documentId } : {}),
-          mode: payload.mode,
-          ...(payload.entry ? { entry: payload.entry } : {}),
+          mode,
+          ...(learning ? { purpose: learning.purpose } : {}),
+          ...(captionIdentity ? { captionIdentity } : {}),
+          ...(entry ? { entry: entry } : {}),
           apiOrigin: new URL(provider.config.baseUrl).origin,
           ...(owner.siteOrigin ? { siteOrigin: owner.siteOrigin } : {}),
           epoch,
@@ -230,27 +294,39 @@ export class TaskBroker {
           recovered: false,
         };
         this.state.routes.push(route);
-        if (payload.mode === 'manual') {
+        if (mode === 'manual') {
           this.state.manual = this.state.manual.filter((value) => value.tabId !== owner.tabId);
           this.state.manual.push({
             tabId: owner.tabId,
             clientTaskId: payload.clientTaskId,
             documentNonce: owner.documentNonce,
-            input: payload.source.text,
-            targetLanguage: payload.targetLanguage,
-            sourceLanguage: payload.sourceLanguage,
+            input:
+              legacy?.source.text ?? (learning?.purpose === 'lookup' ? learning.input.text : ''),
+            ...(purpose === 'lookup' ? { purpose: 'lookup' as const } : {}),
+            targetLanguage:
+              legacy?.targetLanguage ??
+              (learning?.purpose === 'lookup' ? learning.input.explanationLanguage : ''),
+            sourceLanguage: legacy?.sourceLanguage ?? learning?.input.sourceLanguage ?? 'auto',
             ...(payload.providerId ? { providerId: payload.providerId } : {}),
             revision: (priorManual?.revision ?? 0) + 1,
           });
         }
         await this.persist();
-        return {
+        const base = {
           taskId: route.taskId,
           deadlineAt: route.deadlineAt,
           config: provider.config,
-          source: payload.source,
-          sourceLanguage: payload.sourceLanguage,
-          targetLanguage: payload.targetLanguage,
+        };
+        if (learning)
+          return learning.purpose === 'lookup'
+            ? ({ ...base, purpose: 'lookup', input: learning.input } satisfies Execution)
+            : ({ ...base, purpose: 'captions', input: learning.input } satisfies Execution);
+        if (!legacy) throw new Error('FORBIDDEN');
+        return {
+          ...base,
+          source: legacy.source,
+          sourceLanguage: legacy.sourceLanguage,
+          targetLanguage: legacy.targetLanguage,
         } satisfies Execution;
       });
       if (!route) throw new Error('EXECUTOR_UNAVAILABLE');
@@ -264,6 +340,10 @@ export class TaskBroker {
     return route;
   }
   private async refresh(route: TaskRoute) {
+    if (route.cancelPending) {
+      await this.cancelRoute(route);
+      return;
+    }
     try {
       const outcome = await this.host.task('query', route.taskId, route.epoch);
       await this.applyOutcome(route, outcome);
@@ -313,6 +393,48 @@ export class TaskBroker {
       route.error = 'CONTEXT_LOST';
       return;
     }
+    const learningResult = LearningResultSchema.safeParse(outcome.result);
+    const translationResult = TranslationResultSchema.safeParse(outcome.result);
+    const purpose = route.purpose ?? 'translate';
+    const result =
+      purpose === 'translate'
+        ? translationResult.success
+          ? translationResult.data
+          : undefined
+        : learningResult.success && learningResult.data.data.purpose === purpose
+          ? learningResult.data
+          : undefined;
+    if (!result) {
+      route.state = 'failed';
+      route.error = 'FORMAT_INVALID';
+      await this.notify(route);
+      return;
+    }
+    if (purpose === 'captions') {
+      const identity = route.captionIdentity;
+      const owner: TaskOwner = {
+        tabId: route.tabId,
+        frameId: route.frameId,
+        documentNonce: route.documentNonce,
+        kind: 'page',
+        ...(route.documentId ? { documentId: route.documentId } : {}),
+        ...(route.siteOrigin ? { siteOrigin: route.siteOrigin } : {}),
+      };
+      if (
+        !identity ||
+        !learningResult.success ||
+        learningResult.data.data.purpose !== 'captions' ||
+        Object.entries(identity).some(
+          ([key, value]) =>
+            learningResult.data.data.purpose === 'captions' &&
+            learningResult.data.data.value[key as keyof typeof identity] !== value,
+        ) ||
+        !(await this.platform.captionAuthorized?.(owner, identity))
+      ) {
+        await this.cancelRoute(route);
+        return;
+      }
+    }
     await this.persist();
     if (route.mode === 'manual') {
       const draft = this.state.manual.find(
@@ -322,25 +444,47 @@ export class TaskBroker {
         await this.cancelRoute(route);
         return;
       }
-      draft.result = outcome.result.text;
+      if (
+        purpose === 'lookup' &&
+        learningResult.success &&
+        learningResult.data.data.purpose === 'lookup' &&
+        draft.purpose === 'lookup'
+      ) {
+        draft.lookupResult = learningResult.data.data.value;
+        delete draft.result;
+      } else if (
+        purpose === 'translate' &&
+        translationResult.success &&
+        draft.purpose !== 'lookup'
+      ) {
+        draft.result = translationResult.data.text;
+        delete draft.lookupResult;
+      } else {
+        await this.cancelRoute(route);
+        return;
+      }
       draft.metrics = ResultMetricsSchema.parse({
-        requested: outcome.result.requested,
-        durationMs: outcome.result.durationMs,
-        streamed: outcome.result.streamed,
-        usage: outcome.result.usage,
-        estimates: outcome.result.estimates,
+        requested: result.requested,
+        durationMs: result.durationMs,
+        streamed: result.streamed,
+        usage: result.usage,
+        estimates: result.estimates,
       });
       draft.revision = (draft.revision ?? 0) + 1;
     } else if (
       !(await this.platform.deliver(
         route,
-        outcome.result,
-        route.mode === 'write' && !route.recovered,
+        result,
+        (route.purpose ?? 'translate') === 'translate' &&
+          route.mode === 'write' &&
+          !route.recovered,
       ))
     ) {
       await this.cancelRoute(route);
-      route.state = 'interrupted';
-      route.error = 'CONTEXT_LOST';
+      if (!route.cancelPending) {
+        route.state = 'interrupted';
+        route.error = 'CONTEXT_LOST';
+      }
       return;
     }
     route.state = 'delivered';
@@ -350,29 +494,41 @@ export class TaskBroker {
   private notify(route: TaskRoute) {
     return (this.platform.notify?.(route) ?? Promise.resolve()).catch(() => undefined);
   }
-  private async cancelRoute(route: TaskRoute) {
-    const wasActive = ACTIVE.has(route.state);
+  private async cancelRoute(route: TaskRoute, cancelExecution = true) {
+    const wasActive = occupiesSlot(route);
     this.progress.delete(route.taskId);
     route.state = 'canceled';
     route.error = 'CANCELED';
     route.recovered = true;
+    if (route.purpose === 'captions' && wasActive && cancelExecution) route.cancelPending = true;
+    else delete route.cancelPending;
     try {
       await this.persist();
     } finally {
-      if (wasActive)
-        await this.host.task('cancel', route.taskId, route.epoch).catch(() => undefined);
+      if (wasActive && cancelExecution) {
+        const stopped = await this.host
+          .task('cancel', route.taskId, route.epoch)
+          .catch(() => undefined);
+        if (stopped && stopped.taskId === route.taskId && !ACTIVE.has(stopped.state)) {
+          delete route.cancelPending;
+          await this.persist();
+        }
+      }
     }
     const draft = this.state.manual.find(
       (value) => value.clientTaskId === route.clientTaskId && value.tabId === route.tabId,
     );
-    if (draft) delete draft.result;
+    if (draft) {
+      delete draft.result;
+      delete draft.lookupResult;
+    }
     await this.notify(route);
   }
   private async reconcileRoutes(progressOnly = false) {
     const before = JSON.stringify(this.state);
-    for (const route of this.state.routes) if (ACTIVE.has(route.state)) await this.refresh(route);
+    for (const route of this.state.routes) if (occupiesSlot(route)) await this.refresh(route);
     if (!progressOnly || JSON.stringify(this.state) !== before) await this.persist();
-    if (!this.state.routes.some((route) => ACTIVE.has(route.state))) await this.closeIdle();
+    if (!this.state.routes.some(occupiesSlot)) await this.closeIdle();
   }
   reconcile(progressOnly = false) {
     return this.serial(() => this.reconcileRoutes(progressOnly));
@@ -392,7 +548,7 @@ export class TaskBroker {
   }
   cancelRevokedOrigins(origins: readonly string[]) {
     return this.cancelWhere(async (route) => {
-      if (!ACTIVE.has(route.state)) return false;
+      if (!occupiesSlot(route)) return false;
       const siteRevoked =
         route.mode !== 'manual' &&
         route.siteOrigin &&
@@ -411,7 +567,8 @@ export class TaskBroker {
       }
       this.state = {
         version: 1,
-        routes: [],
+        // Keep only body-free cancellation fences until their old executor has stopped.
+        routes: this.state.routes.filter((route) => route.cancelPending),
         canceled: [],
         manual: [],
         manualGeneration: crypto.randomUUID(),
@@ -449,12 +606,28 @@ export class TaskBroker {
       if (sameLease && value.sequence <= (current?.editSequence ?? -1))
         return { revision: current!.revision ?? 0 };
       if (!current && this.state.manual.length >= 256) throw new Error('TASK_BUSY');
+      const purpose = value.purpose ?? 'translate';
+      const purposeChanged = (current?.purpose ?? 'translate') !== purpose;
+      const sameLookupInput =
+        purpose === 'lookup' &&
+        !purposeChanged &&
+        current?.input === value.input &&
+        current.sourceLanguage === (value.sourceLanguage ?? 'auto') &&
+        current.targetLanguage === value.targetLanguage &&
+        current.providerId === value.providerId;
       const next = {
         tabId: value.tabId,
-        clientTaskId: current?.clientTaskId ?? crypto.randomUUID(),
+        clientTaskId: (!purposeChanged && current?.clientTaskId) || crypto.randomUUID(),
         documentNonce: current?.documentNonce ?? crypto.randomUUID(),
         input: value.input,
-        result: value.result,
+        ...(value.purpose === 'lookup'
+          ? {
+              purpose: 'lookup' as const,
+              ...(sameLookupInput && current?.lookupResult
+                ? { lookupResult: current.lookupResult }
+                : {}),
+            }
+          : { result: value.result }),
         targetLanguage: value.targetLanguage,
         sourceLanguage: value.sourceLanguage ?? 'auto',
         ...(value.providerId ? { providerId: value.providerId } : {}),

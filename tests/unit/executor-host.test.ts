@@ -169,6 +169,24 @@ describe('serialized Offscreen lifecycle', () => {
     expect(f.commands).toHaveLength(0);
   });
 
+  it('confirms cancellation when the old executor is absent or replaced, without canceling the new epoch', async () => {
+    const f = setup();
+    const oldId = crypto.randomUUID();
+    const oldEpoch = crypto.randomUUID();
+    expect(await f.host.task('cancel', oldId, oldEpoch)).toEqual({
+      taskId: oldId,
+      state: 'missing',
+    });
+    expect(f.api.offscreen.createDocument).not.toHaveBeenCalled();
+    const active = await f.host.start(async (epoch) => execution(epoch));
+    expect(await f.host.task('cancel', oldId, oldEpoch)).toEqual({
+      taskId: oldId,
+      state: 'missing',
+    });
+    expect(f.tasks.has(active.taskId)).toBe(true);
+    expect(f.commands.some((command) => command.command.type === 'cancel')).toBe(false);
+  });
+
   it('a lost START reply is followed only by a query', async () => {
     vi.useFakeTimers();
     const f = setup();

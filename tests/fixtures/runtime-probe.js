@@ -3,6 +3,7 @@
 const documentNonce = crypto.randomUUID();
 const editorSessionId = crypto.randomUUID();
 let last;
+let lastType = 'translation.start';
 const body = document.body;
 chrome.storage.session.get('sayvia.tasks').then(
   () => {
@@ -25,6 +26,7 @@ function reflect(value) {
 }
 document.querySelector('#start')?.addEventListener('click', (event) => {
   if (!event.isTrusted) return;
+  lastType = 'translation.start';
   last = {
     clientTaskId: crypto.randomUUID(),
     documentNonce,
@@ -39,8 +41,21 @@ document.querySelector('#start')?.addEventListener('click', (event) => {
   body.dataset.result = '';
   void send('translation.start', last).then(reflect);
 });
+document.querySelector('#lookup')?.addEventListener('click', (event) => {
+  if (!event.isTrusted) return;
+  lastType = 'learning.start';
+  last = {
+    clientTaskId: crypto.randomUUID(),
+    documentNonce,
+    purpose: 'lookup',
+    origin: 'page',
+    input: { text: 'bank', sourceLanguage: 'en', explanationLanguage: 'zh' },
+  };
+  body.dataset.result = '';
+  void send(lastType, last).then(reflect);
+});
 document.querySelector('#retry')?.addEventListener('click', (event) => {
-  if (event.isTrusted && last) void send('translation.start', last).then(reflect);
+  if (event.isTrusted && last) void send(lastType, last).then(reflect);
 });
 document.querySelector('#cancel')?.addEventListener('click', (event) => {
   if (event.isTrusted && last)
@@ -50,7 +65,7 @@ document.querySelector('#cancel')?.addEventListener('click', (event) => {
 });
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (
-    message?.type === 'translation.state' &&
+    ['translation.state', 'learning.state'].includes(message?.type) &&
     message.documentNonce === documentNonce &&
     message.clientTaskId === last?.clientTaskId
   ) {
@@ -60,12 +75,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return;
   }
   if (
-    message?.type !== 'translation.result' ||
+    !['translation.result', 'learning.result'].includes(message?.type) ||
     message.documentNonce !== documentNonce ||
     message.clientTaskId !== last?.clientTaskId
   )
     return;
-  body.dataset.result = message.result.text;
+  body.dataset.result =
+    message.type === 'learning.result' ? JSON.stringify(message.result.data) : message.result.text;
   body.dataset.canApply = String(message.canApply);
   sendResponse({ taskId: message.taskId, documentNonce });
 });

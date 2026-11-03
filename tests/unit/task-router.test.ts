@@ -192,3 +192,63 @@ it('accepts a verified ordinary HTTP page without relaxing sender identity', () 
   });
   expect(pageOwner({ ...page, origin: 'http://different.example' }, nonce, 'self')).toBeUndefined();
 });
+
+it('routes lookup by browser owner and rejects forged mode, tab and manual origin', async () => {
+  const f = stub();
+  const message = {
+    protocolVersion: 1,
+    requestId: crypto.randomUUID(),
+    type: 'learning.start',
+    payload: {
+      clientTaskId: crypto.randomUUID(),
+      documentNonce: nonce,
+      purpose: 'lookup',
+      origin: 'page',
+      input: { text: 'bank', sourceLanguage: 'en', explanationLanguage: 'zh' },
+    },
+  };
+  expect(await handleTaskMessage(message, sender, f.broker)).toEqual({ ok: true });
+  expect(f.handle).toHaveBeenLastCalledWith(
+    message,
+    expect.objectContaining({ tabId: 9, documentId: 'real-document', kind: 'page' }),
+  );
+  for (const extra of [{ tabId: 999 }, { mode: 'write' }, { canApply: true }]) {
+    expect(
+      await handleTaskMessage(
+        { ...message, payload: { ...message.payload, ...extra } },
+        sender,
+        f.broker,
+      ),
+    ).toMatchObject({ ok: false, error: 'INVALID_REQUEST' });
+  }
+  const manual = {
+    ...message,
+    payload: {
+      ...message.payload,
+      origin: 'manual',
+      tabId: 9,
+      manualRevision: 0,
+      manualGeneration: crypto.randomUUID(),
+    },
+  };
+  expect(await handleTaskMessage(manual, sender, f.broker)).toEqual({
+    ok: false,
+    error: 'FORBIDDEN',
+  });
+  const popup = {
+    id: 'self',
+    origin: new URL('chrome-extension://self/').origin,
+    url: 'chrome-extension://self/popup.html',
+  };
+  expect(await handleTaskMessage(manual, popup, f.broker)).toEqual({ ok: true });
+  expect(f.handle).toHaveBeenLastCalledWith(manual, {
+    tabId: 9,
+    frameId: 0,
+    documentNonce: nonce,
+    kind: 'manual',
+  });
+  expect(await handleTaskMessage(message, popup, f.broker)).toEqual({
+    ok: false,
+    error: 'FORBIDDEN',
+  });
+});

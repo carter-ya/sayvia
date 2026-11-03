@@ -81,18 +81,37 @@ test('real offscreen execution uses a bundled Worker, private credentials, cance
       }
       const payload = JSON.parse(JSON.parse(body).messages[1].content);
       expect(body).not.toContain('CODE_STAYS_LOCAL');
+      expect(body).not.toContain('private-local-video-id');
       const content = JSON.stringify({
-        segments: payload.segments.map((segment: { id: string; text: string }) => ({
+        segments: payload.segments?.map((segment: { id: string; text: string }) => ({
           id: segment.id,
           text: request.url?.startsWith('/echo/')
             ? segment.text
             : segment.text.replace('你好', 'Hello'),
         })),
       });
+      const learning = request.url?.startsWith('/lookup/')
+        ? JSON.stringify({
+            detectedLanguage: 'en',
+            meanings: [{ partOfSpeech: '名词', definition: '银行' }],
+            example: null,
+            note: null,
+          })
+        : request.url?.startsWith('/captions/')
+          ? JSON.stringify({
+              cues: payload.cues.map((cue: { id: string }) => ({ id: cue.id, text: '你好。' })),
+            })
+          : undefined;
       response.writeHead(200, { 'Content-Type': 'application/json' });
       response.end(
         JSON.stringify({
-          choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content } }],
+          choices: [
+            {
+              index: 0,
+              finish_reason: 'stop',
+              message: { role: 'assistant', content: learning ?? content },
+            },
+          ],
         }),
       );
     });
@@ -227,6 +246,66 @@ test('real offscreen execution uses a bundled Worker, private credentials, cance
       await command(background, { type: 'ack', taskId: roundtrip.taskId });
     }
     expect(count).toBe(13);
+    for (const purpose of ['lookup', 'captions'] as const) {
+      const identity = {
+        sessionId: crypto.randomUUID(),
+        generation: 1,
+        videoId: 'private-local-video-id',
+        trackKey: 'en:manual',
+        batchId: crypto.randomUUID(),
+      };
+      const base = {
+        taskId: crypto.randomUUID(),
+        deadlineAt: Date.now() + 60_000,
+        config: { ...execution.config, baseUrl: `${baseUrl}/${purpose}` },
+      };
+      const learning: Execution =
+        purpose === 'lookup'
+          ? {
+              ...base,
+              purpose,
+              input: { text: 'bank', sourceLanguage: 'en', explanationLanguage: 'zh' },
+            }
+          : {
+              ...base,
+              purpose,
+              input: {
+                ...identity,
+                sourceLanguage: 'en',
+                targetLanguage: 'zh',
+                units: [{ unitId: 'u0', revision: 7, text: 'Hello.' }],
+              },
+            };
+      await command(background, { type: 'start', execution: learning });
+      await expect
+        .poll(
+          async () =>
+            (
+              (await command(background, {
+                type: 'query',
+                taskId: learning.taskId,
+              })) as ExecutionView
+            ).state,
+        )
+        .toBe('ready');
+      expect(await command(background, { type: 'query', taskId: learning.taskId })).toMatchObject({
+        purpose,
+        result: {
+          data: {
+            purpose,
+            value:
+              purpose === 'lookup'
+                ? { meanings: [{ definition: '银行' }] }
+                : { ...identity, units: [{ unitId: 'u0', revision: 7, text: '你好。' }] },
+          },
+        },
+      });
+      expect(await command(background, { type: 'start', execution: learning })).toMatchObject({
+        state: 'ready',
+      });
+      await command(background, { type: 'ack', taskId: learning.taskId });
+    }
+    expect(count).toBe(15);
     const canceled = {
       ...execution,
       taskId: crypto.randomUUID(),
@@ -242,7 +321,7 @@ test('real offscreen execution uses a bundled Worker, private credentials, cance
     expect(await command(background, { type: 'start', execution: canceled })).toMatchObject({
       state: 'canceled',
     });
-    expect(count).toBe(14);
+    expect(count).toBe(16);
     expect(await command(background, { type: 'inspect' })).toEqual({
       active: 0,
       pendingResults: 0,
