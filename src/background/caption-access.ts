@@ -113,8 +113,8 @@ export class CaptionAccess {
             });
           await this.platform.register(wanted);
           this.registered = wanted && applied === this.intent;
-          this.unconfirmed = await this.platform.cleanup(this.registered);
           this.initialized = true;
+          this.unconfirmed = await this.platform.cleanup(this.registered);
         } catch {
           this.issue = true;
           this.registered = false;

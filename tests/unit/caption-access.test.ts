@@ -224,3 +224,21 @@ it('publishes recovered readiness before injecting existing document controllers
   await recovering.reconcile();
   expect(platform.cleanup).toHaveBeenCalledWith(true);
 });
+
+it('publishes readiness before reinjection when settings retry a failed startup', async () => {
+  vi.mocked(platform.read).mockRejectedValueOnce(new Error('startup failed'));
+  const retry = new CaptionAccess(platform);
+  await retry.ready;
+  expect(retry.status().error).toBe(true);
+  vi.mocked(platform.cleanup).mockImplementation(async (enabled) => {
+    if (enabled) {
+      expect(retry.status()).toMatchObject({ registered: true, error: false });
+      expect(await retry.enabledFor(owner)).toBe(true);
+    }
+    return 0;
+  });
+  expect(await retry.setEnabled(true)).toMatchObject({ registered: true, error: false });
+  vi.mocked(platform.cleanup).mockRejectedValueOnce(new Error('injection failed'));
+  expect(await retry.setEnabled(true)).toMatchObject({ registered: false, error: true });
+  expect(await retry.enabledFor(owner)).toBe(false);
+});
