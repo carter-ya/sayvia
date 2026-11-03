@@ -300,4 +300,76 @@ describe('permanent configuration repository', () => {
     expect(result).toEqual({ ok: false, error: 'INVALID_REQUEST' });
     expect(raw).toEqual(before);
   });
+
+  it('holds configuration saves and clears until caption START acceptance, then releases both', async () => {
+    const repo = new ConfigRepository(storage);
+    const initial = await repo.save(input(0));
+    const selected = initial.providers[0]!;
+    let accept!: () => void;
+    let entered!: () => void;
+    const ack = new Promise<void>((resolve) => {
+      accept = resolve;
+    });
+    const starting = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const dispatch = repo.withCaptionConfig(
+      { id: selected.id, revision: selected.revision, model: selected.model },
+      async (provider) => {
+        entered();
+        await ack;
+        return provider.providerId;
+      },
+    );
+    await starting;
+    const save = repo.save(
+      input(initial.revision, { id: selected.id, model: 'new-model', key: { action: 'keep' } }),
+    );
+    const clear = repo.clear(initial.revision + 1);
+    await Promise.resolve();
+    expect((raw as StoredState).providers[selected.id]!.model).toBe(selected.model);
+    accept();
+    expect(await dispatch).toBe(selected.id);
+    await save;
+    expect((await clear).providers).toEqual([]);
+  });
+  it.each(['revision', 'default'])(
+    'rejects a stale %s before a caption dispatch callback runs',
+    async (change) => {
+      const repo = new ConfigRepository(storage);
+      const initial = await repo.save(input(0));
+      const selected = initial.providers[0]!;
+      const save = repo.save(
+        input(
+          initial.revision,
+          change === 'revision' ? { id: selected.id, model: 'new-model' } : { name: 'second' },
+        ),
+      );
+      const dispatch = vi.fn(async () => 'should not start');
+      await expect(
+        repo.withCaptionConfig(
+          { id: selected.id, revision: selected.revision, model: selected.model },
+          dispatch,
+        ),
+      ).rejects.toThrow('CONFLICT');
+      await save;
+      expect(dispatch).not.toHaveBeenCalled();
+    },
+  );
+  it('releases the configuration queue after a lost START acknowledgement without repeating dispatch', async () => {
+    const repo = new ConfigRepository(storage);
+    const initial = await repo.save(input(0));
+    const selected = initial.providers[0]!;
+    const dispatch = vi.fn(async () => {
+      throw new Error('START_ACK_LOST');
+    });
+    await expect(
+      repo.withCaptionConfig(
+        { id: selected.id, revision: selected.revision, model: selected.model },
+        dispatch,
+      ),
+    ).rejects.toThrow('START_ACK_LOST');
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect((await repo.clear(initial.revision)).providers).toEqual([]);
+  });
 });

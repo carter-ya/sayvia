@@ -36,9 +36,12 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock('wxt/browser', () => ({ browser: api }));
 import { installCaptions } from '../../src/background/captions';
+import { emptyState } from '../../src/storage/schema';
+import type { ConfigRepository } from '../../src/storage/repository';
 import type { MessageSender } from '../../src/background/task-router';
 let access: ReturnType<typeof installCaptions>;
 const cancelWhere = vi.fn(async () => {});
+const snapshot = vi.fn<ConfigRepository['snapshot']>();
 const options = {
   id: 'self',
   url: 'chrome-extension://self/options.html',
@@ -73,7 +76,8 @@ beforeEach(async () => {
     { documentId: 'doc', frameId: 0, result: 'https://www.youtube.com/watch?v=example' },
   ]);
   api.tabs.sendMessage.mockResolvedValue({ ok: true });
-  access = installCaptions({ cancelWhere });
+  snapshot.mockResolvedValue({ revision: 0, providers: [], preferences: emptyState().preferences });
+  access = installCaptions({ cancelWhere }, { snapshot });
   await access.ready;
 });
 it('only trusts the settings document to persist and register separate MAIN/ISOLATED document-start scripts', async () => {
@@ -259,4 +263,53 @@ it('restoring permission reinjects existing documents instead of stopping them u
     expect.objectContaining({ files: ['/content-scripts/youtube-controller.js'] }),
   );
   expect(access.status()).toMatchObject({ registered: true, error: false });
+});
+
+it('only returns the selected public model identity to enabled current YouTube documents', async () => {
+  const provider = { id: crypto.randomUUID(), revision: 3, model: 'selected-model' };
+  snapshot.mockResolvedValue({
+    revision: 1,
+    providers: [
+      {
+        ...provider,
+        hasApiKey: true,
+        baseUrl: 'https://private-endpoint.test',
+        name: 'private-label',
+        secretRef: 'must-not-leak',
+      },
+    ],
+    preferences: { defaultProviderId: provider.id, readTarget: 'zh-CN' },
+  } as unknown as Awaited<ReturnType<ConfigRepository['snapshot']>>);
+  const fields = { documentNonce: nonce };
+  expect(await send('captions.configuration', owner, fields)).toMatchObject({ ok: false });
+  expect(snapshot).not.toHaveBeenCalled();
+  await access.setEnabled(true);
+  expect(await send('captions.configuration', owner, fields)).toEqual({
+    ok: true,
+    provider,
+    targetLanguage: 'zh-CN',
+  });
+  snapshot.mockClear();
+  for (const sender of [
+    options,
+    { ...owner, frameId: 1 },
+    { ...owner, origin: 'https://other.test' },
+  ])
+    expect(await send('captions.configuration', sender, fields)).toMatchObject({ ok: false });
+  expect(snapshot).not.toHaveBeenCalled();
+  api.permissions.contains.mockResolvedValue(false);
+  expect(await send('captions.configuration', owner, fields)).toMatchObject({ ok: false });
+  expect(snapshot).not.toHaveBeenCalled();
+});
+it('does not fall back to another provider when the current default is unconfigured', async () => {
+  await access.setEnabled(true);
+  snapshot.mockResolvedValue({
+    revision: 0,
+    providers: [{ id: crypto.randomUUID(), hasApiKey: true }],
+    preferences: { defaultProviderId: crypto.randomUUID(), readTarget: 'zh-CN' },
+  } as unknown as Awaited<ReturnType<ConfigRepository['snapshot']>>);
+  expect(await send('captions.configuration', owner, { documentNonce: nonce })).toEqual({
+    ok: false,
+    error: 'CONFIG_REQUIRED',
+  });
 });

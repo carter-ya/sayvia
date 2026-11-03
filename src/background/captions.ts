@@ -4,6 +4,7 @@ import type { TaskBroker } from './task-broker';
 import { pageOwner, type MessageSender } from './task-router';
 import { CaptionRequestSchema } from '../runtime/caption-protocol';
 import { watchVideoId, YOUTUBE_ORIGIN } from '../captions/player';
+import type { ConfigRepository } from '../storage/repository';
 
 const PREFIX = 'sayvia-youtube-';
 const MAIN = `${PREFIX}capture-v1`;
@@ -23,7 +24,10 @@ async function bounded<T>(promise: Promise<T>): Promise<T> {
     clearTimeout(timer);
   }
 }
-export function installCaptions(broker: Pick<TaskBroker, 'cancelWhere'>) {
+export function installCaptions(
+  broker: Pick<TaskBroker, 'cancelWhere'>,
+  repository: Pick<ConfigRepository, 'snapshot'>,
+) {
   const known = new Map<number, string>();
   const ensuring = new Map<string, Promise<boolean>>();
   const injections = new Map<string, number>();
@@ -240,6 +244,19 @@ export function installCaptions(broker: Pick<TaskBroker, 'cancelWhere'>) {
       return { ok: true };
     }
     await access.ready;
+    if (request.type === 'captions.configuration') {
+      if (!(await access.enabledFor(owner))) return { ok: false, error: 'FORBIDDEN' };
+      const config = await repository.snapshot();
+      const selected = config.providers.find(
+        (item) => item.id === config.preferences.defaultProviderId && item.hasApiKey,
+      );
+      if (!selected) return { ok: false, error: 'CONFIG_REQUIRED' };
+      return {
+        ok: true,
+        provider: { id: selected.id, revision: selected.revision, model: selected.model },
+        targetLanguage: config.preferences.readTarget,
+      };
+    }
     if (request.type === 'captions.ensure') return { ok: true, enabled: await ensureMain(owner) };
     if (request.type === 'captions.check')
       return {

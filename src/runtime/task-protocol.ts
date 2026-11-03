@@ -72,6 +72,7 @@ export const RouteSchema = z
     purpose: z.enum(['translate', 'lookup', 'captions']).optional(),
     captionIdentity: CaptionIdentitySchema.optional(),
     cancelPending: z.literal(true).optional(),
+    cancelReason: z.literal('explicit-preemption').optional(),
     entry: z.literal('inline').optional(),
     apiOrigin: z.url().max(2048),
     siteOrigin: z.url().max(2048).optional(),
@@ -101,6 +102,7 @@ export const RouteSchema = z
       (value.purpose === 'captions' && (!value.captionIdentity || value.mode !== 'read')) ||
       (value.purpose !== 'captions' && value.captionIdentity !== undefined) ||
       (value.cancelPending && (value.purpose !== 'captions' || value.state !== 'canceled')) ||
+      (value.cancelReason && (value.purpose !== 'captions' || value.state !== 'canceled')) ||
       (value.purpose === 'lookup' && value.mode === 'write')
     )
       ctx.addIssue({ code: 'custom', message: 'Invalid route purpose' });

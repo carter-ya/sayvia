@@ -55,6 +55,12 @@ export default defineBackground(() => {
             documentNonce: route.documentNonce,
             state: route.state,
             error: route.error,
+            ...(route.purpose === 'captions'
+              ? {
+                  cancelPending: route.cancelPending === true,
+                  ...(route.cancelReason ? { cancelReason: route.cancelReason } : {}),
+                }
+              : {}),
           },
           { documentId: route.documentId, frameId: route.frameId },
         )
@@ -112,7 +118,7 @@ export default defineBackground(() => {
       }
     },
   });
-  const captions = installCaptions(broker);
+  const captions = installCaptions(broker, repository);
   void broker.ready.catch(() => undefined);
   browser.runtime.onConnect.addListener((port) => host.accept(port));
   browser.tabs.onRemoved.addListener((tabId) => {

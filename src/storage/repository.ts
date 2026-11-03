@@ -1,4 +1,5 @@
 import { siteOrigin } from '../runtime/site-access';
+import { CaptionProviderSchema, type CaptionProvider } from '../runtime/caption-protocol';
 import { loadState } from './migrations';
 import {
   SaveSchema,
@@ -45,6 +46,35 @@ export class ConfigRepository {
   async completionConfig(id?: string) {
     await this.ready;
     await this.queue;
+    return this.readCompletionConfig(id);
+  }
+
+  // Hold the configuration's mutation queue only through the executor's START
+  // acceptance, never through model completion. The callback must not re-enter
+  // this repository; it receives the credential-bearing snapshot directly.
+  withCaptionConfig<T>(
+    expected: CaptionProvider,
+    dispatch: (config: ReturnType<ConfigRepository['readCompletionConfig']>) => Promise<T>,
+  ): Promise<T> {
+    const identity = CaptionProviderSchema.parse(expected);
+    const operation = this.queue.then(async () => {
+      await this.ready;
+      const provider = this.readCompletionConfig();
+      if (
+        provider.providerId !== identity.id ||
+        provider.providerRevision !== identity.revision ||
+        provider.model !== identity.model
+      )
+        throw new Error('CONFLICT');
+      return dispatch(provider);
+    });
+    this.queue = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return operation;
+  }
+  private readCompletionConfig(id?: string) {
     const provider = this.state.providers[id ?? this.state.preferences.defaultProviderId ?? ''];
     const apiKey = provider && this.state.secrets[provider.secretRef]?.apiKey;
     if (!provider || !apiKey) throw new Error('CONFIG_REQUIRED');
