@@ -214,17 +214,23 @@ export class CaptionBridgeSender {
     private readonly emit: (message: string) => void,
     private readonly rate = new MessageRate(),
   ) {}
-  send(scope: BridgeScope, cues: readonly CaptionCue[], signal: AbortSignal): Promise<void> {
-    if (signal.aborted) return Promise.reject(new CaptionError('CAPTION_BRIDGE_INVALID'));
+  send(
+    scope: BridgeScope,
+    cues: readonly CaptionCue[],
+    signal: AbortSignal,
+    withinDeadline?: () => boolean,
+  ): Promise<void> {
+    const available = () => !signal.aborted && (withinDeadline?.() ?? true);
+    if (!available()) return Promise.reject(new CaptionError('CAPTION_BRIDGE_INVALID'));
     if (this.waiting >= limits.assemblies) return Promise.reject(new CaptionError('CAPTION_LIMIT'));
     const chunks = encodeCaptionResponse(scope, cues);
     this.waiting++;
     const pending = this.tail
       .then(async () => {
         for (const chunk of chunks) {
-          while (!signal.aborted && !this.rate.take())
+          while (available() && !this.rate.take())
             await new Promise<void>((resolve) => setTimeout(resolve, 16));
-          if (signal.aborted) throw new CaptionError('CAPTION_BRIDGE_INVALID');
+          if (!available()) throw new CaptionError('CAPTION_BRIDGE_INVALID');
           this.emit(chunk);
         }
       })

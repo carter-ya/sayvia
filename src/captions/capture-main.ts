@@ -20,13 +20,17 @@ import {
   watchVideoId,
 } from './player';
 
-const VERSION = 'capture-v3';
+const VERSION = 'capture-v4';
+const REQUEST_TIMEOUT_MS = 10_000;
 type Controller = { version: string; active(): boolean; stop(): void };
 type CaptureWindow = Window & typeof globalThis & { __sayviaCapture?: Controller };
 type RequestScope = {
   player: HTMLElement | null;
   generation: string;
   track: CaptionTrack;
+  deadlineAt: number;
+  initialTrackPending: boolean;
+  sampled?: () => void;
   signal: AbortSignal;
   cancel(): void;
   finish(): void;
@@ -51,6 +55,7 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
   let controller = new AbortController();
   let observation = observePlayer(win.document, win.location.href);
   let playerNode = observation.player;
+  let hasObservedTrack = observation.track !== null;
   let state: CaptureState = {
     channel: 'sayvia.capture.v1',
     type: 'state',
@@ -93,6 +98,8 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
     cached = undefined;
     pendingError = undefined;
   }
+  const awaitingTrack = (reason: CaptureState['reason']) =>
+    reason === 'track-unavailable' || reason === 'player-unavailable';
   function refresh() {
     const now = Date.now();
     if (!enabled) return false;
@@ -105,6 +112,7 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
     if (node !== playerNode) {
       clear();
       playerNode = node;
+      hasObservedTrack = false;
       state = {
         ...state,
         generation: crypto.randomUUID(),
@@ -115,6 +123,7 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
     const video = watchVideoId(win.location.href) ?? null;
     if (video !== state.videoId) {
       clear();
+      hasObservedTrack = false;
       state = {
         ...state,
         generation: crypto.randomUUID(),
@@ -123,6 +132,7 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
         reason: 'player-unavailable',
       };
     }
+    for (const pending of pendingScopes) withinDeadline(pending, now);
     if (now - lastObserved < 250) {
       publish();
       return true;
@@ -140,10 +150,23 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
         controller.abort();
         controller = new AbortController();
         cached = undefined;
-        // A track request may precede the next 4 Hz player snapshot. Keep only
-        // those already-observed requests that match the newly selected track.
+        // Retain an initial candidate while the player is still identifying its
+        // first track. Once a track is known, discard every conflicting request.
         for (const pending of [...pendingScopes])
-          if (!sameTrack(pending.track, next.track)) pending.cancel();
+          if (
+            !sameTrack(pending.track, next.track) &&
+            !(pending.initialTrackPending && awaitingTrack(next.reason))
+          )
+            pending.cancel();
+      }
+    }
+    if (next.track) {
+      hasObservedTrack = true;
+      for (const pending of pendingScopes) {
+        // A → B → A can rotate the generation between samples even if the
+        // private snapshot equals the previous one. Its first track still binds.
+        if (pending.initialTrackPending && !sameTrack(pending.track, next.track)) pending.cancel();
+        else pending.initialTrackPending = false;
       }
     }
     // An immediate A → B → A invalidation can happen between private samples.
@@ -156,6 +179,7 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
       reason: next.reason,
     };
     publish();
+    for (const pending of pendingScopes) pending.sampled?.();
     return true;
   }
   function scope(url: string): RequestScope | undefined {
@@ -177,6 +201,8 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
       generation: state.generation,
       player: playerNode,
       track,
+      deadlineAt: Date.now() + REQUEST_TIMEOUT_MS,
+      initialTrackPending: !!playerNode && !hasObservedTrack && awaitingTrack(state.reason),
       signal: abort.signal,
       cancel() {
         abort.abort();
@@ -187,17 +213,24 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
         pendingScopes.delete(pending);
       },
     };
-    const deadline = setTimeout(() => {
-      error(pending, 'CAPTION_REQUEST_FAILED');
-      pending.cancel();
-    }, 10_000);
+    const deadline = setTimeout(() => expire(pending), REQUEST_TIMEOUT_MS);
     pendingScopes.add(pending);
     return pending;
+  }
+  function expire(request: RequestScope) {
+    error(request, 'CAPTION_REQUEST_FAILED');
+    request.cancel();
+  }
+  function withinDeadline(request: RequestScope, now = Date.now()) {
+    if (request.signal.aborted) return false;
+    if (now < request.deadlineAt) return true;
+    expire(request);
+    return false;
   }
   function validScope(request: RequestScope, url: string) {
     return (
       refresh() &&
-      !request.signal.aborted &&
+      withinDeadline(request) &&
       state.generation === request.generation &&
       state.videoId === request.track.videoId &&
       request.player === playerNode &&
@@ -221,11 +254,20 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
   async function accept(request: RequestScope, body: string, url: string) {
     if (!validScope(request, url)) return;
     if (state.reason !== 'ready' || !sameTrack(state.track, request.track)) {
-      // A fast response can arrive before the next player sample. Retain only
-      // this bounded response until one sample is due, without another request.
-      await new Promise<void>((resolve) =>
-        setTimeout(resolve, Math.max(1, 250 - (Date.now() - lastObserved))),
-      );
+      // An existing player can load captions before publishing its first selected
+      // track. Keep the response in its original slot and deadline until the player
+      // identifies that track. Later track switches still get only one sample.
+      await new Promise<void>((resolve) => {
+        const finish = () => {
+          delete request.sampled;
+          request.signal.removeEventListener('abort', finish);
+          resolve();
+        };
+        request.signal.addEventListener('abort', finish, { once: true });
+        request.sampled = () => {
+          if (!request.initialTrackPending || !awaitingTrack(state.reason)) finish();
+        };
+      });
     }
     if (
       !validScope(request, url) ||
@@ -235,12 +277,14 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
       return;
     try {
       const cues = parseJson3(body, request.track.kind === 'asr');
+      if (!withinDeadline(request)) return;
       if (!cues.length) {
         error(request, 'NO_CAPTIONS');
         return;
       }
-      cached = { generation: request.generation, track: request.track, cues };
-      await sender.send(cached, cues, request.signal);
+      const source = { generation: request.generation, track: request.track, cues };
+      await sender.send(source, cues, request.signal, () => withinDeadline(request));
+      if (validScope(request, url) && sameTrack(state.track, request.track)) cached = source;
     } catch (cause) {
       error(request, cause instanceof CaptionError ? cause.code : 'INVALID_CAPTION_DATA');
     }
