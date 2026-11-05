@@ -90,6 +90,10 @@ export async function workflowFixture(options: { speech?: boolean } = {}) {
                             .replace(/中文|你好/g, 'English')
                             .replace('Accept ', '接受 ')
                             .replace(
+                              'locates an entry and the files available to its compiler.',
+                              '定位入口及其编译器可用的文件。',
+                            )
+                            .replace(
                               'DriverDSN keeps Oracle reconnections on the full authentication path. go-ora',
                               'DriverDSN 让 Oracle 重连始终走完整认证流程。go-ora',
                             )

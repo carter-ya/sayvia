@@ -9,7 +9,10 @@ const INNER = 'td > code.diff-text > .diff-text-inner';
 // PR and commit diffs expose different metadata. Both identify a source side
 // and line; never infer it from the visual column or DOM order.
 function cellInfo(inner: Element, table: Element) {
-  const cell = inner.parentElement!.parentElement!;
+  return lineInfo(inner.parentElement!.parentElement!, table);
+}
+
+function lineInfo(cell: Element, table: Element) {
   if (cell.closest('table') !== table) return;
   const side = cell.getAttribute('data-diff-side');
   const line = cell.getAttribute('data-line-number');
@@ -34,6 +37,29 @@ const MAX_ROWS = 4096;
 
 function parent(node: Node) {
   return node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+}
+
+function diffCell(node: Node) {
+  const cell = parent(node)?.closest('td');
+  return cell &&
+    (cell.matches('[data-diff-side], [data-line-number], [data-line-anchor]') ||
+      cell.querySelector(':scope > code.diff-text > .diff-text-inner'))
+    ? cell
+    : undefined;
+}
+
+// Intersect with the original Range rather than extending a gutter/marker
+// endpoint to a whole source line. In particular, ending in the next gutter
+// must not select that next line's text.
+function clipToInner(range: Range, inner: Element, document: Document) {
+  const clipped = document.createRange();
+  clipped.selectNodeContents(inner);
+  const start = clipped.comparePoint(range.startContainer, range.startOffset);
+  const end = clipped.comparePoint(range.endContainer, range.endOffset);
+  if (start > 0 || end < 0) return;
+  if (start === 0) clipped.setStart(range.startContainer, range.startOffset);
+  if (end === 0) clipped.setEnd(range.endContainer, range.endOffset);
+  return clipped.collapsed ? undefined : clipped;
 }
 
 // The Markdown highlighter emits paired delimiter/body/delimiter spans for
@@ -72,19 +98,21 @@ export function captureGithubDiff(
   document: Document,
 ): { source: DomSource; plainText: string } | undefined {
   if (new URL(document.URL).hostname !== 'github.com') return;
-  const start = parent(range.startContainer)?.closest(INNER);
-  const end = parent(range.endContainer)?.closest(INNER);
-  if (!start || !end) return;
+  const start = diffCell(range.startContainer);
+  const end = diffCell(range.endContainer);
+  if (!start && !end) return;
+  if (!start || !end) throw new SourceError('UNSUPPORTED_SELECTION');
   const table = start.closest('table[role="grid"][data-diff-anchor]');
   if (!table || end.closest('table') !== table) throw new SourceError('UNSUPPORTED_SELECTION');
-  const first = cellInfo(start, table),
-    last = cellInfo(end, table);
+  const first = lineInfo(start, table),
+    last = lineInfo(end, table);
   if (!first || !last || first.side !== last.side) throw new SourceError('UNSUPPORTED_SELECTION');
   const startRow = start.closest('tr')!,
     endRow = end.closest('tr')!;
   if (startRow.parentElement !== endRow.parentElement)
     throw new SourceError('UNSUPPORTED_SELECTION');
   const lines: string[] = [];
+  let selectedRange: Range | undefined;
   let visited = 0,
     found = false;
   for (let row: Element | null = startRow; row; row = row.nextElementSibling) {
@@ -95,11 +123,15 @@ export function captureGithubDiff(
     if (candidates.some((node) => !cellInfo(node, table)))
       throw new SourceError('UNSUPPORTED_SELECTION');
     const inner = candidates.find((node) => cellInfo(node, table)?.side === first.side);
-    if (inner) {
-      const clipped = document.createRange();
-      clipped.selectNodeContents(inner);
-      if (inner === start) clipped.setStart(range.startContainer, range.startOffset);
-      if (inner === end) clipped.setEnd(range.endContainer, range.endOffset);
+    if (
+      (row === startRow && (!inner || cellInfo(inner, table)?.line !== first.line)) ||
+      (row === endRow && (!inner || cellInfo(inner, table)?.line !== last.line))
+    )
+      throw new SourceError('UNSUPPORTED_SELECTION');
+    const clipped = inner && clipToInner(range, inner, document);
+    if (clipped) {
+      if (!selectedRange) selectedRange = clipped.cloneRange();
+      else selectedRange.setEnd(clipped.endContainer, clipped.endOffset);
       try {
         lines.push(captureDomRange(clipped, document).text);
       } catch (error) {
@@ -113,6 +145,7 @@ export function captureGithubDiff(
     }
   }
   if (!found) throw new SourceError('UNSUPPORTED_SELECTION');
+  if (!selectedRange) throw new SourceError('EMPTY_SOURCE');
   const plainText = lines.join('\n');
   const source = readingMarkdown(
     { kind: 'dom-selection', text: plainText, protectedRanges: [], marks: [] },
@@ -124,7 +157,7 @@ export function captureGithubDiff(
   if (!/^Diff for: .+\.(?:md|markdown|mdown)$/i.test(table.getAttribute('aria-label') ?? ''))
     return baseline;
   try {
-    const enhanced = captureGithubMarkdownDiff(range, document);
+    const enhanced = captureGithubMarkdownDiff(selectedRange, document);
     if (!enhanced || enhanced.plainText !== baseline.plainText) return baseline;
     if (enhanced.codeContainer && !needsTranslation(createTranslationPlan(enhanced.source)))
       return baseline;
