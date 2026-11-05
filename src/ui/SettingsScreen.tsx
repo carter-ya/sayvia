@@ -5,6 +5,7 @@ import { settingsRequest } from './settings-client';
 import { ProviderForm } from './ProviderForm';
 import { PreferencesForm } from './PreferencesForm';
 import { applyAppearance } from './appearance';
+import { CaptionsSettings } from './CaptionsSettings';
 
 export function SettingsScreen() {
   const [snapshot, setSnapshot] = useState<ConfigSnapshot>();
@@ -278,6 +279,7 @@ export function SettingsScreen() {
                   onDirty={() => setDirty(true)}
                   onSave={(value) => void preferences(value)}
                 />
+                <CaptionsSettings revision={snapshot.revision} />
                 <div className="delete-row">
                   <button
                     type="button"
