@@ -373,3 +373,51 @@ describe('permanent configuration repository', () => {
     expect((await repo.clear(initial.revision)).providers).toEqual([]);
   });
 });
+
+it('invalidates caption configuration only after a successful relevant commit, without awaiting notifications', async () => {
+  let state: unknown;
+  const write = vi.fn(async (next: StoredState) => {
+    state = structuredClone(next);
+  });
+  const repo = new ConfigRepository({
+    restrictAccess: async () => {},
+    read: async () => state,
+    write,
+  });
+  const changed = vi.fn();
+  const unsubscribe = repo.onCaptionConfigurationChange(changed);
+  const initial = await repo.save(input(0));
+  expect(changed).toHaveBeenCalledTimes(1);
+  await repo.preferences({
+    expectedRevision: initial.revision,
+    preferences: { ...initial.preferences, theme: 'dark' },
+  });
+  expect(changed).toHaveBeenCalledTimes(1);
+  const current = await repo.snapshot();
+  await repo.save(input(current.revision, { name: 'other', makeDefault: false }));
+  expect(changed).toHaveBeenCalledTimes(1);
+  const before = await repo.snapshot();
+  write.mockRejectedValueOnce(new Error('storage failed'));
+  await expect(
+    repo.preferences({
+      expectedRevision: before.revision,
+      preferences: { ...before.preferences, readTarget: 'fr' },
+    }),
+  ).rejects.toThrow();
+  expect(changed).toHaveBeenCalledTimes(1);
+  let afterNotification: Promise<unknown> | undefined;
+  repo.onCaptionConfigurationChange(() => {
+    afterNotification = repo.snapshot();
+  });
+  await repo.preferences({
+    expectedRevision: before.revision,
+    preferences: { ...before.preferences, readTarget: 'fr' },
+  });
+  expect(
+    ((await afterNotification) as { preferences: { readTarget: string } }).preferences.readTarget,
+  ).toBe('fr');
+  expect(changed).toHaveBeenCalledTimes(2);
+  unsubscribe();
+  await repo.delete(initial.providers[0]!.id, before.revision + 1);
+  expect(changed).toHaveBeenCalledTimes(2);
+});

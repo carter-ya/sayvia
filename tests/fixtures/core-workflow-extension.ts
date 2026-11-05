@@ -83,40 +83,49 @@ export async function workflowFixture(options: { speech?: boolean } = {}) {
                         example: { text: `${payload.text} example`, translation: '对应的示例。' },
                         note: null,
                       }
-                    : {
-                        segments: payload.segments.map((segment: { id: string; text: string }) => ({
-                          id: segment.id,
-                          text: segment.text
-                            .replace(/中文|你好/g, 'English')
-                            .replace('Accept ', '接受 ')
-                            .replace(
-                              'locates an entry and the files available to its compiler.',
-                              '定位入口及其编译器可用的文件。',
-                            )
-                            .replace(
-                              'DriverDSN keeps Oracle reconnections on the full authentication path. go-ora',
-                              'DriverDSN 让 Oracle 重连始终走完整认证流程。go-ora',
-                            )
-                            .replace(
-                              "v3.0.1's default fast-login cookie path fails on subsequent Oracle Free logins.",
-                              'v3.0.1 默认的快速登录 cookie 流程会在后续 Oracle Free 登录时失败。',
-                            )
-                            .replace(
-                              "An explicit driver option remains the operator's choice.",
-                              '显式指定驱动选项仍由操作者决定。',
-                            )
-                            .replace('Read ', '阅读 ')
-                            .replace(' first.', ' 优先。')
-                            .replace(
-                              'Probably I can use information_schema to find all columns than concat everything to single string for',
-                              '也许我可以使用 information_schema 查找所有列，然后把所有内容拼接成一个字符串，传给',
-                            )
-                            .replace(
-                              'JSON_OBJECT, and use prepare/execute inside trigger to get compiled result...',
-                              'JSON_OBJECT，再在触发器内使用 prepare/execute 来获得编译后的结果……',
-                            ),
-                        })),
-                      },
+                    : payload.cues
+                      ? {
+                          cues: payload.cues.map((cue: { id: string; text: string }) => ({
+                            id: cue.id,
+                            text: `译文：${cue.text}`,
+                          })),
+                        }
+                      : {
+                          segments: payload.segments.map(
+                            (segment: { id: string; text: string }) => ({
+                              id: segment.id,
+                              text: segment.text
+                                .replace(/中文|你好/g, 'English')
+                                .replace('Accept ', '接受 ')
+                                .replace(
+                                  'locates an entry and the files available to its compiler.',
+                                  '定位入口及其编译器可用的文件。',
+                                )
+                                .replace(
+                                  'DriverDSN keeps Oracle reconnections on the full authentication path. go-ora',
+                                  'DriverDSN 让 Oracle 重连始终走完整认证流程。go-ora',
+                                )
+                                .replace(
+                                  "v3.0.1's default fast-login cookie path fails on subsequent Oracle Free logins.",
+                                  'v3.0.1 默认的快速登录 cookie 流程会在后续 Oracle Free 登录时失败。',
+                                )
+                                .replace(
+                                  "An explicit driver option remains the operator's choice.",
+                                  '显式指定驱动选项仍由操作者决定。',
+                                )
+                                .replace('Read ', '阅读 ')
+                                .replace(' first.', ' 优先。')
+                                .replace(
+                                  'Probably I can use information_schema to find all columns than concat everything to single string for',
+                                  '也许我可以使用 information_schema 查找所有列，然后把所有内容拼接成一个字符串，传给',
+                                )
+                                .replace(
+                                  'JSON_OBJECT, and use prepare/execute inside trigger to get compiled result...',
+                                  'JSON_OBJECT，再在触发器内使用 prepare/execute 来获得编译后的结果……',
+                                ),
+                            }),
+                          ),
+                        },
                 );
                 if (streaming) {
                   const { gap, end } = streaming;

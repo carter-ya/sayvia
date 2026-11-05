@@ -11,6 +11,7 @@ export const DisplayRequestSchema = z
     type: z.enum(['renew', 'stop']),
     owner: z.uuid(),
     generation: z.uuid(),
+    requestId: z.uuid(),
     trackKey: z.string().min(1).max(256),
   })
   .strict();
@@ -19,6 +20,7 @@ export const DisplayReplySchema = z
     channel: z.literal('sayvia.caption.display.status.v1'),
     owner: z.uuid(),
     generation: z.uuid(),
+    requestId: z.uuid(),
     trackKey: z.string().min(1).max(256),
     active: z.boolean(),
   })
@@ -79,6 +81,7 @@ export function installDisplayLease(win: Window & typeof globalThis, current: ()
     | {
         owner: string;
         generation: string;
+        requestId: string;
         trackKey: string;
         player: HTMLElement;
         overlay: HTMLElement;
@@ -92,13 +95,20 @@ export function installDisplayLease(win: Window & typeof globalThis, current: ()
   let disposed = false;
   const retired = new Set<string>();
   const rate = new MessageRate();
-  const reply = (owner: string, generation: string, trackKey: string, enabled: boolean) => {
+  const reply = (
+    owner: string,
+    generation: string,
+    trackKey: string,
+    requestId: string,
+    enabled: boolean,
+  ) => {
     win.postMessage(
       JSON.stringify({
         channel: 'sayvia.caption.display.status.v1',
         owner,
         generation,
         trackKey,
+        requestId,
         active: enabled,
       }),
       YOUTUBE_ORIGIN,
@@ -111,7 +121,7 @@ export function installDisplayLease(win: Window & typeof globalThis, current: ()
     restoreNativeCaptions(old.player, old.owner);
     old.style.remove();
     if (retire && retired.size < 256) retired.add(old.owner);
-    reply(old.owner, old.generation, old.trackKey, false);
+    reply(old.owner, old.generation, old.trackKey, old.requestId, false);
   }
   const reset = () => {
     if (ownership && retired.size < 256) retired.add(ownership.owner);
@@ -189,7 +199,7 @@ export function installDisplayLease(win: Window & typeof globalThis, current: ()
       if (retired.size < 256) retired.add(request.owner);
       if (ownership?.owner === request.owner && ownership.generation === request.generation)
         reset();
-      reply(request.owner, request.generation, request.trackKey, false);
+      reply(request.owner, request.generation, request.trackKey, request.requestId, false);
       return;
     }
     const scope = current();
@@ -201,7 +211,7 @@ export function installDisplayLease(win: Window & typeof globalThis, current: ()
       retired.has(request.owner) ||
       retired.size >= 256
     ) {
-      reply(request.owner, request.generation, request.trackKey, false);
+      reply(request.owner, request.generation, request.trackKey, request.requestId, false);
       return;
     }
     const player = scope.player;
@@ -215,7 +225,7 @@ export function installDisplayLease(win: Window & typeof globalThis, current: ()
       !compatibleDisplay(win.document, player, overlay, video)
     ) {
       if (ownership?.owner === request.owner) restore(false);
-      reply(request.owner, request.generation, request.trackKey, false);
+      reply(request.owner, request.generation, request.trackKey, request.requestId, false);
       return;
     }
     if (ownership && ownership.owner !== request.owner) reset();
@@ -231,6 +241,7 @@ export function installDisplayLease(win: Window & typeof globalThis, current: ()
       active = {
         owner: request.owner,
         generation: request.generation,
+        requestId: request.requestId,
         trackKey: request.trackKey,
         player,
         overlay,
@@ -240,13 +251,14 @@ export function installDisplayLease(win: Window & typeof globalThis, current: ()
       };
     }
     active.until = Date.now() + 2000;
+    active.requestId = request.requestId;
     player.setAttribute(HIDDEN_ATTRIBUTE, request.owner);
     const native = player.querySelector('.ytp-caption-window-container');
     if (!active.style.sheet || (native && win.getComputedStyle(native).visibility !== 'hidden')) {
       reset();
       return;
     }
-    reply(request.owner, request.generation, request.trackKey, true);
+    reply(request.owner, request.generation, request.trackKey, request.requestId, true);
   }
   const timer = setInterval(check, 250);
   win.addEventListener('message', receive);

@@ -1,6 +1,8 @@
 import { browser } from 'wxt/browser';
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { CaptionController } from '../src/captions/controller';
+import { CaptionPlayerSession } from '../src/captions/player-session';
+import { AppearanceSchema } from '../src/storage/schema';
 import { mountCaptureStatus } from '../src/captions/status-panel';
 
 export default defineContentScript({
@@ -30,7 +32,19 @@ export default defineContentScript({
       alive,
       request: (message) => browser.runtime.sendMessage(message),
     });
-    const panel = mountCaptureStatus(controller);
+    const player = new CaptionPlayerSession(controller, (message) =>
+      browser.runtime.sendMessage(message),
+    );
+    const panel = mountCaptureStatus(controller, player);
+    void browser.runtime
+      .sendMessage({ protocolVersion: 1, requestId: crypto.randomUUID(), type: 'page.preferences' })
+      .then(
+        (reply) => {
+          const parsed = AppearanceSchema.safeParse(reply?.data?.appearance);
+          if (parsed.success) panel.setAppearance(parsed.data);
+        },
+        () => undefined,
+      );
     const message: Parameters<typeof browser.runtime.onMessage.addListener>[0] = (
       value,
       sender,
@@ -42,14 +56,33 @@ export default defineContentScript({
         value?.protocolVersion !== 1
       )
         return;
-      if (value.type === 'captions.disabled') {
+      if (value.type === 'captions.configuration-changed') {
+        player.configurationChanged();
+        return;
+      }
+      if (value.type === 'app.appearance-changed') {
+        const parsed = AppearanceSchema.safeParse(value.appearance);
+        if (parsed.success) panel.setAppearance(parsed.data);
+        return;
+      }
+      if (
+        value.type === 'learning.result' ||
+        value.type === 'learning.state' ||
+        value.type === 'learning.progress'
+      ) {
+        if (player.receive(value))
+          respond({ taskId: value.taskId, documentNonce: controller.documentNonce });
+        return;
+      }
+      if (value.type === 'captions.disabled' || value.type === 'page.reset') {
         controller.pause();
         respond({ ok: true });
       }
     };
     browser.runtime.onMessage.addListener(message);
     const dispose = () => {
-      panel();
+      panel.dispose();
+      player.dispose();
       controller.dispose();
       browser.runtime.onMessage.removeListener(message);
       if (global.__sayviaCaptionController?.controller === controller)
