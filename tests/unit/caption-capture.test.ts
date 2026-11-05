@@ -79,6 +79,14 @@ test('normal text XHR is captured once without forwarding signatures or altering
   expect(window.XMLHttpRequest.prototype.open).toBe(originalOpen);
 });
 
+test('reinjection stops an active v3 MAIN capture and replaces it with the current guard', () => {
+  const old = { version: 'capture-v3', active: () => true, stop: vi.fn() };
+  Object.assign(window, { __sayviaCapture: old });
+  installYouTubeCapture();
+  expect(old.stop).toHaveBeenCalledOnce();
+  expect((window as WindowCapture).__sayviaCapture).toMatchObject({ version: 'capture-v4' });
+});
+
 test('a request preceding the next player sample survives only when its exact track becomes selected', async () => {
   selected = null;
   installYouTubeCapture();
@@ -88,6 +96,152 @@ test('a request preceding the next player sample survives only when its exact tr
   await vi.advanceTimersByTimeAsync(250);
   expect(chunks()).toHaveLength(1);
   expect(chunks()[0]!.track).toMatchObject({ lang: 'fr' });
+});
+
+test('an early response stays local until the same player identifies its first track', async () => {
+  selected = null;
+  Object.assign(player, { getOption: undefined });
+  installYouTubeCapture();
+  xhr().finish('first English track');
+  await vi.advanceTimersByTimeAsync(500);
+  Object.assign(player, { getOption: option });
+  await vi.advanceTimersByTimeAsync(500);
+  expect(chunks()).toHaveLength(0);
+  selected = { languageCode: 'en' };
+  await vi.advanceTimersByTimeAsync(250);
+  expect(chunks()).toHaveLength(1);
+  expect(chunks()[0]!.track).toMatchObject({ videoId: 'example', lang: 'en', kind: null });
+});
+
+test.each(['wrong track', 'new player', 'new video', 'deadline', 'stop'] as const)(
+  'an unconfirmed first response is discarded on %s and cannot return later',
+  async (change) => {
+    selected = null;
+    installYouTubeCapture();
+    xhr().finish('discard me');
+    await vi.advanceTimersByTimeAsync(750);
+    switch (change) {
+      case 'wrong track':
+        selected = { languageCode: 'en', kind: 'asr' };
+        break;
+      case 'new player': {
+        const replacement = player.cloneNode() as HTMLElement;
+        Object.assign(replacement, {
+          getOption: option,
+          getVideoData: () => ({ video_id: videoId }),
+        });
+        player.replaceWith(replacement);
+        break;
+      }
+      case 'new video':
+        videoId = 'second';
+        history.replaceState({}, '', '/watch?v=second');
+        break;
+      case 'deadline':
+        await vi.advanceTimersByTimeAsync(9500);
+        break;
+      case 'stop':
+        (window as WindowCapture).__sayviaCapture!.stop();
+        break;
+    }
+    await vi.advanceTimersByTimeAsync(250);
+    videoId = 'example';
+    history.replaceState({}, '', '/watch?v=example');
+    selected = { languageCode: 'en' };
+    await vi.advanceTimersByTimeAsync(500);
+    expect(chunks()).toHaveLength(0);
+  },
+);
+
+test('a pending first network request loses startup tolerance once a track has been identified', async () => {
+  selected = null;
+  installYouTubeCapture();
+  const first = xhr();
+  selected = { languageCode: 'en' };
+  await vi.advanceTimersByTimeAsync(250);
+  selected = null;
+  await vi.advanceTimersByTimeAsync(250);
+  selected = { languageCode: 'en' };
+  await vi.advanceTimersByTimeAsync(250);
+  first.finish('response from before CC was turned off');
+  expect(chunks()).toHaveLength(0);
+});
+
+test('a sample after the absolute deadline cannot accept the body before its delayed timer fires', async () => {
+  selected = null;
+  installYouTubeCapture();
+  xhr().finish('expired before the track appeared');
+  await vi.advanceTimersByTimeAsync(9750);
+  selected = { languageCode: 'en' };
+  vi.setSystemTime(Date.now() + 500);
+  // Request interception samples the player immediately, before any timer callback.
+  const fresh = xhr();
+  await Promise.resolve();
+  expect(chunks()).toHaveLength(0);
+  expect(emitted.filter((event) => event.code === 'CAPTION_REQUEST_FAILED')).toHaveLength(1);
+  fresh.finish('fresh body');
+  await vi.advanceTimersByTimeAsync(0);
+  expect(chunks()).toHaveLength(1);
+});
+
+test('a response that expires while queued for bridge emission is not emitted or cached for replay', async () => {
+  installYouTubeCapture();
+  const late = xhr();
+  await vi.advanceTimersByTimeAsync(9750);
+  late.finish('expired in the bridge queue');
+  // finish validated and queued the response. Cross the deadline before its send microtask.
+  vi.setSystemTime(Date.now() + 500);
+  await vi.advanceTimersByTimeAsync(0);
+  const generation = emitted.findLast((value) => value.type === 'state')!.generation;
+  window.dispatchEvent(
+    new MessageEvent('message', {
+      source: window,
+      origin: location.origin,
+      data: JSON.stringify({ channel: 'sayvia.capture.control.v1', type: 'replay', generation }),
+    }),
+  );
+  await vi.advanceTimersByTimeAsync(0);
+  expect(chunks()).toHaveLength(0);
+  expect(emitted.filter((event) => event.code === 'CAPTION_REQUEST_FAILED')).toHaveLength(1);
+});
+
+test('expiry between bridge chunks prevents the receiver from assembling the expired response', async () => {
+  installYouTubeCapture();
+  const late = xhr();
+  await vi.advanceTimersByTimeAsync(9750);
+  vi.mocked(window.postMessage).mockImplementation((raw) => {
+    const event = JSON.parse(String(raw));
+    emitted.push(event);
+    if (event.type === 'cues' && event.sequence === 0) vi.setSystemTime(Date.now() + 500);
+  });
+  late.finish('', {
+    responseText: JSON.stringify({
+      wireMagic: 'pb3',
+      events: Array.from({ length: 101 }, (_, index) => ({
+        tStartMs: index * 1000,
+        dDurationMs: 900,
+        segs: [{ utf8: 'public cue' }],
+      })),
+    }),
+  });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(chunks()).toHaveLength(1);
+  expect(chunks()[0]).toMatchObject({ sequence: 0, total: 2 });
+  expect(emitted.filter((event) => event.code === 'CAPTION_REQUEST_FAILED')).toHaveLength(1);
+});
+
+test('the first sampled A track rejects a conflicting candidate after an unsampled A to B to A navigation', async () => {
+  installYouTubeCapture(); // A/en already observed.
+  history.pushState({}, '', '/watch?v=second');
+  xhr('en', 'second');
+  history.pushState({}, '', '/watch?v=example');
+  const wrong = xhr('fr'); // A/fr candidate, before the next private sample.
+  await vi.advanceTimersByTimeAsync(250); // A/en, identical to the previous private sample.
+  selected = { languageCode: 'fr' };
+  await vi.advanceTimersByTimeAsync(250);
+  wrong.finish('old French candidate');
+  await vi.advanceTimersByTimeAsync(0);
+  expect(chunks()).toHaveLength(0);
 });
 
 test('navigation and a replaced player discard old responses and do not merge tracks', async () => {
