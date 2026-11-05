@@ -37,6 +37,7 @@ test('switching to lookup invalidates the pending automatic translation preferen
   const f = await workflowFixture();
   try {
     await selectWord(f.page);
+    await f.page.locator('#lookup-word').evaluate((paragraph) => (paragraph.tabIndex = -1));
     const translate = f.page.getByRole('button', { name: '使用 Sayvia 翻译选中文字', exact: true });
     await expect(translate).toBeVisible();
     await f.settings.evaluate(async (url) => {
@@ -47,7 +48,12 @@ test('switching to lookup invalidates the pending automatic translation preferen
         func: () => {
           const runtime = (globalThis as unknown as Chrome).chrome.runtime;
           const send = runtime.sendMessage.bind(runtime);
-          const log = document.documentElement.dataset;
+          // Mutating an ancestor of the selected text would invalidate its reading snapshot.
+          const probe = document.createElement('output');
+          probe.id = 'fixture-lookup-probe';
+          probe.hidden = true;
+          document.body.append(probe);
+          const log = probe.dataset;
           let holdNextPreferences = true;
           const starts: string[] = [];
           runtime.sendMessage = ((message: { type: string }) => {
@@ -79,11 +85,10 @@ test('switching to lookup invalidates the pending automatic translation preferen
       });
     }, f.page.url());
     await translate.click();
-    const doc = f.page.locator('html');
-    await expect(doc).toHaveAttribute('data-fixture-preferences', 'held');
+    const probe = f.page.locator('#fixture-lookup-probe');
+    await expect(probe).toHaveAttribute('data-fixture-preferences', 'held');
     // Re-select the exact same range so selection validation does not mask an obsolete start.
     await f.page.locator('#lookup-word').evaluate((paragraph) => {
-      paragraph.tabIndex = -1;
       paragraph.focus();
       const range = document.createRange();
       range.selectNodeContents(paragraph);
@@ -95,8 +100,8 @@ test('switching to lookup invalidates the pending automatic translation preferen
     const card = f.page.getByRole('dialog', { name: '查词', exact: true });
     await expect(card.getByLabel('AI 释义')).toContainText('词语：bank');
     await f.page.evaluate(() => document.dispatchEvent(new Event('fixture-release-preferences')));
-    await expect(doc).toHaveAttribute('data-fixture-preferences', 'released');
-    await expect(doc).toHaveAttribute('data-fixture-starts', 'learning.start');
+    await expect(probe).toHaveAttribute('data-fixture-preferences', 'released');
+    await expect(probe).toHaveAttribute('data-fixture-starts', 'learning.start');
     await expect(card).toBeVisible();
     expect(f.count()).toBe(1);
   } finally {
