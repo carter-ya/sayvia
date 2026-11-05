@@ -193,3 +193,13 @@ PR #55 最新 head `dad69b2ab50c982ecaf69699cb4cc3ac552a582e` 的 [Codex 复审]
 PR #56 head `0581826d5593a0ecb29e31cb65e92f5e64991cb6` 的 [Codex 审核](https://github.com/carter-ya/sayvia/pull/56#issuecomment-6612796862)无问题，完整 CI 成功，无需追加修复，未合并。
 
 L04a.2 最终本机检查：typecheck、lint、format、生产构建和完整 705 项单元测试全部通过。纯模块尚未进入浏览器入口，生产捕获 bundle 不变；远程 CI 仍执行完整浏览器回归。
+
+PR #57 head `4b6509224a26e240a98c95fbe74c4ef78b1dd5f9` 的 Codex 审核无问题，完整 CI 成功，无需追加修复，未合并。
+
+## L04b.1 覆盖核心与原生字幕显示租约（2026-11-04）
+
+MAIN 捕获 bundle 升级 capture-v2，加入只控制原生外观的独立租约守卫。2 秒过期、250 ms看门狗；捕获停止／页面生命周期清理先同步还原。请求绑定owner、capture generation和完整轨键，核对实际video节点、全屏包含与当前可视范围。覆盖层只以textContent绘制原文、译文／等待，不关闭CC或改动原生文本。此层不开放双语按钮，也不自动发送模型请求。
+
+独立 `technical_review` 复现字幕空档丢失ownership导致旧续租抢占新覆盖层的P2，已将ownership与当前隐藏租约分开；普通空档保留归属，新owner接管后退休旧owner。另指出裁切边界：180px播放器、bottom=200px使文本完全在裁切区域外，但旧守卫仍报告active。以旧生产bundle运行新浏览器回归，准确在期待active=false时收到true而失败，确认有效；修复后共用完整几何检查，未以等待2秒到期代替拒绝接管的断言。
+
+最终独立复核无剩余P1/P2，29项显示／捕获单测通过。本机typecheck、lint、format、生产构建及720项完整单元测试通过；新bundle三项受控浏览器回归通过：真实CSS隐藏与还原、完整原生文本保留、失联2秒过期、旧owner拒绝、小播放器裁切拒绝、实际player全屏／video自身全屏、设置停用和零模型请求。fixture构造视频页面／覆盖DOM，仅证明生产守卫，不等同于真实YouTube、真实freeze或最终覆盖UI验收；这些仍待后层完成。

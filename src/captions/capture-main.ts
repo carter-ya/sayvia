@@ -1,3 +1,4 @@
+import { installDisplayLease } from './display-lease';
 import { CaptionBodyReader } from './body-reader';
 import { CaptionBridgeSender, MessageRate } from './bridge';
 import {
@@ -5,6 +6,7 @@ import {
   CaptionError,
   bytes,
   timedtextTrack,
+  trackKey,
   type CaptionCue,
   type CaptionTrack,
 } from './contract';
@@ -18,7 +20,7 @@ import {
   watchVideoId,
 } from './player';
 
-const VERSION = 'capture-v1';
+const VERSION = 'capture-v2';
 type Controller = { version: string; active(): boolean; stop(): void };
 type CaptureWindow = Window & typeof globalThis & { __sayviaCapture?: Controller };
 type RequestScope = {
@@ -57,6 +59,12 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
     track: observation.track,
     reason: observation.reason,
   };
+  const display = installDisplayLease(win, () => ({
+    generation: state.generation,
+    trackKey: state.track ? trackKey(state.track) : null,
+    player: playerNode,
+    ready: enabled && state.reason === 'ready',
+  }));
   let lastSent = '';
   let lastTick = Date.now();
   let lastObserved = lastTick;
@@ -75,6 +83,7 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
     if (encoded !== lastSent && emit(state)) lastSent = encoded;
   }
   function clear() {
+    display.reset();
     for (const pending of [...pendingScopes]) pending.cancel();
     controller.abort();
     controller = new AbortController();
@@ -123,6 +132,7 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
     const identity = (value: typeof next) =>
       JSON.stringify([value.videoId, value.track, value.reason]);
     if (next.player !== observation.player || identity(next) !== identity(observation)) {
+      display.reset();
       if (['advertisement', 'live', 'unsupported-page'].includes(next.reason)) {
         clear();
         state = { ...state, generation: crypto.randomUUID() };
@@ -393,6 +403,7 @@ export function installYouTubeCapture(win: CaptureWindow = window) {
   function stop() {
     if (!enabled) return;
     enabled = false;
+    display.dispose();
     clear();
     clearInterval(timer);
     win.removeEventListener('message', control);
