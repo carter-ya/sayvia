@@ -56,6 +56,9 @@ export const LearningEventSchema = z.discriminatedUnion('type', [
       type: z.literal('learning.state'),
       state: z.enum(['failed', 'canceled', 'timedOut', 'interrupted', 'expired', 'delivered']),
       error: z.string().max(48).optional(),
+      cancelPending: z.boolean().optional(),
+      cancelReason: z.literal('explicit-preemption').optional(),
     })
-    .strict(),
+    .strict()
+    .refine((value) => (!value.cancelPending && !value.cancelReason) || value.state === 'canceled'),
 ]);

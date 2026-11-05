@@ -33,7 +33,7 @@ function start(who: TaskOwner): Extract<TaskMessage, { type: 'translation.start'
   return { protocolVersion: 1, requestId: crypto.randomUUID(), type: 'translation.start', payload };
 }
 function control(
-  request: ReturnType<typeof start>,
+  request: { payload: { clientTaskId: string; documentNonce: string } },
   type: 'translation.status' | 'translation.cancel',
 ): Exclude<TaskMessage, { type: 'translation.start' | 'translation.manual.read' }> {
   return {
@@ -70,8 +70,25 @@ async function setup(initial?: TaskSession, loseCancelAck = false) {
         },
       })),
     snapshot: vi.fn(async () => ({
-      providers: [{ id: providerId }],
+      preferences: { defaultProviderId: providerId },
+      providers: [{ id: providerId, revision: 2, model: 'fixture-model' }],
     })) as unknown as ConfigRepository['snapshot'],
+  };
+  const guardedRepository = {
+    ...repository,
+    withCaptionConfig: async <T>(
+      expected: { id: string; revision: number; model: string },
+      dispatch: (config: Awaited<ReturnType<ConfigRepository['completionConfig']>>) => Promise<T>,
+    ) => {
+      const provider = await repository.completionConfig();
+      if (
+        provider.providerId !== expected.id ||
+        provider.providerRevision !== expected.revision ||
+        provider.model !== expected.model
+      )
+        throw new Error('CONFLICT');
+      return dispatch(provider);
+    },
   };
   const views = new Map<string, ExecutionView>();
   let dispatches = 0;
@@ -111,12 +128,12 @@ async function setup(initial?: TaskSession, loseCancelAck = false) {
     deliver: vi.fn<TaskPlatform['deliver']>().mockResolvedValue(true),
     progress: vi.fn(async () => {}),
   };
-  const broker = new TaskBroker(storage, repository, host, platform);
+  const broker = new TaskBroker(storage, guardedRepository, host, platform);
   await broker.ready;
   return {
     broker,
     storage,
-    repository,
+    repository: guardedRepository,
     host,
     platform,
     views,
@@ -164,6 +181,7 @@ function captions(who: TaskOwner): Extract<TaskMessage, { type: 'learning.start'
       clientTaskId: crypto.randomUUID(),
       documentNonce: who.documentNonce,
       purpose: 'captions',
+      expectedProvider: { id: providerId, revision: 2, model: 'fixture-model' },
       origin: 'page',
       input: {
         sessionId: crypto.randomUUID(),
@@ -1005,3 +1023,137 @@ describe('ephemeral stream routing', () => {
     expect(SessionSchema.safeParse(f.saved()).success).toBe(true);
   });
 });
+
+it('reports only explicit caption preemption as resumable, clearing that reason on ordinary cancellation and restart', async () => {
+  const f = await setup();
+  const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+  const source = captions(who);
+  await f.broker.handle(source, who);
+  await f.broker.handle(lookup(who), who);
+  expect(await f.broker.handle(control(source, 'translation.status'), who)).toMatchObject({
+    ok: true,
+    data: { state: 'canceled', cancelPending: false, cancelReason: 'explicit-preemption' },
+  });
+  const restarted = new TaskBroker(f.storage, f.repository, f.host, f.platform);
+  await restarted.ready;
+  expect(
+    (await restarted.handle(control(source, 'translation.status'), who)).data,
+  ).not.toHaveProperty('cancelReason');
+  const next = await setup();
+  const nextSource = captions(who);
+  await next.broker.handle(nextSource, who);
+  await next.broker.handle(lookup(who), who);
+  expect(
+    (await next.broker.handle(control(nextSource, 'translation.cancel'), who)).data,
+  ).not.toHaveProperty('cancelReason');
+});
+it('retains an explicit preemption reason while retrying unconfirmed cancellation, exposing its pending fence', async () => {
+  const f = await setup();
+  const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+  const source = captions(who);
+  await f.broker.handle(source, who);
+  f.host.task.mockRejectedValueOnce(new Error('LOST_ACK'));
+  await f.broker.handle(lookup(who), who);
+  expect(f.saved().routes[0]).toMatchObject({
+    cancelReason: 'explicit-preemption',
+    cancelPending: true,
+  });
+  await f.broker.reconcile();
+  expect(await f.broker.handle(control(source, 'translation.status'), who)).toMatchObject({
+    ok: true,
+    data: { cancelReason: 'explicit-preemption', cancelPending: false },
+  });
+});
+it('a caption timeout is not marked as an explicit preemption', async () => {
+  const f = await setup();
+  const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+  const source = captions(who);
+  await f.broker.handle(source, who);
+  const now = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 61_000);
+  try {
+    await f.broker.reconcile();
+  } finally {
+    now.mockRestore();
+  }
+  expect(f.saved().routes[0]).toMatchObject({ state: 'timedOut', error: 'TIMEOUT' });
+  expect(f.saved().routes[0]).not.toHaveProperty('cancelReason');
+});
+it('does not re-enter repository reads inside the caption dispatch reservation', async () => {
+  const f = await setup();
+  const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+  let inside = false;
+  const reserve = f.repository.withCaptionConfig;
+  f.repository.withCaptionConfig = async (identity, dispatch) =>
+    reserve(identity, async (provider) => {
+      inside = true;
+      try {
+        return await dispatch(provider);
+      } finally {
+        inside = false;
+      }
+    });
+  const snapshot = f.repository.snapshot;
+  f.repository.snapshot = async () => {
+    expect(inside).toBe(false);
+    return snapshot();
+  };
+  expect(await f.broker.handle(captions(who), who)).toMatchObject({
+    ok: true,
+    data: { state: 'running' },
+  });
+});
+it('drops an otherwise valid caption result when the default provider changes after START', async () => {
+  const f = await setup();
+  const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+  await f.broker.handle(captions(who), who);
+  const route = f.saved().routes[0]!;
+  f.views.set(route.taskId, {
+    taskId: route.taskId,
+    state: 'ready',
+    result: {
+      ...lookupResult,
+      data: {
+        purpose: 'captions',
+        value: { ...route.captionIdentity!, units: [{ unitId: 'u0', revision: 1, text: 'hello' }] },
+      },
+    },
+  });
+  vi.mocked(f.repository.snapshot).mockResolvedValue({
+    preferences: { defaultProviderId: crypto.randomUUID() },
+    providers: [],
+  } as unknown as Awaited<ReturnType<ConfigRepository['snapshot']>>);
+  await f.broker.reconcile();
+  expect(f.platform.deliver).not.toHaveBeenCalled();
+  expect(f.saved().routes[0]?.state).toBe('canceled');
+});
+
+it.each(['timeout', 'cancel'])(
+  'does not upgrade %s cancellation with a lost ACK into resumable preemption',
+  async (cause) => {
+    const f = await setup();
+    const who = { ...owner(), siteOrigin: 'https://www.youtube.com' };
+    const source = captions(who);
+    await f.broker.handle(source, who);
+    const task = f.host.task.getMockImplementation()!;
+    f.host.task.mockImplementationOnce(async (...args) =>
+      cause === 'timeout' ? task(...args) : Promise.reject(new Error('LOST_ACK')),
+    );
+    if (cause === 'timeout') {
+      f.host.task.mockRejectedValueOnce(new Error('LOST_ACK'));
+      const now = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 61_000);
+      try {
+        await f.broker.reconcile();
+      } finally {
+        now.mockRestore();
+      }
+    } else await f.broker.handle(control(source, 'translation.cancel'), who);
+    expect(f.saved().routes[0]).toMatchObject({ state: 'canceled', cancelPending: true });
+    expect(f.saved().routes[0]).not.toHaveProperty('cancelReason');
+    expect(await f.broker.handle(lookup(who), who)).toMatchObject({ ok: true });
+    expect((await f.broker.handle(control(source, 'translation.status'), who)).data).toMatchObject({
+      state: 'canceled',
+      cancelPending: false,
+    });
+    expect(f.saved().routes[0]).not.toHaveProperty('cancelReason');
+  },
+);

@@ -5,6 +5,7 @@ import {
   parseCaptionResult,
   parseLookupResult,
 } from '../../src/core/learning-contract';
+import { LearningEventSchema } from '../../src/runtime/public-events';
 import { LearningStartMessage } from '../../src/runtime/learning-protocol';
 
 const input = () => ({
@@ -131,10 +132,19 @@ describe('learning task source boundary', () => {
   });
   const owner = () => ({ clientTaskId: crypto.randomUUID(), documentNonce: crypto.randomUUID() });
   it('rejects captions from a popup, supplied page tab IDs and write capabilities', () => {
-    const payload = { ...owner(), purpose: 'captions', origin: 'page', input: input() };
+    const payload = {
+      ...owner(),
+      purpose: 'captions',
+      expectedProvider: { id: crypto.randomUUID(), revision: 0, model: 'fixture' },
+      origin: 'page',
+      input: input(),
+    };
     expect(LearningStartMessage.safeParse({ ...envelope(), payload }).success).toBe(true);
     for (const extra of [
       { origin: 'manual' },
+      { expectedProvider: undefined },
+      { expectedProvider: { ...payload.expectedProvider, revision: -1 } },
+      { expectedProvider: { ...payload.expectedProvider, apiKey: 'not-allowed' } },
       { tabId: 42 },
       { editorSessionId: crypto.randomUUID() },
       { canApply: true },
@@ -175,4 +185,33 @@ describe('learning task source boundary', () => {
         .success,
     ).toBe(false);
   });
+});
+
+it('accepts caption cancellation notifications without weakening other terminal states or legacy lookup events', () => {
+  const event = {
+    protocolVersion: 1,
+    type: 'learning.state',
+    taskId: crypto.randomUUID(),
+    clientTaskId: crypto.randomUUID(),
+    documentNonce: crypto.randomUUID(),
+    state: 'canceled',
+    error: 'CANCELED',
+  };
+  expect(LearningEventSchema.safeParse(event).success).toBe(true);
+  expect(
+    LearningEventSchema.parse({
+      ...event,
+      cancelPending: true,
+      cancelReason: 'explicit-preemption',
+    }),
+  ).toMatchObject({ cancelPending: true, cancelReason: 'explicit-preemption' });
+  expect(
+    LearningEventSchema.safeParse({ ...event, state: 'delivered', cancelPending: false }).success,
+  ).toBe(true);
+  for (const extra of [
+    { state: 'timedOut', cancelReason: 'explicit-preemption' },
+    { state: 'failed', cancelPending: true },
+    { cancelReason: 'timeout' },
+  ])
+    expect(LearningEventSchema.safeParse({ ...event, ...extra }).success).toBe(false);
 });

@@ -5,6 +5,7 @@ import {
   LookupInputSchema,
 } from '../core/learning-contract';
 import { ResultMetricsSchema } from './translation-progress';
+import { CaptionProviderSchema } from './caption-protocol';
 
 const Owner = {
   clientTaskId: z.uuid(),
@@ -35,6 +36,7 @@ export const CaptionStartSchema = z
   .object({
     ...Owner,
     purpose: z.literal('captions'),
+    expectedProvider: CaptionProviderSchema,
     origin: z.literal('page'),
     input: CaptionInputSchema,
   })

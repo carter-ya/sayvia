@@ -1,6 +1,15 @@
 import { z } from 'zod';
 import { TrackSchema } from '../captions/contract';
 
+export const CaptionProviderSchema = z
+  .object({
+    id: z.uuid(),
+    revision: z.int().nonnegative(),
+    model: z.string().min(1).max(160),
+  })
+  .strict();
+export type CaptionProvider = z.infer<typeof CaptionProviderSchema>;
+
 export const CaptureSettingsSchema = z
   .object({
     desiredEnabled: z.boolean(),
@@ -24,6 +33,7 @@ export const CaptionRequestSchema = z.discriminatedUnion('type', [
   z.object({ ...common, type: z.literal('captions.settings.read') }).strict(),
   z.object({ ...common, type: z.literal('captions.settings.set'), enabled: z.boolean() }).strict(),
   z.object({ ...page, type: z.literal('captions.ensure') }).strict(),
+  z.object({ ...page, type: z.literal('captions.configuration') }).strict(),
   z
     .object({
       ...page,
