@@ -1,0 +1,538 @@
+{
+  "startedAt": "2026-11-03T15:51:55.893Z",
+  "realYouTubeCaptions": true,
+  "productionExtensionEndToEnd": false,
+  "maximumCalls": 6,
+  "automaticRetry": false,
+  "protocol": "caption-research-grouped-v1",
+  "grouping": {
+    "maxRows": 3,
+    "maxSpanMs": 8000,
+    "maxCodePoints": 200,
+    "allowGaps": false
+  },
+  "promptSha256": "7c0a8b3c37f5c4c8db5555056fcb47858e87f31dfe688247d5c09450c9b54156",
+  "normalization": "Full-line display; shorten overlapping source rows at next row in same ASR window. Not karaoke.",
+  "semanticReview": "pending; output retained temporarily outside repository",
+  "results": [
+    {
+      "service": "openai",
+      "model": "gpt-6-luna",
+      "videoId": "arj7oStGLkU",
+      "kind": "asr",
+      "anchorMs": 15000,
+      "cueCount": 6,
+      "sourceMapping": [
+        {
+          "sourceIds": [
+            1,
+            3,
+            5
+          ],
+          "start": 12559,
+          "end": 19640
+        },
+        {
+          "sourceIds": [
+            7,
+            9,
+            11
+          ],
+          "start": 19640,
+          "end": 25960
+        },
+        {
+          "sourceIds": [
+            13,
+            15,
+            17
+          ],
+          "start": 25960,
+          "end": 30960
+        },
+        {
+          "sourceIds": [
+            19,
+            21,
+            23
+          ],
+          "start": 30960,
+          "end": 37600
+        },
+        {
+          "sourceIds": [
+            25,
+            27,
+            29
+          ],
+          "start": 37600,
+          "end": 43920
+        },
+        {
+          "sourceIds": [
+            31
+          ],
+          "start": 43920,
+          "end": 47320
+        }
+      ],
+      "sourceRangeMs": [
+        12559,
+        47320
+      ],
+      "inputCharacters": 537,
+      "sourceSha256": "696b9f5be851dd2ca263ef06c02a938a700a98fc72381f65c191dd391dc432c0",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 8696,
+      "playbackBudgetAt2xMs": 16160,
+      "remainingBudgetAt2xMs": 7464,
+      "usage": {
+        "prompt_tokens": 339,
+        "completion_tokens": 786,
+        "total_tokens": 1125,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 591,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "service": "deepseek",
+      "model": "deepseek-flash",
+      "videoId": "arj7oStGLkU",
+      "kind": "asr",
+      "anchorMs": 15000,
+      "cueCount": 6,
+      "sourceMapping": [
+        {
+          "sourceIds": [
+            1,
+            3,
+            5
+          ],
+          "start": 12559,
+          "end": 19640
+        },
+        {
+          "sourceIds": [
+            7,
+            9,
+            11
+          ],
+          "start": 19640,
+          "end": 25960
+        },
+        {
+          "sourceIds": [
+            13,
+            15,
+            17
+          ],
+          "start": 25960,
+          "end": 30960
+        },
+        {
+          "sourceIds": [
+            19,
+            21,
+            23
+          ],
+          "start": 30960,
+          "end": 37600
+        },
+        {
+          "sourceIds": [
+            25,
+            27,
+            29
+          ],
+          "start": 37600,
+          "end": 43920
+        },
+        {
+          "sourceIds": [
+            31
+          ],
+          "start": 43920,
+          "end": 47320
+        }
+      ],
+      "sourceRangeMs": [
+        12559,
+        47320
+      ],
+      "inputCharacters": 537,
+      "sourceSha256": "696b9f5be851dd2ca263ef06c02a938a700a98fc72381f65c191dd391dc432c0",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 6489,
+      "playbackBudgetAt2xMs": 16160,
+      "remainingBudgetAt2xMs": 9671,
+      "usage": {
+        "prompt_tokens": 369,
+        "completion_tokens": 1128,
+        "total_tokens": 1497,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 963
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 369
+      }
+    },
+    {
+      "service": "openai",
+      "model": "gpt-6-luna",
+      "videoId": "arj7oStGLkU",
+      "kind": "asr",
+      "anchorMs": 120000,
+      "cueCount": 6,
+      "sourceMapping": [
+        {
+          "sourceIds": [
+            85,
+            87,
+            89
+          ],
+          "start": 115479,
+          "end": 122399
+        },
+        {
+          "sourceIds": [
+            91,
+            93
+          ],
+          "start": 122399,
+          "end": 128560
+        },
+        {
+          "sourceIds": [
+            95,
+            97,
+            99
+          ],
+          "start": 128560,
+          "end": 135680
+        },
+        {
+          "sourceIds": [
+            101,
+            103,
+            105
+          ],
+          "start": 135680,
+          "end": 141640
+        },
+        {
+          "sourceIds": [
+            107,
+            109
+          ],
+          "start": 141640,
+          "end": 147800
+        },
+        {
+          "sourceIds": [
+            111
+          ],
+          "start": 147800,
+          "end": 151200
+        }
+      ],
+      "sourceRangeMs": [
+        115479,
+        151200
+      ],
+      "inputCharacters": 471,
+      "sourceSha256": "e4990720cc2a500eba374f7e0ae2f130b5e136e7e7e7ce28cca392127e90080b",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 8004,
+      "playbackBudgetAt2xMs": 15600,
+      "remainingBudgetAt2xMs": 7596,
+      "usage": {
+        "prompt_tokens": 335,
+        "completion_tokens": 707,
+        "total_tokens": 1042,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 512,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "service": "deepseek",
+      "model": "deepseek-flash",
+      "videoId": "arj7oStGLkU",
+      "kind": "asr",
+      "anchorMs": 120000,
+      "cueCount": 6,
+      "sourceMapping": [
+        {
+          "sourceIds": [
+            85,
+            87,
+            89
+          ],
+          "start": 115479,
+          "end": 122399
+        },
+        {
+          "sourceIds": [
+            91,
+            93
+          ],
+          "start": 122399,
+          "end": 128560
+        },
+        {
+          "sourceIds": [
+            95,
+            97,
+            99
+          ],
+          "start": 128560,
+          "end": 135680
+        },
+        {
+          "sourceIds": [
+            101,
+            103,
+            105
+          ],
+          "start": 135680,
+          "end": 141640
+        },
+        {
+          "sourceIds": [
+            107,
+            109
+          ],
+          "start": 141640,
+          "end": 147800
+        },
+        {
+          "sourceIds": [
+            111
+          ],
+          "start": 147800,
+          "end": 151200
+        }
+      ],
+      "sourceRangeMs": [
+        115479,
+        151200
+      ],
+      "inputCharacters": 471,
+      "sourceSha256": "e4990720cc2a500eba374f7e0ae2f130b5e136e7e7e7ce28cca392127e90080b",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 5230,
+      "playbackBudgetAt2xMs": 15600,
+      "remainingBudgetAt2xMs": 10370,
+      "usage": {
+        "prompt_tokens": 367,
+        "completion_tokens": 937,
+        "total_tokens": 1304,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 777
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 367
+      }
+    },
+    {
+      "service": "openai",
+      "model": "gpt-6-luna",
+      "videoId": "arj7oStGLkU",
+      "kind": "asr",
+      "anchorMs": 300000,
+      "cueCount": 6,
+      "sourceMapping": [
+        {
+          "sourceIds": [
+            221,
+            223
+          ],
+          "start": 297479,
+          "end": 305080
+        },
+        {
+          "sourceIds": [
+            225,
+            227,
+            229
+          ],
+          "start": 305080,
+          "end": 310800
+        },
+        {
+          "sourceIds": [
+            231,
+            233
+          ],
+          "start": 310800,
+          "end": 316440
+        },
+        {
+          "sourceIds": [
+            235,
+            237,
+            239
+          ],
+          "start": 316440,
+          "end": 323160
+        },
+        {
+          "sourceIds": [
+            241,
+            243
+          ],
+          "start": 323160,
+          "end": 329960
+        },
+        {
+          "sourceIds": [
+            245,
+            247,
+            249
+          ],
+          "start": 329960,
+          "end": 335680
+        }
+      ],
+      "sourceRangeMs": [
+        297479,
+        335680
+      ],
+      "inputCharacters": 529,
+      "sourceSha256": "02ed65be788293a685386dadd3373a081d9a4a0f431d28744c251993eb840dd5",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 8691,
+      "playbackBudgetAt2xMs": 17840,
+      "remainingBudgetAt2xMs": 9149,
+      "usage": {
+        "prompt_tokens": 333,
+        "completion_tokens": 787,
+        "total_tokens": 1120,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 595,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "service": "deepseek",
+      "model": "deepseek-flash",
+      "videoId": "arj7oStGLkU",
+      "kind": "asr",
+      "anchorMs": 300000,
+      "cueCount": 6,
+      "sourceMapping": [
+        {
+          "sourceIds": [
+            221,
+            223
+          ],
+          "start": 297479,
+          "end": 305080
+        },
+        {
+          "sourceIds": [
+            225,
+            227,
+            229
+          ],
+          "start": 305080,
+          "end": 310800
+        },
+        {
+          "sourceIds": [
+            231,
+            233
+          ],
+          "start": 310800,
+          "end": 316440
+        },
+        {
+          "sourceIds": [
+            235,
+            237,
+            239
+          ],
+          "start": 316440,
+          "end": 323160
+        },
+        {
+          "sourceIds": [
+            241,
+            243
+          ],
+          "start": 323160,
+          "end": 329960
+        },
+        {
+          "sourceIds": [
+            245,
+            247,
+            249
+          ],
+          "start": 329960,
+          "end": 335680
+        }
+      ],
+      "sourceRangeMs": [
+        297479,
+        335680
+      ],
+      "inputCharacters": 529,
+      "sourceSha256": "02ed65be788293a685386dadd3373a081d9a4a0f431d28744c251993eb840dd5",
+      "status": "ready",
+      "idsMatch": true,
+      "completeMs": 7426,
+      "playbackBudgetAt2xMs": 17840,
+      "remainingBudgetAt2xMs": 10414,
+      "usage": {
+        "prompt_tokens": 364,
+        "completion_tokens": 1257,
+        "total_tokens": 1621,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1103
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 364
+      }
+    }
+  ]
+}

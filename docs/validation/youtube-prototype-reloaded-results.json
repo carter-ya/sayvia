@@ -1,0 +1,57 @@
+{
+  "capturedAt": "2026-11-03T15:25:37.971Z",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+  "records": [
+    {
+      "meta": {
+        "v": "arj7oStGLkU",
+        "lang": "en",
+        "kind": null,
+        "name": null,
+        "vssId": null,
+        "fmt": "json3",
+        "tlang": null
+      },
+      "transport": "xhr",
+      "status": 200,
+      "bytes": 43156,
+      "elapsedMs": 282,
+      "format": "json3",
+      "cueCount": 315,
+      "first": {
+        "id": 0,
+        "start": 12645,
+        "end": 14015,
+        "append": false,
+        "windowId": null
+      },
+      "last": {
+        "id": 314,
+        "start": 834626,
+        "end": 842624,
+        "append": false,
+        "windowId": null
+      }
+    }
+  ],
+  "currentVideo": "arj7oStGLkU",
+  "selected": {
+    "v": "arj7oStGLkU",
+    "lang": "en",
+    "kind": null,
+    "name": null,
+    "vssId": null,
+    "fmt": "json3",
+    "tlang": null
+  },
+  "playerTrack": {
+    "available": true,
+    "videoId": "arj7oStGLkU",
+    "track": {
+      "languageCode": "en",
+      "kind": "",
+      "vssId": null,
+      "name": ""
+    }
+  }
+}

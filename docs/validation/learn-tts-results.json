@@ -1,0 +1,678 @@
+{
+  "date": "2026-11-03",
+  "sourceHead": "5d69f9c",
+  "scope": "isolated TTS capability probe; not production integration or audio-quality verification",
+  "initialImmediateEnumeration": {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "ttsAvailable": true,
+    "voiceCount": 0,
+    "localVoiceCount": 0,
+    "results": [
+      {
+        "lang": "zh-CN",
+        "available": false
+      },
+      {
+        "lang": "en-US",
+        "available": false
+      },
+      {
+        "lang": "ja-JP",
+        "available": false
+      },
+      {
+        "lang": "ko-KR",
+        "available": false
+      },
+      {
+        "lang": "fr-FR",
+        "available": false
+      },
+      {
+        "lang": "de-DE",
+        "available": false
+      },
+      {
+        "lang": "es-ES",
+        "available": false
+      }
+    ],
+    "stop": null,
+    "volume": 0,
+    "verifiesAudibleQuality": false
+  },
+  "headed": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "headed": true,
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+    "ttsAvailable": true,
+    "voiceCount": 180,
+    "localVoiceCount": 180,
+    "results": [
+      {
+        "lang": "zh-CN",
+        "available": true,
+        "voice": "婷婷",
+        "voiceLanguage": "zh-CN",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 6
+            },
+            {
+              "type": "word",
+              "elapsedMs": 395
+            },
+            {
+              "type": "word",
+              "elapsedMs": 481
+            },
+            {
+              "type": "end",
+              "elapsedMs": 1025
+            }
+          ],
+          "durationMs": 1025
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 1
+            },
+            {
+              "type": "word",
+              "elapsedMs": 42
+            },
+            {
+              "type": "word",
+              "elapsedMs": 149
+            },
+            {
+              "type": "end",
+              "elapsedMs": 757
+            }
+          ],
+          "durationMs": 757
+        }
+      },
+      {
+        "lang": "en-US",
+        "available": true,
+        "voice": "Albert",
+        "voiceLanguage": "en-US",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 4
+            },
+            {
+              "type": "word",
+              "elapsedMs": 139
+            },
+            {
+              "type": "end",
+              "elapsedMs": 768
+            }
+          ],
+          "durationMs": 768
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 2
+            },
+            {
+              "type": "word",
+              "elapsedMs": 42
+            },
+            {
+              "type": "end",
+              "elapsedMs": 437
+            }
+          ],
+          "durationMs": 437
+        }
+      },
+      {
+        "lang": "ja-JP",
+        "available": true,
+        "voice": "Eddy (日语（日本）)",
+        "voiceLanguage": "ja-JP",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 4
+            },
+            {
+              "type": "end",
+              "elapsedMs": 1024
+            }
+          ],
+          "durationMs": 1024
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 2
+            },
+            {
+              "type": "word",
+              "elapsedMs": 53
+            },
+            {
+              "type": "end",
+              "elapsedMs": 960
+            }
+          ],
+          "durationMs": 960
+        }
+      },
+      {
+        "lang": "ko-KR",
+        "available": true,
+        "voice": "Eddy (韩语（韩国）)",
+        "voiceLanguage": "ko-KR",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 5
+            },
+            {
+              "type": "end",
+              "elapsedMs": 1611
+            }
+          ],
+          "durationMs": 1611
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 2
+            },
+            {
+              "type": "end",
+              "elapsedMs": 2016
+            }
+          ],
+          "durationMs": 2016
+        }
+      },
+      {
+        "lang": "fr-FR",
+        "available": true,
+        "voice": "Eddy (法语（法国）)",
+        "voiceLanguage": "fr-FR",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 4
+            },
+            {
+              "type": "word",
+              "elapsedMs": 53
+            },
+            {
+              "type": "end",
+              "elapsedMs": 1035
+            }
+          ],
+          "durationMs": 1035
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 1
+            },
+            {
+              "type": "word",
+              "elapsedMs": 42
+            },
+            {
+              "type": "end",
+              "elapsedMs": 1312
+            }
+          ],
+          "durationMs": 1312
+        }
+      },
+      {
+        "lang": "de-DE",
+        "available": true,
+        "voice": "Anna",
+        "voiceLanguage": "de-DE",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 5
+            },
+            {
+              "type": "word",
+              "elapsedMs": 362
+            },
+            {
+              "type": "end",
+              "elapsedMs": 853
+            }
+          ],
+          "durationMs": 853
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 1
+            },
+            {
+              "type": "word",
+              "elapsedMs": 53
+            },
+            {
+              "type": "end",
+              "elapsedMs": 630
+            }
+          ],
+          "durationMs": 630
+        }
+      },
+      {
+        "lang": "es-ES",
+        "available": true,
+        "voice": "Eddy (西班牙语（西班牙）)",
+        "voiceLanguage": "es-ES",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 5
+            },
+            {
+              "type": "word",
+              "elapsedMs": 64
+            },
+            {
+              "type": "end",
+              "elapsedMs": 704
+            }
+          ],
+          "durationMs": 704
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 2
+            },
+            {
+              "type": "word",
+              "elapsedMs": 53
+            },
+            {
+              "type": "end",
+              "elapsedMs": 885
+            }
+          ],
+          "durationMs": 885
+        }
+      }
+    ],
+    "stop": {
+      "outcome": "interrupted",
+      "events": [
+        {
+          "type": "start",
+          "elapsedMs": 1
+        },
+        {
+          "type": "interrupted",
+          "elapsedMs": 2
+        }
+      ],
+      "durationMs": 2
+    },
+    "volume": 0,
+    "verifiesAudibleQuality": false
+  },
+  "headless": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "headed": false,
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "ttsAvailable": true,
+    "voiceCount": 180,
+    "localVoiceCount": 180,
+    "results": [
+      {
+        "lang": "zh-CN",
+        "available": true,
+        "voice": "婷婷",
+        "voiceLanguage": "zh-CN",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 6
+            },
+            {
+              "type": "word",
+              "elapsedMs": 398
+            },
+            {
+              "type": "word",
+              "elapsedMs": 473
+            },
+            {
+              "type": "end",
+              "elapsedMs": 1028
+            }
+          ],
+          "durationMs": 1028
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 2
+            },
+            {
+              "type": "word",
+              "elapsedMs": 42
+            },
+            {
+              "type": "word",
+              "elapsedMs": 149
+            },
+            {
+              "type": "end",
+              "elapsedMs": 757
+            }
+          ],
+          "durationMs": 757
+        }
+      },
+      {
+        "lang": "en-US",
+        "available": true,
+        "voice": "Albert",
+        "voiceLanguage": "en-US",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 6
+            },
+            {
+              "type": "word",
+              "elapsedMs": 138
+            },
+            {
+              "type": "end",
+              "elapsedMs": 768
+            }
+          ],
+          "durationMs": 768
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 1
+            },
+            {
+              "type": "word",
+              "elapsedMs": 43
+            },
+            {
+              "type": "end",
+              "elapsedMs": 438
+            }
+          ],
+          "durationMs": 438
+        }
+      },
+      {
+        "lang": "ja-JP",
+        "available": true,
+        "voice": "Eddy (日语（日本）)",
+        "voiceLanguage": "ja-JP",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 5
+            },
+            {
+              "type": "end",
+              "elapsedMs": 1024
+            }
+          ],
+          "durationMs": 1024
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 1
+            },
+            {
+              "type": "word",
+              "elapsedMs": 53
+            },
+            {
+              "type": "end",
+              "elapsedMs": 960
+            }
+          ],
+          "durationMs": 960
+        }
+      },
+      {
+        "lang": "ko-KR",
+        "available": true,
+        "voice": "Eddy (韩语（韩国）)",
+        "voiceLanguage": "ko-KR",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 5
+            },
+            {
+              "type": "end",
+              "elapsedMs": 1611
+            }
+          ],
+          "durationMs": 1611
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 1
+            },
+            {
+              "type": "end",
+              "elapsedMs": 2016
+            }
+          ],
+          "durationMs": 2016
+        }
+      },
+      {
+        "lang": "fr-FR",
+        "available": true,
+        "voice": "Eddy (法语（法国）)",
+        "voiceLanguage": "fr-FR",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 5
+            },
+            {
+              "type": "word",
+              "elapsedMs": 53
+            },
+            {
+              "type": "end",
+              "elapsedMs": 1035
+            }
+          ],
+          "durationMs": 1035
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 1
+            },
+            {
+              "type": "word",
+              "elapsedMs": 42
+            },
+            {
+              "type": "end",
+              "elapsedMs": 1312
+            }
+          ],
+          "durationMs": 1312
+        }
+      },
+      {
+        "lang": "de-DE",
+        "available": true,
+        "voice": "Anna",
+        "voiceLanguage": "de-DE",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 5
+            },
+            {
+              "type": "word",
+              "elapsedMs": 341
+            },
+            {
+              "type": "end",
+              "elapsedMs": 832
+            }
+          ],
+          "durationMs": 832
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 1
+            },
+            {
+              "type": "word",
+              "elapsedMs": 53
+            },
+            {
+              "type": "end",
+              "elapsedMs": 629
+            }
+          ],
+          "durationMs": 629
+        }
+      },
+      {
+        "lang": "es-ES",
+        "available": true,
+        "voice": "Eddy (西班牙语（西班牙）)",
+        "voiceLanguage": "es-ES",
+        "normal": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 5
+            },
+            {
+              "type": "word",
+              "elapsedMs": 64
+            },
+            {
+              "type": "end",
+              "elapsedMs": 704
+            }
+          ],
+          "durationMs": 704
+        },
+        "slow": {
+          "outcome": "end",
+          "events": [
+            {
+              "type": "start",
+              "elapsedMs": 2
+            },
+            {
+              "type": "word",
+              "elapsedMs": 53
+            },
+            {
+              "type": "end",
+              "elapsedMs": 885
+            }
+          ],
+          "durationMs": 885
+        }
+      }
+    ],
+    "stop": {
+      "outcome": "interrupted",
+      "events": [
+        {
+          "type": "start",
+          "elapsedMs": 1
+        },
+        {
+          "type": "interrupted",
+          "elapsedMs": 1
+        }
+      ],
+      "durationMs": 1
+    },
+    "volume": 0,
+    "verifiesAudibleQuality": false
+  }
+}
