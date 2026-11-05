@@ -1,0 +1,130 @@
+{
+  "recordedAt": "2026-11-03T16:56:57.677Z",
+  "browser": "156.0.8078.4",
+  "mode": "production-speech-service/native-OS-voices/volume-default",
+  "acousticReview": false,
+  "humanPronunciationReview": false,
+  "voiceCount": 0,
+  "localVoiceCount": 0,
+  "results": [
+    {
+      "language": "zh-CN",
+      "text": "你好",
+      "selectedVoice": null,
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 2161
+    },
+    {
+      "language": "en-US",
+      "text": "hello",
+      "selectedVoice": null,
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 912
+    },
+    {
+      "language": "ja-JP",
+      "text": "こんにちは",
+      "selectedVoice": null,
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 1062
+    },
+    {
+      "language": "ko-KR",
+      "text": "안녕하세요",
+      "selectedVoice": null,
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 1628
+    },
+    {
+      "language": "fr-FR",
+      "text": "bonjour",
+      "selectedVoice": null,
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 1097
+    },
+    {
+      "language": "de-DE",
+      "text": "hallo",
+      "selectedVoice": null,
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 947
+    },
+    {
+      "language": "es-ES",
+      "text": "hola",
+      "selectedVoice": null,
+      "reply": {
+        "ok": true,
+        "data": {
+          "state": "speaking"
+        }
+      },
+      "states": [
+        "speaking",
+        "ended"
+      ],
+      "timedOut": false,
+      "elapsedMs": 729
+    }
+  ]
+}

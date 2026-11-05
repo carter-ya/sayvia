@@ -37,6 +37,8 @@ export default defineConfig({
       'scripting',
       'clipboardWrite',
       'contextMenus',
+      'tts',
+      'alarms',
     ],
     host_permissions: ['https://*/*', 'http://*/*'],
     commands: {

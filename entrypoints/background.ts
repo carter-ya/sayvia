@@ -3,6 +3,7 @@ import { defineBackground } from 'wxt/utils/define-background';
 import { PopupContext } from '../src/runtime/manual-draft';
 import { installGestureEntries } from '../src/background/gesture-entry';
 import { SiteAccess } from '../src/background/site-access';
+import { installSpeech } from '../src/background/speech';
 import { handlePageMessage } from '../src/background/page-router';
 import { handleConnectionTest } from '../src/background/connection-test';
 import { handleSettings } from '../src/background/settings-router';
@@ -27,6 +28,7 @@ export default defineBackground(() => {
     void sites.reconcile().catch(() => undefined);
   });
   const sessionReady = browser.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
+  const speech = installSpeech(sessionReady);
   void repository.ready.catch(() => undefined);
   void sessionReady.catch(() => undefined);
   const host = new ExecutorHost(Promise.all([repository.ready, sessionReady]), () => {
@@ -200,6 +202,7 @@ export default defineBackground(() => {
         if (result.ok && message.type === 'settings.delete')
           await broker.cancelWhere((route) => route.providerId === message.payload.id);
         if (result.ok && message.type === 'settings.clear') {
+          await speech.cancelWhere(() => true);
           await sites.reconcile();
           const tabs = await browser.tabs.query({});
           await Promise.allSettled(

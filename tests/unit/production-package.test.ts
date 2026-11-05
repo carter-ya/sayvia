@@ -40,6 +40,8 @@ describe('production extension package', () => {
       'scripting',
       'clipboardWrite',
       'contextMenus',
+      'tts',
+      'alarms',
     ]);
     expect(manifest.host_permissions).toEqual(['https://*/*', 'http://*/*']);
     expect(manifest.optional_host_permissions ?? []).toEqual([]);
