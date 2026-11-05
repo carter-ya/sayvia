@@ -37,9 +37,15 @@
 
 关闭顺序：撤销后台翻译授权并取消任务、推进 generation → 注销专用注册 → 向所有已知活动文档发送停用与清理并复核送达。冻结页面恢复时必须重新检查授权，未确认不得捕获／发送／接管显示。原型默认安装即启用；生产动态注册与撤销需要单独验证。
 
+L03b 实现前独立审查补充：新文档启动捕获与冻结后恢复分成不同状态；启动捕获必须有有限期限，隔离控制器始终未就绪时暂停。pagehide、freeze 或明显调度间隔后先清理，普通网页桥消息不能恢复捕获，须由后台核对后执行扩展注入。停用回执有截止，区分已注销、已确认清理和失联文档；旧启用回复不能覆盖更新的停用。后台授权快照应在串行取消前立即失效，broker 查询授权不能反过来等待正在等待 broker 的注册队列，防止锁互等。实际阈值和冻结／失联证据在 L03b 实现与验证中记录。[Chrome 页面生命周期](https://developer.chrome.com/docs/web-platform/page-lifecycle-api)
+
+Chrome 116 的兼容基线可使用动态注册的 MAIN world 与按 documentId 注入；不依赖新版浏览器原生 browser.*，继续使用项目现有兼容封装。注销注册只阻止后续注入，已执行脚本仍需显式停用与自身生命周期清理。[Chrome scripting API](https://developer.chrome.com/docs/extensions/reference/api/scripting)
+
 ## 3 获取、轨身份及 ASR 规范化
 
 MAIN 只包装 fetch／XHR 的正常响应，返回原请求结果，不改 URL／签名／headers，不发字幕请求。严格匹配已验证的 `www.youtube.com/api/timedtext`，校验最终响应 URL；fetch 使用及时、有界的 clone 流，取消只影响扩展分支。XHR 按实际 responseType 读取并在复制／解析前限制大小。关闭／导航时取消本地 reader、监听、定时器；还原包装函数时只还原仍等于本包装的属性。
+
+捕获不得等待 clone 读取完成才返回原始 fetch 响应。停止时先使本地 reader／任务身份失效并释放占位，再异步取消扩展分支，不能等待单个分叉的 cancel Promise 完成才清理；该 Promise 可能等待另一分支。XHR JSON 对象若无法在 stringify 之前有界检查，首期明确拒绝该 responseType，不能先复制再称已限额；已实测的文本 JSON3 路径保持支持。[Streams 分叉取消算法](https://streams.spec.whatwg.org/#readable-stream-default-tee)
 
 请求发起时冻结 captureGeneration、videoId 和规范化轨键；响应返回后再次匹配，旧响应不能填充新会话。轨键至少包含 videoId、lang、kind、name、tlang，null／空串规范化；format 不属于轨身份。tlang 非空是平台翻译轨，提示用户选择原语言轨，不进行双重翻译。
 
@@ -131,7 +137,8 @@ start/stop 串行；接收关闭、导航或 stop 时立即使 pending generatio
 | L01a.2 | task/route/execution/result 联合接线（使用 L01b 处理器） | 旧翻译／手动草稿兼容；非法来源、取消和恢复测试 |
 | L02a | TTS 后台与租约 | 枚举、旧 stop/回调/alarm、重启、取消先于 start、存储失败测试 |
 | L02b | 页面／手动卡片与朗读入口 | 多语言、纠正语言、缺失 voice、键盘和原有翻译回归 |
-| L03 | YouTube 动态注册、capture、解析和身份 | 两视频人工／ASR真实响应，新页面／已有页／站内导航及撤销 |
+| L03a | 字幕身份、JSON3／ASR规范化、全轨分组和有界数据桥 | 录制响应确定性回放、时间边界、限额、乱序／超时／取消，不开放捕获 |
+| L03b | YouTube 动态注册、capture 和当前文档授权 | 两视频人工／ASR生产实站响应，新页面／已有页／站内导航及撤销、冻结恢复 |
 | L04a | 字幕批次、显式请求抢占与缓存 | 真字幕模型结果、连续播放与跳转；无旧响应或无界付费队列 |
 | L04b | 覆盖层、隐藏租约及恢复 | 普通／影院／全屏、0.5/1/2倍速、关闭／失效恢复，缓存同步误差单独测量 |
 | L05 | 字幕选词整合与最终回归 | 两需求实际联通，隐私文案、权限、CI及审核问题闭环 |

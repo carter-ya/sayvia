@@ -1,0 +1,50 @@
+{
+  "checkedAt": "2026-11-03T17:31:30.576Z",
+  "productionParser": true,
+  "modelRequests": 0,
+  "newSiteCapture": false,
+  "samples": [
+    {
+      "sample": "reloaded",
+      "sourceCapturedAt": "2026-11-03T15:25:37.971Z",
+      "rawSha256": "df9651c16a9e741eb0434bb90e3eb7cd0689ac20a727a14290a476c455fef9f9",
+      "track": {
+        "videoId": "arj7oStGLkU",
+        "lang": "en",
+        "kind": null,
+        "name": null,
+        "tlang": null
+      },
+      "rawBytes": 43156,
+      "cues": 315,
+      "groups": 315,
+      "revisedIntervals": 0,
+      "firstStart": 12645,
+      "lastEnd": 842624,
+      "chunkCount": 4,
+      "largestChunkBytes": 18187,
+      "roundtrip": true
+    },
+    {
+      "sample": "second-asr",
+      "sourceCapturedAt": "2026-11-03T15:30:26.134Z",
+      "rawSha256": "740b4afd8b2b3ad2e3ec79fc2d081b4bcbc48073c85df88b8159d845bc7051fd",
+      "track": {
+        "videoId": "arj7oStGLkU",
+        "lang": "en",
+        "kind": "asr",
+        "name": null,
+        "tlang": null
+      },
+      "rawBytes": 241331,
+      "cues": 335,
+      "groups": 127,
+      "revisedIntervals": 0,
+      "firstStart": 12559,
+      "lastEnd": 843279,
+      "chunkCount": 4,
+      "largestChunkBytes": 16026,
+      "roundtrip": true
+    }
+  ]
+}
