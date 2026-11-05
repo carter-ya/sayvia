@@ -149,6 +149,7 @@ export function mountCaptureStatus(controller: CaptionController, session: Capti
     const view = session.snapshot(),
       capture = view.capture;
     host.hidden = !capture.enabled || !watchVideoId(location.href);
+    summary.textContent = view.waitingForTranslation ? 'Sayvia 字幕 · 译文准备中' : 'Sayvia 字幕';
     if (![...target.options].some((option) => option.value === view.target)) {
       const custom = document.createElement('option');
       custom.value = view.target;
@@ -173,9 +174,15 @@ export function mountCaptureStatus(controller: CaptionController, session: Capti
                 ? '这段翻译此前已取消，点击重试可重新翻译。'
                 : view.scheduler?.state === 'waiting'
                   ? '正在等待当前查词或其他任务结束…'
-                  : `双语字幕已开启 · ${view.scheduler?.translated ?? 0} 段已翻译${capture.capture?.track?.kind === 'asr' ? ' · 自动字幕' : ''}`
+                  : view.waitingForTranslation
+                    ? '译文准备中，暂时显示原生字幕。'
+                    : `双语字幕已开启 · ${view.scheduler?.translated ?? 0} 段已翻译${capture.capture?.track?.kind === 'asr' ? ' · 自动字幕' : ''}`
             : capture.error
-              ? '字幕暂时无法读取，原生字幕仍可使用。'
+              ? capture.error === 'NO_CAPTIONS'
+                ? '这次字幕响应没有可显示内容，请检查 YouTube 字幕菜单或选择其他视频。'
+                : capture.error === 'UNSUPPORTED_CAPTION_FORMAT'
+                  ? '当前字幕格式暂不支持，原生字幕仍可使用。'
+                  : '字幕暂时无法读取，原生字幕仍可使用。'
               : capture.processing
                 ? '正在整理字幕…'
                 : capture.groups.length
@@ -187,7 +194,7 @@ export function mountCaptureStatus(controller: CaptionController, session: Capti
                       : reason === 'live'
                         ? '暂不支持直播字幕。'
                         : reason === 'track-unavailable'
-                          ? '请先在 YouTube 中开启字幕。'
+                          ? '当前未取得可用原文轨：可能尚未开启，或视频未提供字幕。请检查 YouTube 字幕菜单。'
                           : '正在等待播放器加载字幕。已缓存的字幕可能需要刷新后读取。');
     start.hidden = view.active;
     start.disabled =

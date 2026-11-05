@@ -4,6 +4,8 @@ import { CaptionController } from '../src/captions/controller';
 import { CaptionPlayerSession } from '../src/captions/player-session';
 import { AppearanceSchema } from '../src/storage/schema';
 import { mountCaptureStatus } from '../src/captions/status-panel';
+import { LookupPopover } from '../src/content/lookup-panel';
+import { defaultAppearance } from '../src/ui/appearance';
 
 export default defineContentScript({
   registration: 'runtime',
@@ -32,8 +34,24 @@ export default defineContentScript({
       alive,
       request: (message) => browser.runtime.sendMessage(message),
     });
-    const player = new CaptionPlayerSession(controller, (message) =>
-      browser.runtime.sendMessage(message),
+    const lookup = new LookupPopover(controller.documentNonce, defaultAppearance);
+    const player = new CaptionPlayerSession(
+      controller,
+      (message) => browser.runtime.sendMessage(message),
+      {
+        open(text, anchor, language, root, focus) {
+          lookup.open(text, anchor, {
+            sourceLanguage: language,
+            fullscreenRoot: root,
+            focus,
+            fallbackFocus: () =>
+              document
+                .querySelector('[data-sayvia-caption-status]')
+                ?.shadowRoot?.querySelector<HTMLElement>('summary') ?? undefined,
+          });
+        },
+        close: () => lookup.close(),
+      },
     );
     const panel = mountCaptureStatus(controller, player);
     void browser.runtime
@@ -41,7 +59,10 @@ export default defineContentScript({
       .then(
         (reply) => {
           const parsed = AppearanceSchema.safeParse(reply?.data?.appearance);
-          if (parsed.success) panel.setAppearance(parsed.data);
+          if (parsed.success) {
+            panel.setAppearance(parsed.data);
+            lookup.setAppearance(parsed.data);
+          }
         },
         () => undefined,
       );
@@ -62,7 +83,10 @@ export default defineContentScript({
       }
       if (value.type === 'app.appearance-changed') {
         const parsed = AppearanceSchema.safeParse(value.appearance);
-        if (parsed.success) panel.setAppearance(parsed.data);
+        if (parsed.success) {
+          panel.setAppearance(parsed.data);
+          lookup.setAppearance(parsed.data);
+        }
         return;
       }
       if (

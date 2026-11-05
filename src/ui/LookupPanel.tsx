@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
-import { LookupInputSchema, type LookupResult } from '../core/learning-contract';
+import { LocaleSchema, LookupInputSchema, type LookupResult } from '../core/learning-contract';
 import { LearningEventSchema } from '../runtime/public-events';
 import { userError } from '../runtime/user-errors';
 import { LanguageField } from './LanguageField';
@@ -18,12 +18,17 @@ export function LookupPanel({
   text,
   documentNonce,
   onClose,
+  initialSourceLanguage = 'auto',
+  caption = false,
 }: {
   text: string;
   documentNonce: string;
   onClose(): void;
+  initialSourceLanguage?: string;
+  caption?: boolean;
 }) {
-  const [sourceLanguage, setSource] = useState('auto');
+  const initial = LocaleSchema.safeParse(initialSourceLanguage);
+  const [sourceLanguage, setSource] = useState(initial.success ? initial.data : 'auto');
   const [target, setTarget] = useState('zh-Hans');
   const [result, setResult] = useState<LookupResult>();
   const [busy, setBusy] = useState(false);
@@ -128,7 +133,7 @@ export function LookupPanel({
             reply?.ok && reply.data?.readTarget ? reply.data.readTarget : 'zh-Hans';
           setTarget(explanation);
           setReady(true);
-          void lookup('auto', explanation);
+          void lookup(sourceLanguage, explanation);
         },
         () => {
           if (mounted.current) {
@@ -179,12 +184,17 @@ export function LookupPanel({
         </button>
       </header>
       <p className="lookup-word">{text}</p>
+      {caption && (
+        <p className="field-help">
+          按所选字幕语言解释此片段，未使用整句上下文。分词不一定对应完整词条。
+        </p>
+      )}
       <div className="lookup-selectors">
         <LanguageField
           label="源语言"
           value={sourceLanguage}
-          allowAuto
-          disabled={!ready}
+          allowAuto={!caption}
+          disabled={!ready || caption}
           onChange={(language) => change(language, target)}
         />
         <LanguageField

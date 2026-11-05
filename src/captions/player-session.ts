@@ -20,6 +20,7 @@ export type CaptionPlayerView = {
   starting: boolean;
   stopping: boolean;
   active: boolean;
+  waitingForTranslation: boolean;
   scheduler?: SchedulerView;
   error?: string;
 };
@@ -59,6 +60,16 @@ export class CaptionPlayerSession {
   constructor(
     readonly controller: CaptionController,
     private readonly request: (message: Record<string, unknown>) => Promise<unknown>,
+    private readonly lookup?: {
+      open(
+        text: string,
+        anchor: DOMRect,
+        language: string,
+        player: HTMLElement,
+        focus: HTMLElement,
+      ): void;
+      close(): void;
+    },
   ) {
     this.capture = controller.snapshot();
     this.unsubscribe = controller.subscribe((view) => {
@@ -73,7 +84,7 @@ export class CaptionPlayerSession {
           view.session !== active.source.session ||
           view.capture !== active.source.capture)
       )
-        this.stop('字幕来源或授权已变化，请重新开启。', false);
+        this.stop(undefined, false);
       if (view.enabled && !this.configuration && !this.configRequest) void this.loadConfiguration();
       this.publish();
     });
@@ -90,6 +101,13 @@ export class CaptionPlayerSession {
       starting: this.starting,
       stopping: !!this.retiring,
       active: !!this.active,
+      waitingForTranslation:
+        !!this.active &&
+        ['running', 'waiting'].includes(this.active.scheduler.snapshot().state) &&
+        this.mode === 'translation' &&
+        this.active.scheduler
+          .visible(this.active.video.currentTime * 1000)
+          .some((row) => !row.translation),
       ...(this.active ? { scheduler: this.active.scheduler.snapshot() } : {}),
       ...(this.error ? { error: this.error } : {}),
     };
@@ -246,7 +264,19 @@ export class CaptionPlayerSession {
         source: granted,
         player,
         video,
-        overlay: new CaptionOverlay(player, video),
+        overlay: new CaptionOverlay(
+          player,
+          video,
+          this.lookup
+            ? {
+                language: source.capture.track.lang,
+                open: (text, anchor, focus) => {
+                  if (this.active === active && active.wantsDisplay)
+                    this.lookup?.open(text, anchor, source.capture!.track!.lang, player, focus);
+                },
+              }
+            : undefined,
+        ),
         unsubscribe: () => {},
         lastRenew: 0,
         lastAck: 0,
@@ -337,6 +367,8 @@ export class CaptionPlayerSession {
       this.release(active);
       this.retiring = active.scheduler;
     }
+    // Remove obsolete word buttons first so closing returns to stable controls.
+    this.lookup?.close();
     this.error = error;
     if (revoke) void this.controller.disableTranslation().catch(() => undefined);
     void this.drain();

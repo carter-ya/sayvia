@@ -274,7 +274,11 @@ export function useManualTranslation() {
     setStatus('草稿仅保存在本次浏览器会话，可继续翻译或复制。');
     const limit = next.purpose === 'lookup' ? 80 : 12_000;
     if ([...next.input].length > limit) {
-      setStatus(`原文超过 ${limit.toLocaleString()} 字符，当前修改尚未保存，请缩小范围。`);
+      setStatus(
+        next.purpose === 'lookup'
+          ? '查词最多 80 字符，已保留完整输入但尚未保存；请切换到手动翻译，或缩小范围。'
+          : `原文超过 ${limit.toLocaleString()} 字符，当前修改尚未保存，请缩小范围。`,
+      );
       return;
     }
     const ctx = context.current;
