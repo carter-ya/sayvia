@@ -97,7 +97,9 @@ caption batch：1～20 显示单元、输入累计 ≤6,000 Unicode 码点，uni
 
 LookupResult 严格对象字段：detectedLanguage 为规范 BCP-47 或 null；meanings 为 1～3 项，每项 partOfSpeech 为 ≤48 码点字符串或 null、definition 为 1～300 码点；example 为 null 或 text（1～240）及 translation（1～400）；note 为 null 或 1～240 码点。空白字符串拒绝，未知字段拒绝，JSON 文本总上限 16 KiB。UI 标注 AI 解释，明确可能有词义错误，不承诺权威词典／音标。提示约束为只解释指定源语言中原输入的含义，不迁移翻译词的其他义项；区分完整词、屈折形式、汉字／词干成分，不确定词性返回 null，不重复或凑足义项，不武断限定无上下文时的数、时态或读音。
 
-仅一次普通 Chat Completions 请求，提示要求 JSON，本地严格校验；不强制所有兼容服务支持 JSON Schema／JSON mode。格式失败返回 FORMAT_INVALID，只有用户重试才再次调用。语音使用原始所选文字，模型不能改写待朗读单词；auto 识别不明确时要求用户选语言。
+仅一次普通 Chat Completions 请求，提示要求 JSON，本地严格校验；不强制所有兼容服务支持 JSON Schema／JSON mode。格式失败返回 FORMAT_INVALID，只有用户重试才再次调用。语音使用原始所选文字，模型不能改写待朗读单词；auto 识别只作语言建议，非 null 也不代表用户确认；朗读前须明确确认或纠正语言，可通过带具体语言名的播放按钮一次完成。未知语言仍需选择，不能默认猜声线。
+
+生产处理器固定回归与残余风险见 [L01b 验证](validation/LEARN-production-processor.md)。自动“生”被两模型确定为中文的反例促成上述朗读语言确认规则。
 
 首次覆盖中、英、日、韩、法、德、西七种语言；设备缺某语音只影响朗读。真实模型探针每语言五个常见／多义词、两个已有模型，格式结果与语义检查分别记录。语言扩展不等于承诺每种设备都有声线。
 
@@ -123,8 +125,8 @@ start/stop 串行；接收关闭、导航或 stop 时立即使 pending generatio
 | --- | --- | --- |
 | L00 | 本契约、真实探针及独立审核记录 | 初审问题逐项给出证据或明确实现契约，最终独立复审无阻塞项 |
 | L01a.1 | 共用模型传输、有界输入／结果／入口协议 | 保持旧翻译行为；结构校验、非流式兼容和取消测试，不开放学习入口 |
-| L01a.2 | task/route/execution/result 联合接线 | 旧翻译／手动草稿兼容；非法来源、取消和恢复测试 |
-| L01b | lookup 提示、Worker schema 与真实模型验证 | 七语言格式、语义抽查、无隐式二次请求 |
+| L01b | lookup/captions 处理器、提示、真实 Worker 校验 | 七语言真实回归、取消／截止、解码后凭证检查，无隐式二次请求 |
+| L01a.2 | task/route/execution/result 联合接线（使用 L01b 处理器） | 旧翻译／手动草稿兼容；非法来源、取消和恢复测试 |
 | L02a | TTS 后台与租约 | 枚举、旧 stop/回调/alarm、重启、取消先于 start、存储失败测试 |
 | L02b | 页面／手动卡片与朗读入口 | 多语言、纠正语言、缺失 voice、键盘和原有翻译回归 |
 | L03 | YouTube 动态注册、capture、解析和身份 | 两视频人工／ASR真实响应，新页面／已有页／站内导航及撤销 |
