@@ -7,6 +7,7 @@ const Manual = z
   .object({ ...Card, origin: z.literal('manual'), tabId: z.int().nonnegative() })
   .strict();
 export const SpeechSourceSchema = z.discriminatedUnion('origin', [Page, Manual]);
+export type SpeechSource = z.infer<typeof SpeechSourceSchema>;
 export const SpeechOwnerSchema = z.discriminatedUnion('kind', [
   z
     .object({

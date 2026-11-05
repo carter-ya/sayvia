@@ -1,4 +1,5 @@
 import { AnchoredPanel } from './anchored-panel';
+import { LookupPopover } from './lookup-panel';
 import { copyText } from './copy-text';
 import { newId } from '../runtime/uuid';
 import { createRoot } from 'react-dom/client';
@@ -105,25 +106,49 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     entry.setAppearance(state.appearance);
     writeEntry.setAppearance(state.appearance);
     focusedEntry.setAppearance(state.appearance);
+    lookup.setAppearance(state.appearance);
     readingControls.setAppearance(state.appearance);
     if (visible) render();
   }
-  const entry = new SelectionEntry(() => {
-    if (automatic) {
-      const preview = selectedPreview;
-      const anchor = entry.panelAnchor();
-      if (preview) {
-        try {
-          selection.read(document);
-        } catch {
-          open('read', true);
-          return;
+  const lookup = new LookupPopover(registry.documentNonce, state.appearance);
+  const entry = new SelectionEntry(
+    () => {
+      if (automatic) {
+        const preview = selectedPreview;
+        const anchor = entry.panelAnchor();
+        if (preview) {
+          try {
+            selection.read(document);
+          } catch {
+            open('read', true);
+            return;
+          }
         }
+        open(preview ? 'write' : 'read', true, true, preview?.element, preview?.range);
+        if (preview && anchor) anchoredPanel.attach(() => anchor);
       }
-      open(preview ? 'write' : 'read', true, true, preview?.element, preview?.range);
-      if (preview && anchor) anchoredPanel.attach(() => anchor);
-    }
-  });
+    },
+    '使用 Sayvia 翻译选中文字',
+    'reading',
+    () => {
+      if (!automatic || writing || state.busy || !discard()) return;
+      try {
+        const text = selection.readText(document).trim();
+        if (!text || [...text].length > 80) return;
+        openSequence += 1;
+        cancel();
+        releaseReading();
+        current = undefined;
+        visible = false;
+        host.style.setProperty('display', 'none', 'important');
+        anchoredPanel.detach();
+        lookup.open(text, entry.panelAnchor());
+        entry.hide();
+      } catch {
+        entry.hide();
+      }
+    },
+  );
   const writeEntry = new SelectionEntry(
     () => {
       const selected = selectedEditor;
@@ -163,6 +188,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   });
   const owns = (event: Event) =>
     event.composedPath().includes(host) ||
+    lookup.owns(event) ||
     entry.owns(event) ||
     writeEntry.owns(event) ||
     editorEntries.owns(event) ||
@@ -787,6 +813,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
           return;
         }
         selection.read(document);
+        entry.setLookupAvailable([...selection.readText(document).trim()].length <= 80);
         const preview = event.target instanceof Element ? previewEditor(event.target) : undefined;
         if (
           preview &&
@@ -817,6 +844,11 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   };
   const escape = (event: KeyboardEvent) => {
     if (event.isTrusted && event.key === 'Escape') {
+      if (lookup.visible) {
+        event.preventDefault();
+        lookup.close();
+        return;
+      }
       entry.hide();
       writeEntry.hide();
       selectedEditor = undefined;
@@ -852,6 +884,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     editorTarget?: Element,
     capturedPreviewRange?: Range,
   ) {
+    lookup.close();
     if (writing || state.busy) {
       state.status = userError('TASK_BUSY');
       render();
@@ -986,6 +1019,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     automaticEpoch += 1;
     automatic = enabled;
     if (!enabled) {
+      lookup.close();
       readingControls.clear();
       releaseReading();
       refreshEligibility();
@@ -1072,6 +1106,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     editorEntries.dispose();
     focusedEntry.dispose();
     readingControls.dispose();
+    lookup.close();
     anchoredPanel.dispose();
     registry.dispose();
     selection.clear();
