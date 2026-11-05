@@ -2,6 +2,8 @@ import { ManualRecord } from './manual-draft';
 import { z } from 'zod';
 import { SourceInputSchema } from '../core/source-input';
 import { LanguageSchema } from './executor-protocol';
+import { LearningStartMessage } from './learning-protocol';
+import { CaptionIdentitySchema } from '../core/learning-contract';
 
 const Owner = z.object({
   clientTaskId: z.uuid(),
@@ -40,6 +42,7 @@ export const StartPayload = Owner.extend({
 export type StartPayload = z.infer<typeof StartPayload>;
 const Envelope = { protocolVersion: z.literal(1), requestId: z.uuid() };
 export const TaskMessageSchema = z.discriminatedUnion('type', [
+  LearningStartMessage,
   z.object({ ...Envelope, type: z.literal('translation.start'), payload: StartPayload }).strict(),
   z
     .object({ ...Envelope, type: z.literal('translation.status'), payload: Owner.strict() })
@@ -66,6 +69,9 @@ export const RouteSchema = z
     frameId: z.literal(0),
     documentId: z.string().min(1).max(160).optional(),
     mode: z.enum(['read', 'write', 'manual']),
+    purpose: z.enum(['translate', 'lookup', 'captions']).optional(),
+    captionIdentity: CaptionIdentitySchema.optional(),
+    cancelPending: z.literal(true).optional(),
     entry: z.literal('inline').optional(),
     apiOrigin: z.url().max(2048),
     siteOrigin: z.url().max(2048).optional(),
@@ -89,7 +95,16 @@ export const RouteSchema = z
     recovered: z.boolean(),
     error: z.string().max(48).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if (
+      (value.purpose === 'captions' && (!value.captionIdentity || value.mode !== 'read')) ||
+      (value.purpose !== 'captions' && value.captionIdentity !== undefined) ||
+      (value.cancelPending && (value.purpose !== 'captions' || value.state !== 'canceled')) ||
+      (value.purpose === 'lookup' && value.mode === 'write')
+    )
+      ctx.addIssue({ code: 'custom', message: 'Invalid route purpose' });
+  });
 export type TaskRoute = z.infer<typeof RouteSchema>;
 export const SessionSchema = z
   .object({

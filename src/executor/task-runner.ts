@@ -2,6 +2,9 @@ import { translate, EXECUTION_BUDGET_MS, ProviderError } from '../providers/chat
 import type { TranslationProcessor } from '../core/translation-processor';
 import { type Execution, type ExecutionView } from '../runtime/executor-protocol';
 import { WorkerProcessor } from './worker-processor';
+import { LearningWorkerProcessor } from './learning-worker-processor';
+import type { LearningProcessor } from '../core/learning-processor';
+import { executeLearning } from '../providers/learning-completions';
 
 export const RESULT_TTL_MS = 30_000;
 export const DEDUP_TTL_MS = 300_000;
@@ -11,7 +14,7 @@ type Entry = {
   view: ExecutionView;
   expiresAt: number;
   controller?: AbortController;
-  processor?: TranslationProcessor;
+  processor?: TranslationProcessor | LearningProcessor;
   timer?: ReturnType<typeof setTimeout>;
 };
 
@@ -23,6 +26,8 @@ export class TaskRunner {
     private readonly changed: (taskId: string) => void,
     private readonly processorFactory: () => TranslationProcessor = () => new WorkerProcessor(),
     private readonly fetcher: typeof fetch = fetch,
+    private readonly learningProcessorFactory: () => LearningProcessor = () =>
+      new LearningWorkerProcessor(),
   ) {}
 
   private view(entry: Entry): ExecutionView {
@@ -51,7 +56,14 @@ export class TaskRunner {
     ) {
       return { taskId: input.taskId, state: 'failed', error: 'TASK_BUSY' };
     }
-    const entry: Entry = { view: { taskId: input.taskId, state: 'running' }, expiresAt: Infinity };
+    const entry: Entry = {
+      view: {
+        taskId: input.taskId,
+        state: 'running',
+        ...(input.purpose ? { purpose: input.purpose } : {}),
+      },
+      expiresAt: Infinity,
+    };
     this.entries.set(input.taskId, entry);
     const remaining = Math.min(EXECUTION_BUDGET_MS, input.deadlineAt - Date.now());
     if (remaining <= 0 || input.deadlineAt > Date.now() + EXECUTION_BUDGET_MS) {
@@ -60,25 +72,44 @@ export class TaskRunner {
     }
     entry.controller = new AbortController();
     try {
-      entry.processor = this.processorFactory();
+      entry.processor =
+        input.purpose === 'lookup' || input.purpose === 'captions'
+          ? this.learningProcessorFactory()
+          : this.processorFactory();
     } catch {
       this.finish(entry, 'failed', 'NETWORK_ERROR');
       return this.view(entry);
     }
     entry.timer = setTimeout(() => this.finish(entry, 'timedOut', 'TIMEOUT'), remaining);
-    void translate(
-      {
-        ...input,
-        signal: entry.controller.signal,
-        onProgress: (progress) => {
-          if (entry.view.state !== 'running' || entry.controller?.signal.aborted) return;
-          entry.view.progress = progress;
-          this.changed(input.taskId);
-        },
-      },
-      this.fetcher,
-      entry.processor,
-    ).then(
+    const onProgress = (
+      progress: import('../runtime/translation-progress').TranslationProgress,
+    ) => {
+      if (entry.view.state !== 'running' || entry.controller?.signal.aborted) return;
+      entry.view.progress = progress;
+      this.changed(input.taskId);
+    };
+    const operation =
+      input.purpose === 'lookup' || input.purpose === 'captions'
+        ? executeLearning(
+            {
+              config: input.config,
+              deadlineAt: input.deadlineAt,
+              task:
+                input.purpose === 'lookup'
+                  ? { purpose: 'lookup', input: input.input }
+                  : { purpose: 'captions', input: input.input },
+              signal: entry.controller.signal,
+              onProgress,
+            },
+            this.fetcher,
+            entry.processor as LearningProcessor,
+          )
+        : translate(
+            { ...input, signal: entry.controller.signal, onProgress },
+            this.fetcher,
+            entry.processor as TranslationProcessor,
+          );
+    void operation.then(
       (result) => {
         if (entry.view.state !== 'running') return;
         entry.view.result = result;

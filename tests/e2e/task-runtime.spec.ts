@@ -24,7 +24,7 @@ async function fixture() {
     if (request.method !== 'POST') {
       response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       response.end(
-        '<!doctype html><html><body><textarea>你好</textarea><button id="start">Start</button><button id="retry">Retry</button><button id="cancel">Cancel</button></body></html>',
+        '<!doctype html><html><body><textarea>你好</textarea><button id="start">Start</button><button id="lookup">Lookup</button><button id="retry">Retry</button><button id="cancel">Cancel</button></body></html>',
       );
       return;
     }
@@ -41,12 +41,21 @@ async function fixture() {
       const finish = () => {
         if (response.destroyed) return;
         const payload = JSON.parse(JSON.parse(raw).messages[1].content);
-        const content = JSON.stringify({
-          segments: payload.segments.map((segment: { id: string; text: string }) => ({
-            id: segment.id,
-            text: segment.text.replace('你好', 'Hello'),
-          })),
-        });
+        const content = JSON.stringify(
+          payload.text
+            ? {
+                detectedLanguage: 'en',
+                meanings: [{ partOfSpeech: '名词', definition: '银行' }],
+                example: null,
+                note: null,
+              }
+            : {
+                segments: payload.segments.map((segment: { id: string; text: string }) => ({
+                  id: segment.id,
+                  text: segment.text.replace('你好', 'Hello'),
+                })),
+              },
+        );
         response.writeHead(200, { 'Content-Type': 'application/json' });
         response.end(
           JSON.stringify({
@@ -121,6 +130,81 @@ async function idle(page: Page) {
     )
     .toBe(0);
 }
+
+test('production learning routes deliver read-only page results and restore typed popup lookup', async () => {
+  const f = await fixture();
+  try {
+    await f.page.locator('#lookup').click();
+    await expect(f.page.locator('body')).toHaveAttribute('data-result', /银行/);
+    await expect(f.page.locator('body')).toHaveAttribute('data-can-apply', 'false');
+    await expect(f.page.locator('textarea')).toHaveValue('你好');
+    await f.page.locator('#retry').click();
+    await expect(f.page.locator('body')).toHaveAttribute('data-reply', /delivered/);
+    expect(f.count()).toBe(1);
+    await idle(f.settings);
+    const popup = await f.context.newPage();
+    await popup.goto(`chrome-extension://${f.id}/popup.html`);
+    const context = await popup.evaluate(async (target) => {
+      const api = (globalThis as unknown as ChromeGlobal).chrome;
+      const tabId = (await api.tabs.query({})).find((tab) => tab.url === target)!.id!;
+      const reply = (await api.runtime.sendMessage({ type: 'popup.context', tabId })) as {
+        ok: boolean;
+        generation: string;
+      };
+      return { tabId, generation: reply.generation };
+    }, f.page.url());
+    const lookup = {
+      protocolVersion: 1,
+      requestId: crypto.randomUUID(),
+      type: 'learning.start',
+      payload: {
+        purpose: 'lookup',
+        origin: 'manual',
+        clientTaskId: crypto.randomUUID(),
+        documentNonce: crypto.randomUUID(),
+        tabId: context.tabId,
+        manualRevision: 0,
+        manualGeneration: context.generation,
+        input: { text: 'bank', sourceLanguage: 'en', explanationLanguage: 'zh' },
+      },
+    };
+    expect(
+      await popup.evaluate(
+        (message) => (globalThis as unknown as ChromeGlobal).chrome.runtime.sendMessage(message),
+        lookup,
+      ),
+    ).toMatchObject({ ok: true });
+    await popup.close();
+    const reopened = await f.context.newPage();
+    await reopened.goto(`chrome-extension://${f.id}/popup.html`);
+    await expect
+      .poll(() =>
+        reopened.evaluate(async (tabId) => {
+          const reply = (await (globalThis as unknown as ChromeGlobal).chrome.runtime.sendMessage({
+            protocolVersion: 1,
+            requestId: crypto.randomUUID(),
+            type: 'translation.manual.read',
+            payload: { tabId },
+          })) as { data?: { purpose?: string; result?: string; lookupResult?: unknown } };
+          return reply.data;
+        }, context.tabId),
+      )
+      .toMatchObject({ purpose: 'lookup', lookupResult: { meanings: [{ definition: '银行' }] } });
+    expect(f.count()).toBe(2);
+    await idle(f.settings);
+    await f.configure('/wait');
+    await f.page.locator('#lookup').click();
+    await expect.poll(() => f.held.size).toBe(1);
+    await f.page.locator('#cancel').click();
+    await expect.poll(() => f.held.size).toBe(0);
+    await f.page.locator('#retry').click();
+    await expect(f.page.locator('body')).toHaveAttribute('data-reply', /canceled/);
+    expect(f.count()).toBe(3);
+    await idle(f.settings);
+  } finally {
+    await f.close();
+  }
+});
 
 test('production broker isolates page tasks, deduplicates retries, cancels fetches and closes idle offscreen', async () => {
   const f = await fixture();

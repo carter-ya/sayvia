@@ -179,8 +179,14 @@ export class ExecutorHost {
   }
   task(type: 'query' | 'cancel' | 'ack', taskId: string, epoch: string) {
     return this.serial(async () => {
+      // A verified absent/replaced executor cannot still own this cancellation target.
+      if (type === 'cancel' && !(await this.contexts()).length)
+        return { taskId, state: 'missing' as const };
       const identity = await this.connect(false);
-      if (identity.epoch !== epoch) throw unavailable();
+      if (identity.epoch !== epoch) {
+        if (type === 'cancel') return { taskId, state: 'missing' as const };
+        throw unavailable();
+      }
       return (await this.send({ type, taskId })) as ExecutionView;
     });
   }

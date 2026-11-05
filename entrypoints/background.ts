@@ -42,7 +42,10 @@ export default defineBackground(() => {
           route.tabId,
           {
             protocolVersion: 1,
-            type: 'translation.state',
+            type:
+              route.purpose === 'lookup' || route.purpose === 'captions'
+                ? 'learning.state'
+                : 'translation.state',
             taskId: route.taskId,
             clientTaskId: route.clientTaskId,
             documentNonce: route.documentNonce,
@@ -59,7 +62,10 @@ export default defineBackground(() => {
         route.tabId,
         {
           protocolVersion: 1,
-          type: 'translation.progress',
+          type:
+            route.purpose === 'lookup' || route.purpose === 'captions'
+              ? 'learning.progress'
+              : 'translation.progress',
           taskId: route.taskId,
           clientTaskId: route.clientTaskId,
           documentNonce: route.documentNonce,
@@ -75,7 +81,10 @@ export default defineBackground(() => {
           route.tabId,
           {
             protocolVersion: 1,
-            type: 'translation.result',
+            type:
+              route.purpose === 'lookup' || route.purpose === 'captions'
+                ? 'learning.result'
+                : 'translation.result',
             taskId: route.taskId,
             clientTaskId: route.clientTaskId,
             documentNonce: route.documentNonce,
@@ -118,7 +127,10 @@ export default defineBackground(() => {
       void handlePageMessage(message, sender, repository, sites).then(sendResponse);
       return true;
     }
-    if (typeof message.type === 'string' && message.type.startsWith('translation.')) {
+    if (
+      typeof message.type === 'string' &&
+      (message.type.startsWith('translation.') || message.type.startsWith('learning.'))
+    ) {
       void handleTaskMessage(message, sender, broker).then(sendResponse, () =>
         sendResponse({ ok: false, error: 'RUNTIME_UNAVAILABLE' }),
       );
