@@ -135,7 +135,10 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       try {
         const text = selection.readText(document).trim();
         if (!text || [...text].length > 80) return;
+        openSequence += 1;
         cancel();
+        releaseReading();
+        current = undefined;
         visible = false;
         host.style.setProperty('display', 'none', 'important');
         anchoredPanel.detach();

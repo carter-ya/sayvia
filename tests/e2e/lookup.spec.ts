@@ -33,6 +33,82 @@ async function popup(f: Fixture) {
   return page;
 }
 
+test('switching to lookup invalidates the pending automatic translation preferences', async () => {
+  const f = await workflowFixture();
+  try {
+    await selectWord(f.page);
+    await f.page.locator('#lookup-word').evaluate((paragraph) => (paragraph.tabIndex = -1));
+    const translate = f.page.getByRole('button', { name: '使用 Sayvia 翻译选中文字', exact: true });
+    await expect(translate).toBeVisible();
+    await f.settings.evaluate(async (url) => {
+      const api = (globalThis as unknown as Chrome).chrome;
+      const tab = (await api.tabs.query({})).find((item) => item.url === url)!;
+      await api.scripting.executeScript({
+        target: { tabId: tab.id!, frameIds: [0] },
+        func: () => {
+          const runtime = (globalThis as unknown as Chrome).chrome.runtime;
+          const send = runtime.sendMessage.bind(runtime);
+          // Mutating an ancestor of the selected text would invalidate its reading snapshot.
+          const probe = document.createElement('output');
+          probe.id = 'fixture-lookup-probe';
+          probe.hidden = true;
+          document.body.append(probe);
+          const log = probe.dataset;
+          let holdNextPreferences = true;
+          const starts: string[] = [];
+          runtime.sendMessage = ((message: { type: string }) => {
+            if (message.type === 'translation.start' || message.type === 'learning.start') {
+              starts.push(message.type);
+              log.fixtureStarts = starts.join(',');
+            }
+            const reply = send(message);
+            if (message.type !== 'page.preferences' || !holdNextPreferences) return reply;
+            holdNextPreferences = false;
+            return reply.then(
+              (value) =>
+                new Promise((resolve) => {
+                  log.fixturePreferences = 'held';
+                  document.addEventListener(
+                    'fixture-release-preferences',
+                    () => {
+                      resolve(value);
+                      setTimeout(() => {
+                        log.fixturePreferences = 'released';
+                      }, 0);
+                    },
+                    { once: true },
+                  );
+                }),
+            );
+          }) as typeof runtime.sendMessage;
+        },
+      });
+    }, f.page.url());
+    await translate.click();
+    const probe = f.page.locator('#fixture-lookup-probe');
+    await expect(probe).toHaveAttribute('data-fixture-preferences', 'held');
+    // Re-select the exact same range so selection validation does not mask an obsolete start.
+    await f.page.locator('#lookup-word').evaluate((paragraph) => {
+      paragraph.focus();
+      const range = document.createRange();
+      range.selectNodeContents(paragraph);
+      window.getSelection()!.removeAllRanges();
+      window.getSelection()!.addRange(range);
+    });
+    await f.page.keyboard.press('Shift');
+    await f.page.getByRole('button', { name: '使用 Sayvia 查词', exact: true }).click();
+    const card = f.page.getByRole('dialog', { name: '查词', exact: true });
+    await expect(card.getByLabel('AI 释义')).toContainText('词语：bank');
+    await f.page.evaluate(() => document.dispatchEvent(new Event('fixture-release-preferences')));
+    await expect(probe).toHaveAttribute('data-fixture-preferences', 'released');
+    await expect(probe).toHaveAttribute('data-fixture-starts', 'learning.start');
+    await expect(card).toBeVisible();
+    expect(f.count()).toBe(1);
+  } finally {
+    await f.close();
+  }
+});
+
 test('a trusted word lookup freezes only that selection, renders read-only meanings and confirms audio language', async () => {
   const f = await workflowFixture({ speech: true });
   try {
