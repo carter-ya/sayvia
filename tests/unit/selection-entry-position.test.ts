@@ -35,3 +35,20 @@ it('tracks the active end of a backward DOM selection and uses the whole line he
   selected.removeAllRanges();
   text.remove();
 });
+
+it('keeps the full translation/lookup action group inside the viewport while its host is hidden', () => {
+  entry.dispose();
+  entry = new SelectionEntry(
+    () => {},
+    'Translate',
+    'reading',
+    () => {},
+  );
+  entry.hide();
+  entry.showRect(new DOMRect(0, 0, innerWidth, 200), { x: innerWidth - 1, y: 100 });
+  expect(entry.panelAnchor()!.left + 56).toBeLessThanOrEqual(innerWidth - 6);
+  entry.hide();
+  entry.setLookupAvailable(false);
+  entry.showRect(new DOMRect(0, 0, innerWidth, 200), { x: innerWidth - 1, y: 100 });
+  expect(entry.panelAnchor()!.left + 26).toBeLessThanOrEqual(innerWidth - 6);
+});

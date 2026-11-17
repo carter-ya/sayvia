@@ -96,13 +96,9 @@ export class SelectionEntry {
   private position = () => {
     if (!this.anchor) return;
     const { left, top, bottom } = this.anchor;
-    const x = Math.max(
-      gap,
-      Math.min(
-        left,
-        window.innerWidth - Math.max(size, this.host.getBoundingClientRect().width) - gap,
-      ),
-    );
+    const actionWidth =
+      this.lookupButton && this.lookupButton.style.display !== 'none' ? size * 2 + 4 : size;
+    const x = Math.max(gap, Math.min(left, window.innerWidth - actionWidth - gap));
     const y = top - gap - size >= gap ? top - gap - size : Math.max(gap, bottom + gap);
     // Clamping onto a tall editor would put the action over the text/caret.
     if (y + size + gap > window.innerHeight) return this.hide();
