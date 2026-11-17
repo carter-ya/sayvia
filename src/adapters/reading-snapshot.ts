@@ -210,6 +210,17 @@ export class ReadingSnapshot {
       for (let node: Node | null = slice.node.parentNode; node; node = node.parentNode)
         this.ancestors.add(node);
     }
+    for (const group of groups) {
+      let container = group.slices[0]!.parent;
+      const last = group.slices.at(-1)!.node;
+      while (!container.contains(last) && container.parentNode) container = container.parentNode;
+      for (const slice of group.slices) {
+        for (let parent: Node | null = slice.parent; parent; parent = parent.parentNode) {
+          this.parents.add(parent);
+          if (parent === container) break;
+        }
+      }
+    }
     this.observer = new MutationObserver((records) => this.inspect(records));
     this.observer.observe(document.documentElement, {
       subtree: true,

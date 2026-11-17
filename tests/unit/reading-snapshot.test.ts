@@ -121,6 +121,16 @@ describe('reading snapshot', () => {
     expect(snapshot!.show('阅读优先。')).toBe(false);
     expect(p.innerHTML).toBe(current);
   });
+  it.each(['paragraph', 'wrapper'])('rejects inserted prose at the %s boundary', (target) => {
+    document.body.innerHTML = '<p><span><span>Read </span></span><span>first.</span></p>';
+    const p = document.querySelector('p')!;
+    const { snapshot } = capture(p);
+    const container = target === 'paragraph' ? p : p.firstElementChild!;
+    container.insertBefore(document.createTextNode('new content '), container.firstChild);
+    const current = p.innerHTML;
+    expect(snapshot!.show('阅读优先。')).toBe(false);
+    expect(p.innerHTML).toBe(current);
+  });
   it('does not restore stale merged prose after content is inserted between its spans', () => {
     document.body.innerHTML = '<p><span>Read </span><span>first.</span></p>';
     const p = document.querySelector('p')!;
