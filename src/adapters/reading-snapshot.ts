@@ -40,6 +40,9 @@ function neutralSpan(node: Node): node is HTMLSpanElement {
   const view = node.ownerDocument.defaultView;
   const style = view?.getComputedStyle(node);
   if (style?.display && !['inline', 'contents'].includes(style.display)) return false;
+  const background = style?.backgroundColor;
+  if (background && background !== 'transparent' && background !== 'rgba(0, 0, 0, 0)') return false;
+  if (style?.backgroundImage && style.backgroundImage !== 'none') return false;
   const parent = node.parentElement && view?.getComputedStyle(node.parentElement);
   return (
     !style ||

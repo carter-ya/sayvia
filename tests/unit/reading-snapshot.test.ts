@@ -71,6 +71,8 @@ describe('reading snapshot', () => {
 
   it.each([
     '<p>Read <span style="font-weight: bold">important</span> text.</p>',
+    '<p><span style="background-color: yellow">Warning</span><span> text.</span></p>',
+    '<p><span style="background-image: linear-gradient(red, blue)">Warning</span><span> text.</span></p>',
     '<p>Read <span style="display: block">separate</span> text.</p>',
     '<p>Read<br>another line.</p>',
     '<p>Read <span role="link" tabindex="0">interactive</span> text.</p>',
