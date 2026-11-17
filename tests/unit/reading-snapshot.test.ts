@@ -108,6 +108,30 @@ describe('reading snapshot', () => {
     expect(snapshot!.show(null)).toBe(true);
     expect(nodes.map((node) => node.data)).toEqual(['Read ', 'first', '.']);
   });
+  it.each(['text', 'span'])('rejects new %s content inserted between merged spans', (kind) => {
+    document.body.innerHTML = '<p><span>Read </span><span>first.</span></p>';
+    const p = document.querySelector('p')!;
+    const { snapshot } = capture(p);
+    const inserted =
+      kind === 'text' ? document.createTextNode('new content ') : document.createElement('span');
+    inserted.textContent = 'new content ';
+    p.insertBefore(inserted, p.lastChild);
+    const current = p.innerHTML;
+    expect(snapshot!.canApply('阅读优先。')).toBe(false);
+    expect(snapshot!.show('阅读优先。')).toBe(false);
+    expect(p.innerHTML).toBe(current);
+  });
+  it('does not restore stale merged prose after content is inserted between its spans', () => {
+    document.body.innerHTML = '<p><span>Read </span><span>first.</span></p>';
+    const p = document.querySelector('p')!;
+    const { snapshot } = capture(p);
+    expect(snapshot!.show('阅读优先。')).toBe(true);
+    p.insertBefore(document.createTextNode('new content '), p.lastChild);
+    const current = p.innerHTML;
+    expect(snapshot!.show(null)).toBe(false);
+    snapshot!.dispose(true);
+    expect(p.innerHTML).toBe(current);
+  });
   it('changes only selected text, preserving node identity and repeated restoration', () => {
     document.body.innerHTML = '<p>Before Read first. After</p>';
     const p = document.querySelector('p')!,

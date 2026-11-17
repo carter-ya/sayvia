@@ -81,6 +81,15 @@ function adjacentProse(left: Text, right: Text) {
   }
   return false;
 }
+function adjacentGroups(groups: Group[]) {
+  return groups.every(
+    (group) =>
+      group.code ||
+      group.slices.every(
+        (slice, index) => index === 0 || adjacentProse(group.slices[index - 1]!.node, slice.node),
+      ),
+  );
+}
 function leaves(tree: Tree): Leaf[] {
   if (['text', 'inlineCode', 'code'].includes(tree.type))
     return tree.type === 'text' && !tree.value?.trim()
@@ -159,17 +168,7 @@ export function captureReadingSnapshot(
       range.startContainer.ownerDocument!,
       () => {
         if (guards.some((slice) => slice.node.parentElement?.closest(unsafe))) return false;
-        if (
-          nonempty.some(
-            (group) =>
-              !group.code &&
-              group.slices.some(
-                (slice, index) =>
-                  index > 0 && !adjacentProse(group.slices[index - 1]!.node, slice.node),
-              ),
-          )
-        )
-          return false;
+        if (!adjacentGroups(nonempty)) return false;
         const currentLinks = new Map<Element, ReadingLink>();
         const currentFlat = captureDomRange(
           capturedRange,
@@ -278,6 +277,7 @@ export class ReadingSnapshot {
     if (
       this.valid &&
       (this.document.URL !== this.url ||
+        !adjacentGroups(this.groups) ||
         this.guards.some(
           (slice) =>
             !slice.node.isConnected ||
