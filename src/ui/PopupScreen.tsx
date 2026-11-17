@@ -1,3 +1,4 @@
+import { warmModel } from '../runtime/model-warmup';
 import { TranslationLoading } from './TranslationLoading';
 import { TranslationMetrics } from './TranslationMetrics';
 import { useEffect, useRef, useState } from 'react';
@@ -35,6 +36,12 @@ export function PopupScreen() {
     }
     setView(next);
   }
+  const provider = config?.providers.find(
+    (item) => item.id === (fields.providerId || config.preferences.defaultProviderId),
+  );
+  useEffect(() => {
+    if (ready && provider?.hasApiKey) warmModel(provider.id);
+  }, [ready, provider?.id, provider?.revision, provider?.hasApiKey]);
   async function openPage(mode: 'read' | 'write') {
     if (opening || manual.tabId === undefined) return;
     setOpening(true);

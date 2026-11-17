@@ -22,6 +22,7 @@ function setup() {
   const stored: Record<string, unknown> = {};
   const tasks = new Set<string>();
   let dropStarts = false;
+  let warming = false;
   const commands: ExecutorCommand[] = [];
   const port = (sender: object = { id: extensionId, url }) => {
     const messages: Array<(message: unknown) => void> = [];
@@ -37,7 +38,10 @@ function setup() {
       postMessage: vi.fn((request: ExecutorCommand) => {
         commands.push(request);
         let data: unknown;
-        if (request.command.type === 'start') {
+        if (request.command.type === 'warmup') {
+          warming = true;
+          data = { active: tasks.size, pendingResults: 0, warming };
+        } else if (request.command.type === 'start') {
           tasks.add(request.command.execution.taskId);
           data = { taskId: request.command.execution.taskId, state: 'running' };
           if (dropStarts) return;
@@ -49,7 +53,7 @@ function setup() {
         else if (request.command.type === 'ack' || request.command.type === 'cancel') {
           tasks.delete(request.command.taskId);
           data = { taskId: request.command.taskId, state: 'delivered' };
-        } else data = { active: tasks.size, pendingResults: 0 };
+        } else data = { active: tasks.size, pendingResults: 0, warming };
         queueMicrotask(() =>
           messages.forEach((listener) =>
             listener({
@@ -112,6 +116,9 @@ function setup() {
     port,
     stored,
     tasks,
+    expireWarmup: () => {
+      warming = false;
+    },
     makeExisting: () => {
       exists = true;
     },
@@ -123,6 +130,27 @@ function setup() {
 afterEach(() => vi.useRealTimers());
 
 describe('serialized Offscreen lifecycle', () => {
+  it('prepares one environment without a START, reuses it for translation, and closes after warmup expires', async () => {
+    const f = setup();
+    await Promise.all([
+      f.host.warmup('https://example.test'),
+      f.host.warmup('https://example.test'),
+    ]);
+    expect(f.api.offscreen.createDocument).toHaveBeenCalledOnce();
+    expect(f.commands.some((c) => c.command.type === 'start')).toBe(false);
+    await f.host.closeIfIdle();
+    expect(f.api.offscreen.closeDocument).not.toHaveBeenCalled();
+    const started = await f.host.start(async (epoch) => execution(epoch));
+    expect(f.api.offscreen.createDocument).toHaveBeenCalledOnce();
+    f.expireWarmup();
+    await f.host.closeIfIdle();
+    expect(f.api.offscreen.closeDocument).not.toHaveBeenCalled();
+    const identity = f.stored['sayvia.executor'] as { epoch: string };
+    await f.host.task('ack', started.taskId, identity.epoch);
+    await f.host.closeIfIdle();
+    expect(f.api.offscreen.closeDocument).toHaveBeenCalledOnce();
+  });
+
   it('creates one shared executor when two tabs start concurrently', async () => {
     const f = setup();
     const first = await Promise.all([

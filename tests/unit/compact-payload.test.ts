@@ -15,6 +15,7 @@ describe('compact model protection metadata', () => {
           id: 's0',
           text: 'To which function JSON_* you are referring to? ⟦SV0:1⟧',
           protectedTokens: ['⟦SV0:1⟧'],
+          textParts: ['To which function JSON_* you are referring to? ', ''],
         },
       ],
     });

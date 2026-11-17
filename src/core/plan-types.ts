@@ -5,8 +5,21 @@ export type PlanErrorCode =
   | 'FORMAT_CHANGED'
   | 'OUTPUT_TOO_LONG';
 
+export const TRANSLATION_FAILURE_REASONS = [
+  'JSON',
+  'SEGMENTS',
+  'TEXT',
+  'TOKENS',
+  'MARKDOWN',
+  'LENGTH',
+] as const;
+export type TranslationFailureReason = (typeof TRANSLATION_FAILURE_REASONS)[number];
+
 export class PlanError extends Error {
-  constructor(readonly code: PlanErrorCode) {
+  constructor(
+    readonly code: PlanErrorCode,
+    readonly reason?: TranslationFailureReason,
+  ) {
     super(code);
   }
 }

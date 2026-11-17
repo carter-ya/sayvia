@@ -17,23 +17,48 @@ async function fixture(
   return f;
 }
 const panelName = { name: 'Sayvia 翻译' };
-test('an ordinary textarea has a contextual full-translation action with replace/restore and draft isolation', async () => {
+async function translateCurrentInput(f: Awaited<ReturnType<typeof fixture>>) {
+  const panel = await f.open('write');
+  await panel.getByRole('button', { name: '翻译', exact: true }).click();
+  return panel;
+}
+
+test('an ordinary textarea has explicit toolbar full translation with replace/restore and draft isolation', async () => {
   const f = await fixture();
   try {
     const field = f.page.locator('#one');
     await field.click();
     await field.press('ArrowRight');
     const action = f.page.getByRole('button', { name: '使用 Sayvia 翻译输入内容' });
-    await expect(action).toBeVisible();
+    await expect(action).toBeHidden();
     expect(f.count()).toBe(0);
-    await action.click();
-    const panel = f.page.getByRole('dialog', panelName);
+    const panel = await translateCurrentInput(f);
     await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('前缀 English 后缀');
     await panel.getByRole('button', { name: '替换全文', exact: true }).click();
     await expect(field).toHaveValue('前缀 English 后缀');
     await expect(f.page.locator('#other')).toHaveValue('另一份草稿');
     await panel.getByRole('button', { name: '恢复原文', exact: true }).click();
     await expect(field).toHaveValue('前缀 中文 后缀');
+  } finally {
+    await f.close();
+  }
+});
+test('focus, typing and caret navigation never show an automatic editor action', async () => {
+  const f = await fixture();
+  try {
+    const icons = f.page.getByRole('button', {
+      name: /使用 Sayvia 翻译输入内容|使用 Sayvia 翻译输入选区|使用 Sayvia 翻译选中文字/,
+    });
+    for (const id of ['one', 'single', 'rich']) {
+      const field = f.page.locator('#' + id);
+      await field.fill('');
+      await field.click();
+      await expect(icons).toBeHidden();
+      await field.pressSequentially('hello');
+      await field.press('ArrowLeft');
+      await expect(icons).toBeHidden();
+    }
+    expect(f.count()).toBe(0);
   } finally {
     await f.close();
   }
@@ -69,8 +94,7 @@ test('an ordinary single-line input has full translation without submitting its 
     const field = f.page.locator('#single');
     await field.click();
     await field.press('ArrowRight');
-    await f.page.getByRole('button', { name: '使用 Sayvia 翻译输入内容' }).click();
-    const panel = f.page.getByRole('dialog', panelName);
+    const panel = await translateCurrentInput(f);
     await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('English');
     await panel.getByRole('button', { name: '替换全文', exact: true }).click();
     await expect(field).toHaveValue('English');
@@ -85,8 +109,7 @@ test('a rich editor provides full translation and copy without presenting a repl
     const rich = f.page.locator('#rich');
     const original = await rich.innerHTML();
     await rich.click();
-    await f.page.getByRole('button', { name: '使用 Sayvia 翻译输入内容' }).click();
-    const panel = f.page.getByRole('dialog', panelName);
+    const panel = await translateCurrentInput(f);
     await expect(panel.getByLabel('译文', { exact: true })).toHaveValue('English `sql.Scanner`');
     await expect(panel.getByRole('button', { name: /替换/ })).toHaveCount(0);
     await expect(panel.getByRole('status')).toContainText('预览与复制');
@@ -314,7 +337,7 @@ test('an opaque selection is explicitly not translated and does not masquerade a
     await f.close();
   }
 });
-test('disabled, readonly and sensitive controls do not get contextual actions; dynamic controls do', async () => {
+test('disabled, readonly and sensitive controls stay quiet; dynamic controls require a selection', async () => {
   const f = await fixture(
     undefined,
     '<input id=password type=password value=secret><textarea id=readonly readonly>你好</textarea><textarea disabled>你好</textarea><input id=card autocomplete=cc-number value=1234>',
@@ -331,11 +354,56 @@ test('disabled, readonly and sensitive controls do not get contextual actions; d
       document.body.append(t);
     });
     await f.page.locator('#dynamic').click();
-    await expect(f.page.getByRole('button', { name: '使用 Sayvia 翻译输入内容' })).toBeVisible();
+    await expect(f.page.getByRole('button', { name: '使用 Sayvia 翻译输入内容' })).toBeHidden();
+    await f.page.locator('#dynamic').click({ clickCount: 3, position: { x: 20, y: 12 } });
+    await expect(f.page.getByRole('button', { name: '使用 Sayvia 翻译输入选区' })).toBeVisible();
     await f.page.locator('#dynamic').evaluate((e: HTMLTextAreaElement) => {
       e.readOnly = true;
     });
+    await f.page.locator('#dynamic').press('Shift');
+    await expect(f.page.getByRole('button', { name: '使用 Sayvia 翻译输入选区' })).toBeHidden();
     await expect(f.page.getByRole('button', { name: '使用 Sayvia 翻译输入内容' })).toBeHidden();
+    expect(f.count()).toBe(0);
+  } finally {
+    await f.close();
+  }
+});
+
+test('code-editor caret and IME controls stay quiet while actual DOM text selection offers translation', async () => {
+  const f = await fixture(
+    undefined,
+    '<textarea id="ordinary">draft</textarea><div class="ace_editor"><textarea id="proxy" class="ace_text-input"></textarea></div><div class="cm-editor"><div class="cm-content" contenteditable="true">Read first.</div></div>',
+  );
+  try {
+    const full = f.page.getByRole('button', { name: '使用 Sayvia 翻译输入内容' });
+    const read = f.page.getByRole('button', { name: '使用 Sayvia 翻译选中文字' });
+    const write = f.page.getByRole('button', { name: '使用 Sayvia 翻译输入选区' });
+    await f.page.locator('#ordinary').click();
+    await expect(full).toBeHidden();
+    const proxy = f.page.locator('#proxy');
+    await proxy.click();
+    await proxy.pressSequentially('option');
+    await proxy.press('ArrowLeft');
+    await expect(full).toBeHidden();
+    await expect(read).toBeHidden();
+    await proxy.press('ControlOrMeta+A');
+    await expect(write).toBeHidden();
+    await expect(read).toBeHidden();
+
+    const code = f.page.locator('.cm-content');
+    await code.click();
+    await code.press('End');
+    await expect(full).toBeHidden();
+    await expect(read).toBeHidden();
+    await code.press('Shift+ArrowLeft');
+    await expect(read).toBeVisible();
+    const icon = (await read.boundingBox())!;
+    const lineTop = await code.evaluate(
+      () => window.getSelection()!.getRangeAt(0).getBoundingClientRect().top,
+    );
+    expect(icon.y + icon.height).toBeLessThan(lineTop);
+    await code.press('ArrowRight');
+    await expect(read).toBeHidden();
     expect(f.count()).toBe(0);
   } finally {
     await f.close();

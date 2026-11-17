@@ -94,11 +94,36 @@ describe('per-task worker lifecycle', () => {
     },
   );
 
+  it('preserves an allowlisted format failure reason across the worker boundary', async () => {
+    const { worker, processor, signal } = setup();
+    const prepared = processor.prepare(source, signal.signal);
+    const assertion = expect(prepared).rejects.toThrow('FORMAT_INVALID_TOKENS');
+    worker.dispatchEvent(
+      new MessageEvent('message', {
+        data: {
+          id: worker.postMessage.mock.calls[0]![0].id,
+          ok: false,
+          reason: 'TOKENS',
+          data: 'PRIVATE_DETAILS',
+        },
+      }),
+    );
+    await assertion;
+    processor.dispose();
+  });
   it('does not pass raw parser errors through a failed reply', async () => {
     const { worker, processor, signal } = setup();
     const prepared = processor.prepare(source, signal.signal);
     const assertion = expect(prepared).rejects.toThrow('FORMAT_INVALID');
-    worker.reply(worker.postMessage.mock.calls[0]![0].id, 'RAW_PRIVATE_ERROR', false);
+    worker.dispatchEvent(
+      new MessageEvent('message', {
+        data: {
+          id: worker.postMessage.mock.calls[0]![0].id,
+          ok: false,
+          reason: 'RAW_PRIVATE_ERROR',
+        },
+      }),
+    );
     await assertion;
     processor.dispose();
   });

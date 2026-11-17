@@ -6,7 +6,9 @@ const api = vi.hoisted(() => ({
     sendMessage: vi.fn(async (): Promise<unknown> => ({ ok: true })),
   },
   scripting: {
-    executeScript: vi.fn(async () => [{ documentId: 'verified-document', frameId: 0 }]),
+    executeScript: vi.fn(async () => [
+      { documentId: 'verified-document', frameId: 0, result: true },
+    ]),
   },
 }));
 vi.mock('wxt/browser', () => ({ browser: api }));
@@ -52,6 +54,17 @@ const open = () => ({
 beforeEach(() => vi.clearAllMocks());
 
 describe('explicit page translation entry', () => {
+  it('rejects unsupported documents before injecting or messaging the UI', async () => {
+    api.scripting.executeScript.mockResolvedValueOnce([
+      { documentId: 'xml-document', frameId: 0, result: false },
+    ]);
+    expect(await handlePageMessage(open(), popup, repository)).toEqual({
+      ok: false,
+      error: 'UNSUPPORTED',
+    });
+    expect(api.scripting.executeScript).toHaveBeenCalledTimes(1);
+    expect(api.tabs.sendMessage).not.toHaveBeenCalled();
+  });
   it('only permits trusted popup injection and targets the browser-verified document', async () => {
     expect(await handlePageMessage(open(), popup, repository)).toEqual({ ok: true });
     expect(api.scripting.executeScript).toHaveBeenCalledWith({
@@ -89,7 +102,9 @@ describe('explicit page translation entry', () => {
     expect(api.scripting.executeScript).toHaveBeenCalledTimes(2);
   });
   it('does not retarget a replacement document if navigation invalidates the captured one', async () => {
-    api.scripting.executeScript.mockResolvedValueOnce([{ documentId: 'old-document', frameId: 0 }]);
+    api.scripting.executeScript.mockResolvedValueOnce([
+      { documentId: 'old-document', frameId: 0, result: true },
+    ]);
     api.scripting.executeScript.mockRejectedValueOnce(new Error('Document no longer exists'));
     expect(await handlePageMessage(open(), popup, repository)).toEqual({
       ok: false,

@@ -159,6 +159,18 @@ export function needsTranslation(plan: TranslationPlan) {
   return plan.segments.length > 0;
 }
 
+function splitTextParts(text: string, markers: readonly string[]) {
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const marker of markers) {
+    const index = text.indexOf(marker, cursor);
+    parts.push(text.slice(cursor, index));
+    cursor = index + marker.length;
+  }
+  parts.push(text.slice(cursor));
+  return parts;
+}
+
 // Only this payload may cross the model boundary. Protected source stays local.
 export function translationPayload(plan: TranslationPlan) {
   assertPlan(plan);
@@ -177,25 +189,45 @@ export function translationPayload(plan: TranslationPlan) {
       return {
         id: segment.id,
         text: segment.text,
-        ...(protectedTokens.length ? { protectedTokens } : {}),
+        ...(protectedTokens.length
+          ? {
+              protectedTokens,
+              textParts: splitTextParts(
+                segment.text,
+                segment.tokens.map((token) => token.marker),
+              ),
+            }
+          : {}),
       };
     }),
   };
 }
 
+const SegmentId = z.string().max(32);
 const ResponseSchema = z
   .object({
     segments: z
       .array(
-        z
-          .object({
-            id: z.string().max(32),
-            text: z
-              .string()
-              .min(1)
-              .max(MAX_OUTPUT_CHARACTERS * 2),
-          })
-          .strict(),
+        z.union([
+          z
+            .object({
+              id: SegmentId,
+              text: z
+                .string()
+                .min(1)
+                .max(MAX_OUTPUT_CHARACTERS * 2),
+            })
+            .strict(),
+          z
+            .object({
+              id: SegmentId,
+              parts: z
+                .array(z.string().max(MAX_OUTPUT_CHARACTERS * 2))
+                .min(1)
+                .max(MAX_SOURCE_SPANS + 1),
+            })
+            .strict(),
+        ]),
       )
       .max(MAX_SOURCE_SPANS),
   })
@@ -226,23 +258,35 @@ function escapeMarkdown(text: string, strict: boolean) {
 
 export function reconstructTranslation(plan: TranslationPlan, json: string) {
   assertPlan(plan);
-  if (json.length > MAX_OUTPUT_CHARACTERS * 8) throw new PlanError('OUTPUT_TOO_LONG');
+  if (json.length > MAX_OUTPUT_CHARACTERS * 8) throw new PlanError('OUTPUT_TOO_LONG', 'LENGTH');
   let decoded: unknown;
   try {
     decoded = JSON.parse(json);
   } catch {
-    throw new PlanError('INVALID_TRANSLATION');
+    throw new PlanError('INVALID_TRANSLATION', 'JSON');
   }
   const parsed = ResponseSchema.safeParse(decoded);
-  if (!parsed.success) throw new PlanError('INVALID_TRANSLATION');
+  if (!parsed.success) throw new PlanError('INVALID_TRANSLATION', 'SEGMENTS');
   const expected = plan.segments;
-  if (parsed.data.segments.length !== expected.length) throw new PlanError('INVALID_TRANSLATION');
+  if (parsed.data.segments.length !== expected.length)
+    throw new PlanError('INVALID_TRANSLATION', 'SEGMENTS');
   const replacements = new Map<string, string>();
   for (const [index, segment] of parsed.data.segments.entries()) {
-    if (segment.id !== expected[index]!.id || !validTranslatedText(segment.text)) {
-      throw new PlanError('INVALID_TRANSLATION');
-    }
-    replacements.set(segment.id, segment.text);
+    const original = expected[index]!;
+    if (segment.id !== original.id) throw new PlanError('INVALID_TRANSLATION', 'SEGMENTS');
+    let text: string;
+    if ('parts' in segment) {
+      if (segment.parts.length !== original.tokens.length + 1)
+        throw new PlanError('INVALID_TRANSLATION', 'SEGMENTS');
+      // Model output contains prose slots only; all protected content stays local.
+      if (segment.parts.some((part) => part.includes(original.tokenPrefix)))
+        throw new PlanError('INVALID_TRANSLATION', 'TOKENS');
+      text = segment.parts
+        .map((part, partIndex) => (partIndex ? original.tokens[partIndex - 1]!.marker : '') + part)
+        .join('');
+    } else text = segment.text; // Older compatible replies still undergo exact marker validation.
+    if (!validTranslatedText(text)) throw new PlanError('INVALID_TRANSLATION', 'TEXT');
+    replacements.set(segment.id, text);
   }
   const decodedSegments = plan.segments.map((segment) => ({
     segment,
@@ -270,9 +314,9 @@ export function reconstructTranslation(plan: TranslationPlan, json: string) {
       markdownFingerprint(parseMarkdown(text)) === plan.markdownShape;
     // Try stronger local escaping if line-start punctuation creates structure.
     if (!sameShape(result)) result = render(true);
-    if (!sameShape(result)) throw new PlanError('FORMAT_CHANGED');
+    if (!sameShape(result)) throw new PlanError('FORMAT_CHANGED', 'MARKDOWN');
   }
-  if ([...result].length > MAX_OUTPUT_CHARACTERS) throw new PlanError('OUTPUT_TOO_LONG');
+  if ([...result].length > MAX_OUTPUT_CHARACTERS) throw new PlanError('OUTPUT_TOO_LONG', 'LENGTH');
   return result;
 }
 

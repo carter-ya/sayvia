@@ -25,10 +25,17 @@ export function TranslationMetrics({
   const usage = busy ? progress?.usage : result?.usage;
   const estimates = busy ? progress?.estimates : result?.estimates;
   const phase = busy
-    ? { connecting: '连接中', thinking: '思考中', translating: '生成中', validating: '校验中' }[
-        progress?.phase ?? 'connecting'
-      ]
+    ? {
+        connecting: '等待服务响应',
+        waiting: '等待模型输出',
+        thinking: '思考中',
+        translating: '生成中',
+        validating: '校验中',
+      }[progress?.phase ?? 'connecting']
     : '已完成';
+  const timing = busy ? progress?.timing : result?.timing;
+  const waiting =
+    busy && (!progress || ['connecting', 'waiting', 'thinking'].includes(progress.phase));
   return (
     <p className="translation-metrics" aria-label="翻译用量">
       {phase} · {(Math.max(0, duration) / 1000).toFixed(1)} s ·{' '}
@@ -37,6 +44,25 @@ export function TranslationMetrics({
         : estimates
           ? `估算输入 ${estimates.inputTokens.toLocaleString()} / 输出 ${estimates.outputTokens.toLocaleString()} token`
           : '等待用量信息'}
+      {timing && (
+        <span>
+          {' · '}服务响应 {(timing.responseHeadersMs / 1000).toFixed(1)} s
+          {timing.firstContentMs !== undefined
+            ? ` · 首次输出 ${(timing.firstContentMs / 1000).toFixed(1)} s`
+            : ''}
+        </span>
+      )}
+      {waiting && duration >= 8000 && (
+        <span className="translation-wait-hint">
+          <br />
+          {progress?.phase === 'thinking'
+            ? '模型正在推理，尚未返回译文。'
+            : progress?.phase === 'waiting'
+              ? '已收到服务响应，模型尚未返回译文。'
+              : '尚未收到服务响应，可能与网络、服务排队或模型处理有关。'}
+          可继续等待或取消翻译。
+        </span>
+      )}
     </p>
   );
 }

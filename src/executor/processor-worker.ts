@@ -1,3 +1,4 @@
+import { TRANSLATION_FAILURE_REASONS } from '../core/plan-types';
 import { ProviderError } from '../providers/completion-transport';
 
 type Pending = { resolve(value: unknown): void; reject(error: Error): void; cleanup(): void };
@@ -17,14 +18,22 @@ export class ProcessorWorker {
     if (!this.worker) {
       this.worker = this.create();
       this.worker.addEventListener('message', (event: MessageEvent<unknown>) => {
-        const reply = event.data as { id?: string; ok?: boolean; data?: unknown } | null;
+        const reply = event.data as {
+          id?: string;
+          ok?: boolean;
+          data?: unknown;
+          reason?: unknown;
+        } | null;
         if (!reply || typeof reply.id !== 'string') return;
         const pending = this.pending.get(reply.id);
         if (!pending) return;
         this.pending.delete(reply.id);
         pending.cleanup();
         if (reply.ok === true) pending.resolve(reply.data);
-        else pending.reject(new ProviderError('FORMAT_INVALID'));
+        else {
+          const reason = TRANSLATION_FAILURE_REASONS.find((value) => value === reply.reason);
+          pending.reject(new ProviderError(reason ? `FORMAT_INVALID_${reason}` : 'FORMAT_INVALID'));
+        }
       });
       this.worker.addEventListener('error', () => this.dispose());
       this.worker.addEventListener('messageerror', () => this.dispose());

@@ -1,26 +1,29 @@
 import { appearanceStyle, applyAppearance, type Appearance } from '../ui/appearance';
 
+const size = 26;
+const gap = 6;
+
 // A small independent host keeps the entry available while the dialog is closed.
 export class SelectionEntry {
   private readonly host = document.createElement('div');
   private readonly button = document.createElement('button');
   private lookupButton: HTMLButtonElement | undefined;
-  private anchor?: { x: number; y: number };
+  private anchor: { left: number; top: number; bottom: number } | undefined;
+  private buttonRect?: DOMRect;
   constructor(
     activate: () => void,
     label = '使用 Sayvia 翻译选中文字',
-    kind: 'reading' | 'writing' | 'editor' = 'reading',
+    kind: 'reading' | 'writing' = 'reading',
     lookup?: () => void,
   ) {
     if (kind === 'reading') this.host.dataset.sayviaEntry = '';
-    else if (kind === 'writing') this.host.dataset.sayviaEditorSelectionEntry = '';
-    else this.host.dataset.sayviaEditorFocusEntry = '';
+    else this.host.dataset.sayviaEditorSelectionEntry = '';
     const shadow = this.host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent =
       appearanceStyle +
       `:host { all: initial; position: fixed; z-index: 2147483647; display: none; color-scheme: light dark; }
-      button { display: grid; place-items: center; width: 26px; height: 26px; padding: 4px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--accent); box-shadow: 0 2px 8px #142f3426; cursor: pointer; }
+      button { display: grid; place-items: center; box-sizing: border-box; width: ${size}px; height: ${size}px; padding: 4px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--accent); box-shadow: 0 2px 8px #142f3426; cursor: pointer; }
       svg { width: 17px; height: 17px; } button:hover { background: var(--tint); } button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }`;
     this.button.type = 'button';
     this.button.innerHTML =
@@ -65,41 +68,55 @@ export class SelectionEntry {
   setLookupAvailable(available: boolean) {
     if (this.lookupButton) this.lookupButton.style.display = available ? '' : 'none';
   }
-  show(range: Range, pointer?: { x: number; y: number }) {
-    const rects = range.getClientRects();
-    const rect = rects[rects.length - 1] ?? range.getBoundingClientRect();
-    if (!rect.width && !rect.height) {
-      this.hide();
+  show(selection: Selection, pointer?: { x: number; y: number }) {
+    const range = selection.getRangeAt(0);
+    const rects = Array.from(range.getClientRects()).filter((rect) => rect.height > 0);
+    if (pointer) {
+      const line = rects.find((rect) => rect.top <= pointer.y && pointer.y <= rect.bottom);
+      this.place(pointer.x + 8, line?.top ?? pointer.y, line?.bottom ?? pointer.y);
       return;
     }
-    this.showRect(rect, pointer);
+    // A backward keyboard selection ends at the start of the DOM range.
+    const backward =
+      selection.focusNode === range.startContainer && selection.focusOffset === range.startOffset;
+    const line = backward ? rects[0] : rects.at(-1);
+    if (!line) return this.hide();
+    this.place(backward ? line.left : line.right + gap, line.top, line.bottom);
   }
   showRect(rect: DOMRect, pointer?: { x: number; y: number }) {
-    // Pointer selection follows the release point; keyboard selection uses its final line.
-    this.anchor = pointer
-      ? { x: pointer.x + 8, y: pointer.y + 10 }
-      : { x: rect.right + 6, y: rect.bottom + 6 };
-    this.host.style.setProperty('display', 'block', 'important');
+    // Native controls have no range rectangles. Use the release point, or
+    // keep the whole button outside the field when invoked from the keyboard.
+    if (pointer) this.place(pointer.x + 8, pointer.y - gap, pointer.y + gap);
+    else this.place(rect.right - size, rect.top, rect.bottom);
+  }
+  private place(left: number, top: number, bottom: number) {
+    this.anchor = { left, top, bottom };
     this.position();
   }
   private position = () => {
     if (!this.anchor) return;
-    const left = Math.max(
-      6,
+    const { left, top, bottom } = this.anchor;
+    const x = Math.max(
+      gap,
       Math.min(
-        this.anchor.x,
-        window.innerWidth - Math.max(32, this.host.getBoundingClientRect().width + 6),
+        left,
+        window.innerWidth - Math.max(size, this.host.getBoundingClientRect().width) - gap,
       ),
     );
-    const top = Math.max(6, Math.min(this.anchor.y, window.innerHeight - 32));
-    this.host.style.setProperty('left', `${left}px`, 'important');
-    this.host.style.setProperty('top', `${top}px`, 'important');
+    const y = top - gap - size >= gap ? top - gap - size : Math.max(gap, bottom + gap);
+    // Clamping onto a tall editor would put the action over the text/caret.
+    if (y + size + gap > window.innerHeight) return this.hide();
+    this.buttonRect = new DOMRect(x, y, size, size);
+    this.host.style.setProperty('left', `${x}px`, 'important');
+    this.host.style.setProperty('top', `${y}px`, 'important');
+    this.host.style.setProperty('display', 'block', 'important');
   };
   panelAnchor() {
-    return this.anchor ? new DOMRect(this.anchor.x, this.anchor.y, 0, 0) : undefined;
+    return this.buttonRect;
   }
 
   hide = () => {
+    this.anchor = undefined;
     this.host.style.setProperty('display', 'none', 'important');
   };
   dispose() {

@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { EXECUTOR_PORT, ExecutorCommandSchema } from '../runtime/executor-protocol';
+import { Preconnection } from './preconnection';
 import { TaskRunner } from './task-runner';
 
 export function startOffscreenRuntime() {
@@ -25,6 +26,18 @@ export function startOffscreenRuntime() {
     }
   };
   const runner = new TaskRunner(notify);
+  const preconnection = new Preconnection(document, () => {
+    try {
+      if (!port) {
+        wake();
+        return;
+      }
+      port.postMessage({ protocolVersion: 1, type: 'executor.changed', epoch });
+    } catch {
+      port = undefined;
+      wake();
+    }
+  });
   const connect = () => {
     if (port) return;
     const current = browser.runtime.connect({ name: EXECUTOR_PORT });
@@ -40,6 +53,13 @@ export function startOffscreenRuntime() {
       if (!token && request.command.type !== 'bind') return;
       token ??= request.token;
       const command = request.command;
+      if (command.type === 'warmup') {
+        try {
+          preconnection.warm(command.origin);
+        } catch {
+          /* Ignore invalid hints. */
+        }
+      }
       const data =
         command.type === 'start'
           ? runner.start(command.execution)
@@ -49,7 +69,7 @@ export function startOffscreenRuntime() {
               ? runner.cancel(command.taskId)
               : command.type === 'ack'
                 ? runner.acknowledge(command.taskId)
-                : runner.inspect();
+                : { ...runner.inspect(), warming: preconnection.active };
       current.postMessage({
         protocolVersion: 1,
         type: 'executor.reply',
@@ -74,6 +94,7 @@ export function startOffscreenRuntime() {
   window.addEventListener(
     'pagehide',
     () => {
+      preconnection.dispose();
       runner.dispose();
       port?.disconnect();
     },

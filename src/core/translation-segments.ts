@@ -145,7 +145,7 @@ export function decodeSegment(segment: TranslationSegment, translation: string) 
   for (const token of segment.tokens) {
     const start = translation.indexOf(token.marker, cursor);
     if (start < 0 || translation.indexOf(token.marker, start + token.marker.length) !== -1) {
-      throw new PlanError('INVALID_TRANSLATION');
+      throw new PlanError('INVALID_TRANSLATION', 'TOKENS');
     }
     const originalEnd = segment.text.indexOf(token.marker, templateCursor);
     const original = segment.text.slice(templateCursor, originalEnd);
@@ -164,7 +164,7 @@ export function decodeSegment(segment: TranslationSegment, translation: string) 
     remainder.includes(segment.tokenPrefix) ||
     !pieces.some((piece) => !piece.protected && piece.text.trim())
   ) {
-    throw new PlanError('INVALID_TRANSLATION');
+    throw new PlanError('INVALID_TRANSLATION', 'TOKENS');
   }
   return pieces;
 }

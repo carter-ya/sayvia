@@ -1,12 +1,18 @@
 import { newId } from '../src/runtime/uuid';
 import { browser } from 'wxt/browser';
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { mountWorkflow } from '../src/content/workflow';
+import type { mountWorkflow } from '../src/content/workflow';
+import { supportsWorkflowDocument } from '../src/content/document-support';
 
 type Controller = { token: string; workflow: ReturnType<typeof mountWorkflow>; alive(): boolean };
 export default defineContentScript({
   registration: 'runtime',
-  main(ctx) {
+  async main(ctx) {
+    // React probes element.style during module initialization. XML/SVG documents
+    // cannot host this UI, so check before importing any of its runtime code.
+    if (!supportsWorkflowDocument()) return;
+    const { mountWorkflow } = await import('../src/content/workflow');
+    if (ctx.isInvalid) return;
     const global = globalThis as typeof globalThis & { __sayviaWorkflow?: Controller };
     let controller = global.__sayviaWorkflow;
     if (controller && !controller.alive()) {

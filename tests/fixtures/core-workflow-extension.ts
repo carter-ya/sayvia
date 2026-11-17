@@ -13,7 +13,8 @@ export async function workflowFixture(options: { speech?: boolean } = {}) {
   let delay = 0;
   let responseMode: 'normal' | 'invalid' | 'rate-limited' = 'normal';
   let held = false;
-  let streaming: { gap: number; end: 'normal' | 'truncated' | 'invalid' } | undefined;
+  let streaming:
+    { gap: number; end: 'normal' | 'truncated' | 'invalid'; initialDelay: number } | undefined;
   const heldResponses = new Set<() => void>();
   const pending = new Set<object>();
   const requestBodies: string[] = [];
@@ -128,7 +129,7 @@ export async function workflowFixture(options: { speech?: boolean } = {}) {
                         },
                 );
                 if (streaming) {
-                  const { gap, end } = streaming;
+                  const { gap, end, initialDelay } = streaming;
                   response.writeHead(200, {
                     'Content-Type': 'text/event-stream',
                     'Cache-Control': 'no-cache',
@@ -156,16 +157,22 @@ export async function workflowFixture(options: { speech?: boolean } = {}) {
                     },
                   ];
                   const timers = parts.map((part, index) =>
-                    setTimeout(() => {
-                      if (!response.destroyed)
-                        response.write('data: ' + JSON.stringify(part) + '\n\n');
-                    }, index * gap),
+                    setTimeout(
+                      () => {
+                        if (!response.destroyed)
+                          response.write('data: ' + JSON.stringify(part) + '\n\n');
+                      },
+                      initialDelay + index * gap,
+                    ),
                   );
                   timers.push(
-                    setTimeout(() => {
-                      if (!response.destroyed)
-                        response.end(end === 'truncated' ? '' : 'data: [DONE]\n\n');
-                    }, parts.length * gap),
+                    setTimeout(
+                      () => {
+                        if (!response.destroyed)
+                          response.end(end === 'truncated' ? '' : 'data: [DONE]\n\n');
+                      },
+                      initialDelay + parts.length * gap,
+                    ),
                   );
                   response.on('close', () => timers.forEach(clearTimeout));
                   return;
@@ -289,8 +296,8 @@ export async function workflowFixture(options: { speech?: boolean } = {}) {
     open,
     count: () => count,
     requestBodies,
-    stream: (gap = 250, end: 'normal' | 'truncated' | 'invalid' = 'normal') => {
-      streaming = { gap, end };
+    stream: (gap = 250, end: 'normal' | 'truncated' | 'invalid' = 'normal', initialDelay = 0) => {
+      streaming = { gap, end, initialDelay };
     },
     pending: () => pending.size,
     response: (mode: typeof responseMode) => {

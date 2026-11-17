@@ -1,15 +1,19 @@
+import { warmModel } from '../runtime/model-warmup';
 import { AnchoredPanel } from './anchored-panel';
 import { LookupPopover } from './lookup-panel';
 import { copyText } from './copy-text';
 import { newId } from '../runtime/uuid';
 import { createRoot } from 'react-dom/client';
 import { browser } from 'wxt/browser';
-import { FocusedEditorEntry } from './focused-editor-entry';
 import { previewEditor } from '../adapters/preview-editor';
-import { isTextControl, detectAdapter } from '../adapters/detect';
+import { CODE_EDITOR, isTextControl, detectAdapter } from '../adapters/detect';
 import { EditorRegistry } from '../adapters/registry';
 import { ReadingSelectionCache } from '../adapters/selection-cache';
-import { captureReadingSnapshot, type ReadingSnapshot } from '../adapters/reading-snapshot';
+import {
+  captureReadingSnapshot,
+  type ReadingSnapshot,
+  type ReadingIssue,
+} from '../adapters/reading-snapshot';
 import { ReadingControls, type ReadingEntry } from './reading-controls';
 import type { TextEditorSession } from '../adapters/text-session';
 import type { TextControl, EditorSnapshot } from '../adapters/types';
@@ -41,6 +45,7 @@ type Draft = {
   reading?: ReadingSnapshot;
   readingEntry?: ReadingEntry;
   readingReady?: boolean;
+  readingIssue?: ReadingIssue;
 };
 export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const registry = new EditorRegistry();
@@ -105,7 +110,6 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     applyAppearance(host, state.appearance);
     entry.setAppearance(state.appearance);
     writeEntry.setAppearance(state.appearance);
-    focusedEntry.setAppearance(state.appearance);
     lookup.setAppearance(state.appearance);
     readingControls.setAppearance(state.appearance);
     if (visible) render();
@@ -176,12 +180,6 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
   const editorEntries = new EditorEntries((element) => {
     if (automatic) open('write', true, true, element);
   }, anchoredPanel.update);
-  const focusedEntry = new FocusedEditorEntry(
-    (element) => {
-      if (automatic) open('write', true, true, element);
-    },
-    (element) => Boolean(editorEntries.anchorFor(element)),
-  );
   const readingControls = new ReadingControls(state.appearance, showReadingEntry, () => {
     refreshEligibility();
     render();
@@ -192,7 +190,6 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     entry.owns(event) ||
     writeEntry.owns(event) ||
     editorEntries.owns(event) ||
-    focusedEntry.owns(event) ||
     readingControls.owns(event);
   const render = () => {
     if (!disposed) {
@@ -244,7 +241,10 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       const range = selection.readRange(document);
       const existing = readingControls.overlapping(range);
       if (existing) throw new Error('READING_ALREADY_APPLIED');
-      const reading = captureReadingSnapshot(range, source);
+      let readingIssue: ReadingIssue | undefined;
+      const reading = captureReadingSnapshot(range, source, (reason) => {
+        readingIssue ??= reason;
+      });
       current = {
         source,
         baseline: '',
@@ -252,6 +252,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         backendAllows: false,
         applied: false,
         ...(reading ? { reading } : {}),
+        ...(readingIssue ? { readingIssue } : {}),
       };
       reading?.subscribe(() => {
         if (current?.reading === reading && state.candidate)
@@ -369,6 +370,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         throw new Error('SELECTION_LOST');
       if (draft.reading && !draft.reading.isValid()) throw new Error('SELECTION_LOST');
       clientTaskId = newId();
+      if (draft.reading && !draft.reading.isValid()) throw new Error('SELECTION_LOST');
       draft.clientTaskId = clientTaskId;
       draft.readingReady = false;
       draft.quickReplace = false;
@@ -737,7 +739,13 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
             : state.mode === 'write' && !state.canReplace
               ? '原稿已变化或翻译已恢复，仅可复制译文。'
               : state.mode === 'read' && !state.canShowInPage
-                ? '此选区结构暂不支持原位显示，可预览与复制。'
+                ? current.reading && !current.reading.isValid()
+                  ? '网页在翻译期间更新了所选内容，请重新选择；已有译文仍可复制。'
+                  : current.reading
+                    ? '译文的文字片段无法对应原网页位置，可预览与复制。'
+                    : current.readingIssue === 'unsafe-content'
+                      ? '选区包含交互控件或实时更新区域，仅支持预览与复制。'
+                      : '原文格式与网页文字节点无法对应，仅支持预览与复制。'
                 : '译文已就绪，请预览后操作。';
     } else {
       current.backendAllows = false;
@@ -757,6 +765,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     sendResponse({ taskId: event.taskId, documentNonce: registry.documentNonce });
   };
   const focus = (event: FocusEvent) => {
+    if (event.target instanceof Element && event.target.closest(CODE_EDITOR)) entry.hide();
     if (!owns(event) && event.target !== selectedEditor?.element) {
       writeEntry.hide();
       selectedEditor = undefined;
@@ -775,18 +784,14 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     writeEntry.hide();
     selectedEditor = undefined;
     selectedPreview = undefined;
-    focusedEntry.update();
-    if (
-      event.target instanceof Element &&
-      isTextControl(event.target) &&
-      detectAdapter(event.target)
-    ) {
+    if (event.target instanceof Element && isTextControl(event.target)) {
       entry.hide();
       const element = event.target;
       if (
         automatic &&
         !state.busy &&
         !writing &&
+        detectAdapter(element) &&
         (element.selectionEnd ?? 0) > (element.selectionStart ?? 0)
       ) {
         const editor = registry.bind(element);
@@ -803,6 +808,14 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
         }
       }
       return;
+    }
+    const codeEditor = event.target instanceof Element && event.target.closest(CODE_EDITOR);
+    if (codeEditor) {
+      const live = window.getSelection();
+      if (!live || !codeEditor.contains(live.anchorNode) || !codeEditor.contains(live.focusNode)) {
+        entry.hide();
+        return;
+      }
     }
     captureSelection();
     if (automatic && !state.busy && !writing) {
@@ -824,7 +837,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
           if (preview === lastPreview) previewRange = selected.getRangeAt(0).cloneRange();
         }
         entry.show(
-          selected.getRangeAt(0),
+          selected,
           event instanceof MouseEvent ? { x: event.clientX, y: event.clientY } : undefined,
         );
       } catch {
@@ -957,6 +970,7 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       state.status = userError(error);
     }
     visible = true;
+    warmModel();
     {
       host.style.removeProperty('left');
       host.style.removeProperty('right');
@@ -1029,7 +1043,6 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
       selectedEditor = undefined;
     }
     editorEntries.setEnabled(enabled);
-    focusedEntry.setEnabled(enabled);
     if (!enabled) {
       entry.hide();
       if (entryMode === 'inline' && state.busy) {
@@ -1104,7 +1117,6 @@ export function mountWorkflow(onDisposed: () => void = () => undefined) {
     writeEntry.dispose();
     selectedEditor = undefined;
     editorEntries.dispose();
-    focusedEntry.dispose();
     readingControls.dispose();
     lookup.close();
     anchoredPanel.dispose();

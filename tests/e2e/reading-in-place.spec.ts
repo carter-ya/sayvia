@@ -269,7 +269,7 @@ test('an invalid reading snapshot reports recovery guidance before spending anot
     });
     const panel = await f.open('read');
     await expect(panel.getByRole('button', { name: '翻译', exact: true })).toBeEnabled();
-    await f.page.evaluate(() => document.body.classList.add('theme-changed'));
+    await f.page.evaluate(() => document.querySelector('#reading')!.setAttribute('hidden', ''));
     for (let index = 0; index < 2; index++) {
       await panel.getByRole('button', { name: '翻译', exact: true }).click();
       await expect(panel.getByRole('status')).toHaveText('选区已变化，请重新选择原文。');

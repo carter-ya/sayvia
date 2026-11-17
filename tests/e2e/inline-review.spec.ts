@@ -73,7 +73,7 @@ test('a native mouse selection in an inline review has a small nearby writing en
       editor = (await field.boundingBox())!;
     expect(box.width).toBe(26);
     expect(Math.abs(box.x - (editor.x + 28))).toBeLessThanOrEqual(3);
-    expect(Math.abs(box.y - (editor.y + 22))).toBeLessThanOrEqual(3);
+    expect(box.y + box.height).toBeLessThan(editor.y + 12);
     expect(f.count()).toBe(0);
     await button.click();
     const panel = f.page.getByRole('dialog', { name: 'Sayvia 翻译' });

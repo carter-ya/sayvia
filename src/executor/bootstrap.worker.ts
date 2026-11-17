@@ -1,3 +1,4 @@
+import { PlanError } from '../core/plan-types';
 import { z } from 'zod';
 import { SourceInputSchema } from '../core/source-input';
 import { MAX_OUTPUT_CHARACTERS } from '../core/translation-plan';
@@ -58,6 +59,11 @@ self.addEventListener('message', (event: MessageEvent<unknown>) => {
             : processor.reconstruct(request.value, signal)
   ).then(
     (data) => self.postMessage({ id: request.id, ok: true, data }),
-    () => self.postMessage({ id: request.id, ok: false }),
+    (error: unknown) =>
+      self.postMessage({
+        id: request.id,
+        ok: false,
+        ...(error instanceof PlanError && error.reason ? { reason: error.reason } : {}),
+      }),
   );
 });

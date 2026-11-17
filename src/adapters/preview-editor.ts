@@ -1,3 +1,5 @@
+import { CODE_EDITOR } from './detect';
+
 // Rich editors can translate selected or full visible text without claiming a
 // reliable write contract. Native controls remain handled by TextEditorSession.
 export function previewEditor(element: Element | null): HTMLElement | undefined {
@@ -8,7 +10,7 @@ export function previewEditor(element: Element | null): HTMLElement | undefined 
     !root.isConnected ||
     !root.getClientRects().length ||
     root.closest(
-      '[hidden],[inert],[aria-hidden="true"],[aria-disabled="true"],[aria-readonly="true"]',
+      `[hidden],[inert],[aria-hidden="true"],[aria-disabled="true"],[aria-readonly="true"],${CODE_EDITOR}`,
     )
   )
     return;

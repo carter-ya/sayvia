@@ -10,13 +10,20 @@ export const UsageSchema = z
   .strict();
 export type TokenUsage = z.infer<typeof UsageSchema>;
 export const EstimatesSchema = z.object({ inputTokens: Count, outputTokens: Count }).strict();
+const TimingSchema = z
+  .object({
+    responseHeadersMs: z.number().nonnegative(),
+    firstContentMs: z.number().nonnegative().optional(),
+  })
+  .strict();
 export const ProgressSchema = z
   .object({
     text: z.string().max(48_000),
     elapsedMs: z.number().nonnegative().max(120_000),
-    phase: z.enum(['connecting', 'thinking', 'translating', 'validating']),
+    phase: z.enum(['connecting', 'waiting', 'thinking', 'translating', 'validating']),
     estimates: EstimatesSchema,
     usage: UsageSchema.optional(),
+    timing: TimingSchema.optional(),
   })
   .strict();
 export type TranslationProgress = z.infer<typeof ProgressSchema>;
@@ -28,6 +35,7 @@ export const TranslationResultSchema = z
     algorithmVersion: z.string().max(80),
     streamed: z.boolean().optional(),
     usage: UsageSchema.optional(),
+    timing: TimingSchema.optional(),
     estimates: EstimatesSchema.optional(),
   })
   .strict();

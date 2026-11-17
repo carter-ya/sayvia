@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { readCompletionStream, tokenUsage } from '../../src/providers/completion-stream';
 import { MAX_STREAM_BYTES, translate } from '../../src/providers/chat-completions';
 import type { TranslationProgress } from '../../src/runtime/translation-progress';
@@ -131,6 +131,101 @@ describe('bounded completion SSE', () => {
   });
 });
 describe('provider streaming protocol', () => {
+  it('distinguishes pending headers, waiting for output, reasoning, and content without throttling transitions', async () => {
+    vi.useFakeTimers();
+    try {
+      const progress: TranslationProgress[] = [];
+      let releaseHeaders!: (response: Response) => void;
+      let stream!: ReadableStreamDefaultController<Uint8Array>;
+      const headers = new Promise<Response>((resolve) => {
+        releaseHeaders = resolve;
+      });
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          stream = controller;
+        },
+      });
+      const promise = translate(
+        {
+          config,
+          source: { kind: 'plain-text', text: '你好' },
+          sourceLanguage: 'auto',
+          targetLanguage: 'en',
+          onProgress: (p) => progress.push(p),
+        },
+        () => headers,
+      );
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(progress.map((p) => p.phase)).toEqual(['connecting']);
+      releaseHeaders(new Response(body, { headers: { 'Content-Type': 'text/event-stream' } }));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(progress.at(-1)).toMatchObject({
+        phase: 'waiting',
+        timing: { responseHeadersMs: 1000 },
+      });
+      // An empty role event must not reset the state to connecting.
+      stream.enqueue(new TextEncoder().encode(frame(event({ role: 'assistant' }))));
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(progress.at(-1)?.phase).toBe('waiting');
+      // All these events arrive at the same timestamp; phase changes must still be published.
+      stream.enqueue(
+        new TextEncoder().encode(
+          [
+            event({ reasoning_content: 'PRIVATE_REASONING' }),
+            event({}),
+            event({ content: '{"segments":[{"id":"s0","text":"Hello"}]}' }),
+            event({}, 'stop'),
+            '[DONE]',
+          ]
+            .map(frame)
+            .join(''),
+        ),
+      );
+      const result = await promise;
+      expect(progress.map((p) => p.phase)).toEqual([
+        'connecting',
+        'waiting',
+        'thinking',
+        'translating',
+        'validating',
+      ]);
+      expect(result.timing).toEqual({ responseHeadersMs: 1000, firstContentMs: 2000 });
+      expect(JSON.stringify(progress)).not.toContain('PRIVATE_REASONING');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('also reports waiting and timing when a compatible service returns non-streaming JSON', async () => {
+    const progress: TranslationProgress[] = [];
+    const result = await translate(
+      {
+        config,
+        source: { kind: 'plain-text', text: '你好' },
+        sourceLanguage: 'auto',
+        targetLanguage: 'en',
+        onProgress: (p) => progress.push(p),
+      },
+      async () =>
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                index: 0,
+                finish_reason: 'stop',
+                message: {
+                  role: 'assistant',
+                  content: '{"segments":[{"id":"s0","text":"Hello"}]}',
+                },
+              },
+            ],
+          }),
+          { headers: { 'Content-Type': 'application/json' } },
+        ),
+    );
+    expect(progress.map((p) => p.phase)).toEqual(['connecting', 'waiting', 'validating']);
+    expect(result.timing?.firstContentMs).toBeGreaterThanOrEqual(result.timing!.responseHeadersMs);
+    expect(result.text).toBe('Hello');
+  });
   it('publishes text before completion and validates the final result normally', async () => {
     const progress: TranslationProgress[] = [];
     let finished = false;

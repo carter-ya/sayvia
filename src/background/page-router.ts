@@ -7,6 +7,7 @@ import { pageOwner, type MessageSender } from './task-router';
 import { PanelAppearancePatch } from '../storage/schema';
 import { appearanceOf } from '../ui/appearance';
 import { notifyAppearance } from './appearance';
+import { supportsWorkflowDocument } from '../content/document-support';
 
 const Envelope = { protocolVersion: z.literal(1), requestId: z.uuid() };
 const Request = z.discriminatedUnion('type', [
@@ -90,11 +91,12 @@ export async function openPage(tabId: number, mode: 'read' | 'write', autoTransl
     }
     const results = await browser.scripting.executeScript({
       target: { tabId: tab.id!, frameIds: [0] },
-      // Obtain the current document without restarting WXT's content-script context.
-      func: () => undefined,
+      // Verify the current document before loading the UI or restarting its context.
+      func: supportsWorkflowDocument,
     });
     const documentId = results[0]?.documentId;
     if (!documentId) return { ok: false, error: 'CONTEXT_LOST' };
+    if (results[0]?.result !== true) return { ok: false, error: 'UNSUPPORTED' };
     let ready = false;
     try {
       const response = (await browser.tabs.sendMessage(

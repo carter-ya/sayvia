@@ -98,3 +98,30 @@ test('manual popup resumes a stream without reissuing the request and retains fi
     await f.close();
   }
 });
+
+test('separates service wait from model wait and preserves timings in the manual draft', async () => {
+  const f = await workflowFixture();
+  try {
+    f.stream(150, 'normal', 1200);
+    const release = f.hold();
+    await f.page.bringToFront();
+    const popup = await f.context.newPage();
+    await popup.goto(f.popup.url());
+    await popup.getByRole('tab', { name: '手动翻译', exact: true }).click();
+    await popup.getByLabel('待翻译文本', { exact: true }).fill('中文内容');
+    await popup.getByRole('button', { name: '翻译文本', exact: true }).click();
+    const metric = popup.getByLabel('翻译用量');
+    await expect(metric).toContainText('等待服务响应');
+    release();
+    await expect(metric).toContainText('等待模型输出');
+    await expect(metric).toContainText('服务响应');
+    await expect(popup.getByLabel('手动译文', { exact: true })).toHaveValue('English内容');
+    await expect(metric).toContainText('首次输出');
+    await f.page.bringToFront();
+    await popup.reload();
+    await expect(metric).toContainText('首次输出');
+    expect(f.count()).toBe(1);
+  } finally {
+    await f.close();
+  }
+});

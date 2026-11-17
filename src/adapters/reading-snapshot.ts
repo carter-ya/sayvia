@@ -1,5 +1,7 @@
+import { CODE_EDITOR } from './detect';
 import { captureDomRange } from './dom-selection';
 import { markdownFingerprint, parseMarkdown } from '../core/markdown';
+import type { ReadingLink } from './reading-markdown';
 import type { DomSource } from '../core/source-input';
 
 interface Slice {
@@ -23,45 +25,118 @@ interface Tree {
   value?: string;
   children?: Tree[];
 }
-const unsafe =
-  'button,[role="button"],input,textarea,select,label,summary,[contenteditable]:not([contenteditable="false"]),[role="textbox"],[aria-live],[role="status"],[role="alert"],[data-diff-side],.diff-text';
+const unsafe = `button,[role="button"],input,textarea,select,label,summary,[contenteditable]:not([contenteditable="false"]),[role="textbox"],[aria-live],[role="status"],[role="alert"],[data-diff-side],.diff-text,${CODE_EDITOR}`;
 const normalized = (text: string) => text.replace(/[\t\r\n\f ]+/g, ' ').trim();
+// Plain spans often divide one sentence into several DOM text nodes. Only
+// traverse wrappers that do not introduce layout, formatting or interaction.
+function neutralSpan(node: Node): node is HTMLSpanElement {
+  if (!(node instanceof Element) || node.tagName !== 'SPAN') return false;
+  if (
+    node.hasAttribute('role') ||
+    node.hasAttribute('tabindex') ||
+    [...node.attributes].some((a) => a.name.startsWith('aria-') || a.name.startsWith('on'))
+  )
+    return false;
+  const view = node.ownerDocument.defaultView;
+  const style = view?.getComputedStyle(node);
+  if (style?.display && !['inline', 'contents'].includes(style.display)) return false;
+  const parent = node.parentElement && view?.getComputedStyle(node.parentElement);
+  return (
+    !style ||
+    !parent ||
+    ![
+      'font-weight',
+      'font-style',
+      'font-size',
+      'font-family',
+      'text-decoration-line',
+      'color',
+      'white-space',
+      'text-transform',
+    ].some((property) => {
+      const own = style.getPropertyValue(property),
+        inherited = parent.getPropertyValue(property);
+      return own && own !== inherited;
+    })
+  );
+}
+function adjacentProse(left: Text, right: Text) {
+  let node: Node = left;
+  for (let steps = 0; steps < 256; steps++) {
+    while (!node.nextSibling) {
+      const parent = node.parentNode;
+      if (!parent || !neutralSpan(parent)) return false;
+      node = parent;
+      if (++steps >= 256) return false;
+    }
+    node = node.nextSibling;
+    while (neutralSpan(node) && node.firstChild) {
+      node = node.firstChild;
+      if (++steps >= 256) return false;
+    }
+    if (node === right) return true;
+    // Empty spans and comments have no selected text to map.
+    if (node.nodeType !== Node.COMMENT_NODE && !(neutralSpan(node) && !node.firstChild))
+      return false;
+  }
+  return false;
+}
 function leaves(tree: Tree): Leaf[] {
   if (['text', 'inlineCode', 'code'].includes(tree.type))
-    return [{ type: tree.type, value: tree.value ?? '' }];
+    return tree.type === 'text' && !tree.value?.trim()
+      ? []
+      : [{ type: tree.type, value: tree.value ?? '' }];
   return (tree.children ?? []).flatMap(leaves);
 }
 
 // The wire format stays unchanged. A local, exact leaf-to-node match is required;
 // ambiguous formatting falls back to preview instead of guessing text positions.
-export function captureReadingSnapshot(range: Range, source: DomSource) {
-  if (source.format !== 'markdown') return;
+export type ReadingIssue =
+  'unsupported-source' | 'unsafe-content' | 'node-mapping' | 'capture-failed';
+export function captureReadingSnapshot(
+  range: Range,
+  source: DomSource,
+  report?: (reason: ReadingIssue) => void,
+) {
+  if (source.format !== 'markdown') {
+    report?.('unsupported-source');
+    return;
+  }
   try {
     const groups: Group[] = [];
     const guards: Slice[] = [];
-    captureDomRange(range, range.startContainer.ownerDocument!, undefined, (node, start, end) => {
-      if (node.parentElement?.closest(unsafe)) throw Error('UNSUPPORTED');
-      const slice = { node, start, end, original: node.data, parent: node.parentNode! };
-      guards.push(slice);
-      const code = node.parentElement?.closest('code') ?? null;
-      const previous = groups.at(-1);
-      const last = previous?.slices.at(-1);
-      if (
-        previous &&
-        last &&
-        (code
-          ? previous.code === code
-          : !previous.code && last.node.nextSibling === node && last.parent === slice.parent)
-      ) {
-        previous.slices.push(slice);
-        previous.text += node.data.slice(start, end);
-      } else groups.push({ slices: [slice], text: node.data.slice(start, end), code });
-    });
+    const links = new Map<Element, ReadingLink>();
+    const flat = captureDomRange(
+      range,
+      range.startContainer.ownerDocument!,
+      links,
+      (node, start, end) => {
+        if (node.parentElement?.closest(unsafe)) {
+          report?.('unsafe-content');
+          throw Error('UNSUPPORTED');
+        }
+        const slice = { node, start, end, original: node.data, parent: node.parentNode! };
+        guards.push(slice);
+        const code = node.parentElement?.closest('code') ?? null;
+        const previous = groups.at(-1);
+        const last = previous?.slices.at(-1);
+        if (
+          previous &&
+          last &&
+          (code ? previous.code === code : !previous.code && adjacentProse(last.node, node))
+        ) {
+          previous.slices.push(slice);
+          previous.text += node.data.slice(start, end);
+        } else groups.push({ slices: [slice], text: node.data.slice(start, end), code });
+      },
+    );
     const nonempty = groups.filter((group) => group.text.trim());
     const tree = parseMarkdown(source.text);
     const originalLeaves = leaves(tree);
-    if (!nonempty.length || nonempty.length > 512 || nonempty.length !== originalLeaves.length)
+    if (!nonempty.length || nonempty.length > 512 || nonempty.length !== originalLeaves.length) {
+      report?.('node-mapping');
       return;
+    }
     if (
       nonempty.some((group, index) => {
         const leaf = originalLeaves[index]!;
@@ -70,16 +145,44 @@ export function captureReadingSnapshot(range: Range, source: DomSource) {
           normalized(group.text) !== normalized(leaf.value)
         );
       })
-    )
+    ) {
+      report?.('node-mapping');
       return;
+    }
+    const capturedRange = range.cloneRange();
+    const signature = JSON.stringify({ flat, links: [...links.values()] });
     return new ReadingSnapshot(
       nonempty,
       guards,
       originalLeaves,
       markdownFingerprint(tree),
       range.startContainer.ownerDocument!,
+      () => {
+        if (guards.some((slice) => slice.node.parentElement?.closest(unsafe))) return false;
+        if (
+          nonempty.some(
+            (group) =>
+              !group.code &&
+              group.slices.some(
+                (slice, index) =>
+                  index > 0 && !adjacentProse(group.slices[index - 1]!.node, slice.node),
+              ),
+          )
+        )
+          return false;
+        const currentLinks = new Map<Element, ReadingLink>();
+        const currentFlat = captureDomRange(
+          capturedRange,
+          capturedRange.startContainer.ownerDocument!,
+          currentLinks,
+        );
+        return (
+          JSON.stringify({ flat: currentFlat, links: [...currentLinks.values()] }) === signature
+        );
+      },
     );
   } catch {
+    report?.('capture-failed');
     return;
   }
 }
@@ -99,6 +202,7 @@ export class ReadingSnapshot {
     private readonly originalLeaves: Leaf[],
     private readonly shape: string,
     private readonly document: Document,
+    private readonly verifyAppearance: () => boolean,
   ) {
     this.url = document.URL;
     for (const slice of guards) {
@@ -130,11 +234,27 @@ export class ReadingSnapshot {
   }
   private inspect(records: MutationRecord[]) {
     if (!this.valid) return;
+    let appearanceValid: boolean | undefined;
     const owned = (node: Node) => node instanceof Element && node.hasAttribute('data-sayvia-ui');
     if (
       records.some((record) => {
         if (record.type === 'characterData') return this.expected.has(record.target as Text);
-        if (record.type === 'attributes') return this.ancestors.has(record.target);
+        if (record.type === 'attributes') {
+          if (!this.ancestors.has(record.target)) return false;
+          // A ticker's data attribute or a theme class alone does not change the
+          // selected prose. Recheck the exact selection before invalidating it.
+          if (
+            this.translated ||
+            ['href', 'contenteditable', 'role', 'aria-live'].includes(record.attributeName ?? '')
+          )
+            return true;
+          try {
+            appearanceValid ??= this.verifyAppearance();
+            return !appearanceValid;
+          } catch {
+            return true;
+          }
+        }
         const changes = [...record.addedNodes, ...record.removedNodes];
         if (changes.length && changes.every(owned)) return false;
         return (
