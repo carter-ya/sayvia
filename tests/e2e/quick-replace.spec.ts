@@ -96,7 +96,7 @@ test('ordinary text inputs replace only the recorded selection and keep one-step
 });
 
 for (const [response, expected] of [
-  ['invalid', '译文格式校验未通过，请手动重试。'],
+  ['invalid', '模型返回的翻译片段缺失、重复或编号不匹配，请手动重试。'],
   ['rate-limited', '服务暂时限流，请稍后手动重试。'],
 ] as const) {
   test(`quick mode preserves the original on ${response} without retry or server-detail exposure`, async () => {

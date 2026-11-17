@@ -106,6 +106,7 @@ test('separates service wait from model wait and preserves timings in the manual
     const release = f.hold();
     await f.page.bringToFront();
     const popup = await f.context.newPage();
+    await f.page.bringToFront();
     await popup.goto(f.popup.url());
     await popup.getByRole('tab', { name: '手动翻译', exact: true }).click();
     await popup.getByLabel('待翻译文本', { exact: true }).fill('中文内容');
