@@ -1,3 +1,4 @@
+import type { TranslationFailureReason } from '../core/plan-types';
 import { z } from 'zod';
 import { readCompletionStream, tokenUsage } from './completion-stream';
 import { chatCompletionsEndpoint } from './endpoint';
@@ -16,6 +17,7 @@ export type ProviderErrorCode =
   | 'TIMEOUT'
   | 'UNSUPPORTED_RESPONSE'
   | 'FORMAT_INVALID'
+  | `FORMAT_INVALID_${TranslationFailureReason}`
   | 'CANCELED';
 export class ProviderError extends Error {
   constructor(readonly code: ProviderErrorCode) {
@@ -149,6 +151,7 @@ export async function sendCompletion(
     reasoning: number,
     usage?: TokenUsage,
   ) => Promise<void> = async () => {},
+  onHeaders?: () => Promise<void>,
 ) {
   if (signal.aborted) throw new ProviderError('CANCELED');
   const response = await fetcher(request.endpoint, {
@@ -165,6 +168,7 @@ export async function sendCompletion(
     body: request.body,
   });
   if (!response.ok) await httpError(response);
+  await onHeaders?.();
   const streamed =
     response.headers.get('content-type')?.toLowerCase().includes('text/event-stream') ?? false;
   let content: string;

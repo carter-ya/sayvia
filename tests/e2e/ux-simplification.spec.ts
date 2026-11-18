@@ -48,7 +48,8 @@ test('multiline selection follows the mouse release and opens a compact translat
     await expect(icon).toBeVisible();
     const rect = (await icon.boundingBox())!;
     expect(Math.abs(rect.x - point.x)).toBeLessThanOrEqual(18);
-    expect(Math.abs(rect.y - point.y)).toBeLessThanOrEqual(18);
+    expect(rect.y + rect.height).toBeLessThan(end!.y);
+    expect(end!.y - (rect.y + rect.height)).toBeLessThanOrEqual(18);
     expect(rect.width).toBeLessThanOrEqual(28);
     expect(f.count()).toBe(0);
     await f.page.screenshot({

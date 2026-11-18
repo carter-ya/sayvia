@@ -576,6 +576,13 @@ p {
   font-size: 10px;
   margin-top: 6px;
 }
+.popup .translation-metrics {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 8px 0 6px;
+  font-variant-numeric: tabular-nums;
+}
 .popup-status {
   font-size: 12px;
   margin-bottom: 0;

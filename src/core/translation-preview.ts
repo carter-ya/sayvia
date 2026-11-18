@@ -3,7 +3,7 @@ import { MAX_OUTPUT_CHARACTERS } from './translation-plan';
 
 // Parse only the segment envelope. Incomplete JSON string escapes stay buffered;
 // the normal final reconstruction remains the sole authority for a usable result.
-function partialSegments(input: string) {
+function partialSegments(input: string, plan: TranslationPlan) {
   let cursor = 0;
   const space = () => {
     while (/\s/.test(input[cursor] ?? '') && cursor < input.length) cursor++;
@@ -56,6 +56,26 @@ function partialSegments(input: string) {
       return;
     }
   };
+  const partArray = (index: number) => {
+    if (!take('[')) return;
+    const segment = plan.segments[index];
+    if (!segment) return;
+    const parts: string[] = [];
+    const value = () =>
+      parts.map((part, i) => (i ? segment.tokens[i - 1]!.marker : '') + part).join('');
+    for (let i = 0; i <= segment.tokens.length; i++) {
+      const part = string();
+      if (!part || part.value.includes(segment.tokenPrefix)) return;
+      parts.push(part.value);
+      if (!part.complete) return { value: value(), complete: false };
+      if (take(']'))
+        return parts.length === segment.tokens.length + 1
+          ? { value: value(), complete: true }
+          : undefined;
+      if (!take(',')) return { value: value(), complete: false };
+    }
+    return;
+  };
   const values: { id: string; text: string; complete: boolean }[] = [];
   if (!take('{')) return values;
   const key = string();
@@ -69,16 +89,21 @@ function partialSegments(input: string) {
       const key = string();
       if (
         !key?.complete ||
-        !['id', 'text'].includes(key.value) ||
+        !['id', 'text', 'parts'].includes(key.value) ||
         keys.has(key.value) ||
         !take(':')
       )
         return values;
+      if (
+        (key.value === 'parts' && keys.has('text')) ||
+        (key.value === 'text' && keys.has('parts'))
+      )
+        return values;
       keys.add(key.value);
-      const value = string();
+      const value = key.value === 'parts' ? partArray(values.length) : string();
       if (!value) return values;
       if (key.value === 'id' && value.complete) id = value.value;
-      if (key.value === 'text') text = value.value;
+      if (key.value === 'text' || key.value === 'parts') text = value.value;
       if (!value.complete) {
         if (id !== undefined && text !== undefined) values.push({ id, text, complete: false });
         return values;
@@ -126,7 +151,7 @@ function restorePrefix(segment: TranslationSegment, text: string) {
 }
 export function previewTranslation(plan: TranslationPlan, content: string) {
   if (content.length > MAX_OUTPUT_CHARACTERS * 8) return '';
-  const segments = partialSegments(content);
+  const segments = partialSegments(content, plan);
   let output = '',
     cursor = 0;
   for (let index = 0; index < segments.length; index++) {

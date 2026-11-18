@@ -325,6 +325,7 @@ test('real offscreen execution uses a bundled Worker, private credentials, cance
     expect(await command(background, { type: 'inspect' })).toEqual({
       active: 0,
       pendingResults: 0,
+      warming: false,
     });
     const observed = await observer.evaluate(
       () => (document.body as HTMLElement & { observedMessages?: string[] }).observedMessages,

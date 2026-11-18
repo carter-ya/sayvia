@@ -509,6 +509,7 @@ export class TaskBroker {
         streamed: result.streamed,
         usage: result.usage,
         estimates: result.estimates,
+        timing: result.timing,
       });
       draft.revision = (draft.revision ?? 0) + 1;
     } else if (

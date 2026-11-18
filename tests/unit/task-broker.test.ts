@@ -1015,11 +1015,16 @@ describe('ephemeral stream routing', () => {
     f.views.set(id, {
       taskId: id,
       state: 'ready',
-      result: { ...result, usage: { inputTokens: 12, outputTokens: 8, totalTokens: 20 } },
+      result: {
+        ...result,
+        usage: { inputTokens: 12, outputTokens: 8, totalTokens: 20 },
+        timing: { responseHeadersMs: 2, firstContentMs: 5 },
+      },
     });
     const final = await f.broker.readManual(who.tabId);
     expect(final?.task?.progress).toBeUndefined();
     expect(final?.metrics?.usage?.totalTokens).toBe(20);
+    expect(final?.metrics?.timing).toEqual({ responseHeadersMs: 2, firstContentMs: 5 });
     expect(SessionSchema.safeParse(f.saved()).success).toBe(true);
   });
 });

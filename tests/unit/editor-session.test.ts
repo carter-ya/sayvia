@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { detectAdapter } from '../../src/adapters/detect';
+import { previewEditor } from '../../src/adapters/preview-editor';
 import { EditorRegistry } from '../../src/adapters/registry';
 import { TextEditorSession } from '../../src/adapters/text-session';
 import { reviewComposer } from '../fixtures/github-review-composer';
@@ -320,6 +321,24 @@ describe('editor safety', () => {
     document.body.append(password);
     expect(detectAdapter(password)).toBeUndefined();
   });
+
+  it.each(['ace_editor', 'CodeMirror', 'monaco-editor', 'cm-editor'])(
+    'excludes %s keyboard proxies and contenteditable surfaces from focused writing actions',
+    (className) => {
+      const wrapper = document.createElement('div');
+      document.body.append(wrapper);
+      const { element } = editor('IME buffer', wrapper);
+      const rich = document.createElement('div');
+      rich.setAttribute('contenteditable', 'true');
+      Object.defineProperty(rich, 'isContentEditable', { value: true });
+      wrapper.append(rich);
+      expect(detectAdapter(element)).toBe('generic-text');
+      expect(previewEditor(rich)).toBe(rich);
+      wrapper.className = className;
+      expect(detectAdapter(element)).toBeUndefined();
+      expect(previewEditor(rich)).toBeUndefined();
+    },
+  );
 
   it('recognizes inline review drafts and modern GitHub Markdown editors', () => {
     const { element } = editor();

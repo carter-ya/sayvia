@@ -117,21 +117,25 @@ async function fixture() {
   };
 }
 async function idle(page: Page) {
+  // Popup preconnect may keep an otherwise idle executor for its 15 second lease.
   await expect
-    .poll(() =>
-      page.evaluate(
-        async () =>
-          (
-            await (globalThis as unknown as ChromeGlobal).chrome.runtime.getContexts({
-              contextTypes: ['OFFSCREEN_DOCUMENT'],
-            })
-          ).length,
-      ),
+    .poll(
+      () =>
+        page.evaluate(
+          async () =>
+            (
+              await (globalThis as unknown as ChromeGlobal).chrome.runtime.getContexts({
+                contextTypes: ['OFFSCREEN_DOCUMENT'],
+              })
+            ).length,
+        ),
+      { timeout: 20_000 },
     )
     .toBe(0);
 }
 
 test('production learning routes deliver read-only page results and restore typed popup lookup', async () => {
+  test.setTimeout(60_000);
   const f = await fixture();
   try {
     await f.page.locator('#lookup').click();
@@ -291,6 +295,7 @@ test('an unresponsive API is aborted at the real 60 second deadline with no retr
 });
 
 test('popup drafts and results survive popup closure and share the target tab mutex', async () => {
+  test.setTimeout(60_000);
   const f = await fixture();
   try {
     const popup = await f.context.newPage();

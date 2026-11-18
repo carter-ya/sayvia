@@ -169,6 +169,18 @@ export class ExecutorHost {
       }
     });
   }
+  warmup(origin: string) {
+    return this.serial(async () => {
+      await this.connect(true);
+      try {
+        await this.send({ type: 'warmup', origin });
+      } catch (error) {
+        // Cleanup is queued after this operation, avoiding a nested serial lock.
+        void this.closeIfIdle().catch(() => undefined);
+        throw error;
+      }
+    });
+  }
   start(prepare: (epoch: string) => Promise<Execution>) {
     return this.serial(async () => {
       const identity = await this.connect(true);
@@ -197,8 +209,9 @@ export class ExecutorHost {
       const state = (await this.send({ type: 'inspect' })) as {
         active: number;
         pendingResults: number;
+        warming?: boolean;
       };
-      if (state.active || state.pendingResults) return;
+      if (state.active || state.pendingResults || state.warming) return;
       await this.api.offscreen.closeDocument();
       this.connection = undefined;
       await this.api.storage.session.remove(ROOT);

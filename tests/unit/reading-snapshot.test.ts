@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 // @vitest-environment-options {"url":"https://example.test/article"}
+import { parseMarkdown } from '../../src/core/markdown';
+import { bitcoinDescription } from '../fixtures/bitcoin-description';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ReadingSelectionCache } from '../../src/adapters/selection-cache';
 import { captureReadingSnapshot, type ReadingSnapshot } from '../../src/adapters/reading-snapshot';
@@ -18,6 +20,84 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 describe('reading snapshot', () => {
+  it('maps the reported Bitcoin paragraphs even when plain prose is split into neutral spans', () => {
+    const article = document.createElement('article');
+    const tree = parseMarkdown(bitcoinDescription);
+    for (const block of tree.children) {
+      if (block.type !== 'paragraph') throw Error('Unexpected fixture');
+      const p = document.createElement('p');
+      for (const child of block.children) {
+        if (child.type === 'link') {
+          const a = document.createElement('a');
+          a.href = child.url;
+          a.textContent = child.children.map((n) => ('value' in n ? n.value : '')).join('');
+          p.append(a);
+        } else if (child.type === 'text') {
+          const cut = Math.floor(child.value.length / 2);
+          for (const text of [child.value.slice(0, cut), child.value.slice(cut)]) {
+            if (!text) continue;
+            const span = document.createElement('span');
+            span.textContent = text;
+            p.append(span);
+          }
+        }
+      }
+      article.append(p);
+    }
+    document.body.append(article);
+    const nodes = [...article.querySelectorAll('*')];
+    const original = article.innerHTML;
+    const { source, snapshot } = capture(article);
+    expect(snapshot).toBeDefined();
+    expect(snapshot!.show(source.text.replace('is a decentralized', '是一种去中心化的'))).toBe(
+      true,
+    );
+    expect(article.textContent).toContain('是一种去中心化的');
+    expect([...article.querySelectorAll('*')]).toEqual(nodes);
+    expect(article.querySelectorAll('a')).toHaveLength(7);
+    expect(snapshot!.show(null)).toBe(true);
+    expect(article.innerHTML).toBe(original);
+  });
+  it('preserves whitespace-only separators between adjacent links', () => {
+    document.body.innerHTML = '<p><a href="/one">One</a> <a href="/two">Two</a></p>';
+    const p = document.querySelector('p')!;
+    const { source, snapshot } = capture(p);
+    expect(snapshot).toBeDefined();
+    expect(snapshot!.show(source.text.replace('One', '一').replace('Two', '二'))).toBe(true);
+    expect(p.textContent).toBe('一 二');
+    expect(snapshot!.show(null)).toBe(true);
+    expect(p.textContent).toBe('One Two');
+  });
+
+  it.each([
+    '<p>Read <span style="font-weight: bold">important</span> text.</p>',
+    '<p><span style="background-color: yellow">Warning</span><span> text.</span></p>',
+    '<p><span style="background-image: linear-gradient(red, blue)">Warning</span><span> text.</span></p>',
+    '<p>Read <span style="display: block">separate</span> text.</p>',
+    '<p>Read<br>another line.</p>',
+    '<p>Read <span role="link" tabindex="0">interactive</span> text.</p>',
+  ])('does not flatten formatting, layout or interactive boundaries: %s', (html) => {
+    document.body.innerHTML = html;
+    const p = document.querySelector('p')!;
+    const { snapshot } = capture(p);
+    expect(snapshot?.canApply('扁平译文') ?? false).toBe(false);
+  });
+  it('keeps partial selections and detects updates inside merged span groups', () => {
+    document.body.innerHTML = '<p><span>Before Read </span><span>first. After</span></p>';
+    const p = document.querySelector('p')!;
+    const nodes = [...p.querySelectorAll('span')].map((span) => span.firstChild as Text);
+    const range = document.createRange();
+    range.setStart(nodes[0]!, 7);
+    range.setEnd(nodes[1]!, 6);
+    const { snapshot } = capture(p, range);
+    expect(snapshot!.show('阅读优先。')).toBe(true);
+    expect(p.textContent).toBe('Before 阅读优先。 After');
+    expect(snapshot!.show(null)).toBe(true);
+    expect(p.textContent).toBe('Before Read first. After');
+    nodes[1]!.data = 'Website update';
+    expect(snapshot!.show('旧译文')).toBe(false);
+    expect(nodes[1]!.data).toBe('Website update');
+  });
   it('keeps adjacent native text nodes and their exact originals across toggles', () => {
     const p = document.createElement('p');
     const nodes = ['Read ', 'first', '.'].map((text) => document.createTextNode(text));
@@ -29,6 +109,40 @@ describe('reading snapshot', () => {
     expect([...p.childNodes]).toEqual(nodes);
     expect(snapshot!.show(null)).toBe(true);
     expect(nodes.map((node) => node.data)).toEqual(['Read ', 'first', '.']);
+  });
+  it.each(['text', 'span'])('rejects new %s content inserted between merged spans', (kind) => {
+    document.body.innerHTML = '<p><span>Read </span><span>first.</span></p>';
+    const p = document.querySelector('p')!;
+    const { snapshot } = capture(p);
+    const inserted =
+      kind === 'text' ? document.createTextNode('new content ') : document.createElement('span');
+    inserted.textContent = 'new content ';
+    p.insertBefore(inserted, p.lastChild);
+    const current = p.innerHTML;
+    expect(snapshot!.canApply('阅读优先。')).toBe(false);
+    expect(snapshot!.show('阅读优先。')).toBe(false);
+    expect(p.innerHTML).toBe(current);
+  });
+  it.each(['paragraph', 'wrapper'])('rejects inserted prose at the %s boundary', (target) => {
+    document.body.innerHTML = '<p><span><span>Read </span></span><span>first.</span></p>';
+    const p = document.querySelector('p')!;
+    const { snapshot } = capture(p);
+    const container = target === 'paragraph' ? p : p.firstElementChild!;
+    container.insertBefore(document.createTextNode('new content '), container.firstChild);
+    const current = p.innerHTML;
+    expect(snapshot!.show('阅读优先。')).toBe(false);
+    expect(p.innerHTML).toBe(current);
+  });
+  it('does not restore stale merged prose after content is inserted between its spans', () => {
+    document.body.innerHTML = '<p><span>Read </span><span>first.</span></p>';
+    const p = document.querySelector('p')!;
+    const { snapshot } = capture(p);
+    expect(snapshot!.show('阅读优先。')).toBe(true);
+    p.insertBefore(document.createTextNode('new content '), p.lastChild);
+    const current = p.innerHTML;
+    expect(snapshot!.show(null)).toBe(false);
+    snapshot!.dispose(true);
+    expect(p.innerHTML).toBe(current);
   });
   it('changes only selected text, preserving node identity and repeated restoration', () => {
     document.body.innerHTML = '<p>Before Read first. After</p>';
@@ -101,6 +215,23 @@ describe('reading snapshot', () => {
     p.firstChild!.nodeValue = 'Newest website content';
     snapshot!.dispose(true);
     expect(p.textContent).toBe('Newest website content');
+  });
+  it('accepts unrelated ancestor attributes and theme changes when the exact selected content stays unchanged', () => {
+    document.body.innerHTML = '<p id=selected>Read <a href="/guide">guide</a> first.</p>';
+    const p = document.querySelector('p')!,
+      { snapshot, source } = capture(p);
+    document.body.dataset.ticker = '42';
+    document.body.classList.add('theme-dark');
+    expect(snapshot!.isValid()).toBe(true);
+    expect(snapshot!.show(source.text.replace('Read', '阅读'))).toBe(true);
+    expect(snapshot!.show(null)).toBe(true);
+  });
+  it('still rejects appearance changes which hide selected text or change mapping semantics', () => {
+    document.body.innerHTML = '<p>Read first.</p>';
+    const p = document.querySelector('p')!,
+      { snapshot } = capture(p);
+    p.style.display = 'none';
+    expect(snapshot!.show('阅读优先。')).toBe(false);
   });
   it('invalidates rerenders and link attribute changes, while allowing unrelated changes', () => {
     document.body.innerHTML =

@@ -1,6 +1,10 @@
 import { isGitHubCommentEditor } from './github-editor';
 import type { AdapterKind, TextControl } from './types';
 
+// These editors manage their own document and may keep a textarea at the caret
+// solely for keyboard input, IME and clipboard operations.
+export const CODE_EDITOR = '.ace_editor, .CodeMirror, .cm-editor, .monaco-editor';
+
 export function isTextControl(element: Element): element is TextControl {
   return (
     element instanceof HTMLTextAreaElement ||
@@ -17,7 +21,7 @@ export function isEligible(element: TextControl) {
     !element.matches(':disabled') &&
     element.getClientRects().length > 0 &&
     !element.readOnly &&
-    !element.closest('[inert], [hidden], [aria-hidden="true"]') &&
+    !element.closest(`[inert], [hidden], [aria-hidden="true"], ${CODE_EDITOR}`) &&
     !/(?:^|\s)(?:cc-|current-password|new-password|one-time-code)/.test(autocomplete) &&
     element.ownerDocument.defaultView?.getComputedStyle(element).display !== 'none' &&
     element.ownerDocument.defaultView?.getComputedStyle(element).visibility !== 'hidden'

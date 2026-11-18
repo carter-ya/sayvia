@@ -1,3 +1,4 @@
+import { handleModelWarmup } from '../src/background/model-warmup';
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { PopupContext } from '../src/runtime/manual-draft';
@@ -134,6 +135,10 @@ export default defineBackground(() => {
   });
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (typeof message !== 'object' || message === null) return;
+    if (message.type === 'model.warmup') {
+      void handleModelWarmup(message, sender, repository, host, sites).then(sendResponse);
+      return true;
+    }
     if (typeof message.type === 'string' && message.type.startsWith('page.')) {
       void handlePageMessage(message, sender, repository, sites).then(sendResponse);
       return true;

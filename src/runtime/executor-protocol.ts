@@ -45,6 +45,7 @@ export const ExecutorCommandSchema = z
     token: z.uuid(),
     command: z.discriminatedUnion('type', [
       z.object({ type: z.literal('bind') }).strict(),
+      z.object({ type: z.literal('warmup'), origin: z.string().min(1).max(2048) }).strict(),
       z.object({ type: z.literal('start'), execution: ExecutionSchema }).strict(),
       z.object({ type: z.literal('query'), ...TaskCommand.shape }).strict(),
       z.object({ type: z.literal('cancel'), ...TaskCommand.shape }).strict(),
